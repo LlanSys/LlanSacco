@@ -1,0 +1,126 @@
+@page "/hr"
+
+@rendermode InteractiveServer
+@using LS.SharedKernel.Features.HR.Payroll.Dtos
+@using LS.UI.Rcl.Features.HR.Payroll.Contracts.Interfaces
+@inject IPayrollService PayrollService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+
+<PageTitle>HR & Payroll | LlanSacco</PageTitle>
+
+<RequireAuthenticated>
+    <section class="dashboard-page">
+        <div class="d-flex justify-space-between align-center mb-6">
+            <div>
+                <MudText Typo="Typo.h4" Class="fw-bold" Color="Color.Primary">HR Dashboard</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Surface">Overview of personnel and payroll metrics.</MudText>
+            </div>
+            <div>
+                <MudButton Variant="Variant.Filled" Href="/hr/payroll" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Payments">
+                    Manage Payroll
+                </MudButton>
+            </div>
+        </div>
+
+        @if (IsLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
+        }
+        else if (Stats == null)
+        {
+            <MudAlert Severity="Severity.Error">Failed to load HR statistics.</MudAlert>
+        }
+        else
+        {
+            <MudGrid Class="mb-6">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-primary" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Stats.TotalEmployees</MudText>
+                        <MudText Typo="Typo.body1">Total Employees</MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-warning" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                        <MudIcon Icon="@Icons.Material.Filled.EventNote" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Stats.PendingLeaveRequests</MudText>
+                        <MudText Typo="Typo.body1">Pending Leave</MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-success" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.h5" Class="fw-bold">@Stats.TotalPayrollExpenseThisMonth.ToString("C")</MudText>
+                        <MudText Typo="Typo.body1">Monthly Payroll</MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-info" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.h6" Class="fw-bold">@Stats.NextPayrollPeriod</MudText>
+                        <MudText Typo="Typo.body1">Next Payroll</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+            
+            <MudGrid Class="mt-4">
+                <MudItem xs="12">
+                    <MudCard Elevation="2" Style="border-radius: 12px;">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Quick Actions</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <div class="d-flex flex-wrap gap-4">
+                                <MudButton Variant="Variant.Outlined" Href="/hr/payroll" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AccountBalanceWallet">
+                                    Payroll Dashboard
+                                </MudButton>
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        }
+    </section>
+</RequireAuthenticated>
+
+@code {
+    private HrDashboardStatsResponse? Stats { get; set; }
+    private bool IsLoading { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await PayrollService.GetDashboardStatsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Stats = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load HR dashboard statistics.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading HR statistics: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

@@ -1,0 +1,209 @@
+@page "/accounting/journal-entry"
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IFinanceService FinanceService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+@attribute [Authorize]
+
+<PageTitle>New Journal Entry</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">New Journal Entry</MudText>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/accounting" Class="mb-4">Back to Accounting</MudButton>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudTextField @bind-Value="ReferenceNumber" Label="Reference Number" Required="true" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudDatePicker Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Date="TransactionDate" Label="Transaction Date" Required="true" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField @bind-Value="Description" Label="Description" Required="true" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudText Typo="Typo.h6" Class="mb-4">Lines</MudText>
+
+<MudTable Items="Entries" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>Account</MudTh>
+        <MudTh>Debit</MudTh>
+        <MudTh>Credit</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Account">
+            <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="context.AccountId" Placeholder="Select Account" Strict="true" Required="true">
+                @if (Accounts != null)
+                {
+                    @foreach (var acc in Accounts)
+                    {
+                        <MudSelectItem Value="@acc.Id">@acc.AccountCode - @acc.AccountName</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+        </MudTd>
+        <MudTd DataLabel="Debit">
+            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="context.Debit" Min="0" HideSpinButtons="true" />
+        </MudTd>
+        <MudTd DataLabel="Credit">
+            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="context.Credit" Min="0" HideSpinButtons="true" />
+        </MudTd>
+        <MudTd DataLabel="Description">
+            <MudTextField @bind-Value="context.Description" />
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveLine(context))" />
+        </MudTd>
+    </RowTemplate>
+    <FooterContent>
+        <MudTFootRow>
+            <MudTd><strong>Totals</strong></MudTd>
+            <MudTd><strong>@TotalDebit.ToString("N2")</strong></MudTd>
+            <MudTd><strong>@TotalCredit.ToString("N2")</strong></MudTd>
+            <MudTd></MudTd>
+            <MudTd></MudTd>
+        </MudTFootRow>
+    </FooterContent>
+</MudTable>
+
+<MudButton Variant="Variant.Outlined" Class="mt-4 me-2" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddLine">Add Line</MudButton>
+
+<MudButton Variant="Variant.Outlined" Class="mt-4" Color="Color.Primary" OnClick="Submit" Disabled="@(IsSubmitting || TotalDebit != TotalCredit || TotalDebit == 0 || string.IsNullOrWhiteSpace(ReferenceNumber))">
+    @if (IsSubmitting)
+    {
+        <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+        <MudText Class="ms-2">Posting...</MudText>
+    }
+    else
+    {
+        <MudText>Post Journal</MudText>
+    }
+</MudButton>
+
+@code {
+    private string ReferenceNumber { get; set; } = "";
+    private string Description { get; set; } = "";
+    private DateTime? TransactionDate { get; set; } = DateTime.Today;
+    private bool IsSubmitting { get; set; }
+
+    private List<JournalEntryLineViewModel> Entries { get; set; } = new();
+    private IReadOnlyList<AccountResponse>? Accounts { get; set; }
+
+    private decimal TotalDebit => Entries.Sum(e => e.Debit);
+    private decimal TotalCredit => Entries.Sum(e => e.Credit);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+        AddLine();
+        AddLine();
+    }
+
+    private async Task LoadAccounts()
+    {
+        try
+        {
+            var response = await FinanceService.GetAccountsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Accounts = response.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load accounts: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddLine()
+    {
+        Entries.Add(new JournalEntryLineViewModel());
+    }
+
+    private void RemoveLine(JournalEntryLineViewModel line)
+    {
+        Entries.Remove(line);
+    }
+
+    private async Task Submit()
+    {
+        if (TotalDebit != TotalCredit)
+        {
+            Snackbar.Add("Journal entry must balance (Total Debit must equal Total Credit)", Severity.Warning);
+            return;
+        }
+        
+        var confirm = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Post Journal?",
+            Text = $"Are you sure you want to post this journal entry for {TotalDebit:N2}?",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, post it!",
+            CancelButtonText = "Cancel"
+        });
+
+        if (string.IsNullOrEmpty(confirm.Value))
+        {
+            return;
+        }
+
+        IsSubmitting = true;
+        try
+        {
+            var request = new CreateJournalRequest
+            {
+                ReferenceNumber = ReferenceNumber,
+                Description = Description,
+                TransactionDate = TransactionDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(TransactionDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow,
+                Entries = Entries.Select(e => new CreateJournalEntryDto
+                {
+                    AccountId = e.AccountId,
+                    Debit = e.Debit,
+                    Credit = e.Credit,
+                    Description = e.Description
+                }).ToList()
+            };
+
+            var response = await FinanceService.PostJournalAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Journal posted successfully!", Severity.Success);
+                NavigationManager.NavigateTo("/accounting/trial-balance");
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to post journal", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    public class JournalEntryLineViewModel
+    {
+        public Guid AccountId { get; set; }
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public string? Description { get; set; }
+    }
+}
+
+
+
+
+
+

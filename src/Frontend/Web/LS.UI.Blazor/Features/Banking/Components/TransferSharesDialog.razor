@@ -1,0 +1,93 @@
+@using LS.SharedKernel.Features.Banking.Shares.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@inject ISharesService SharesService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body1" Class="mb-4">Transfer <strong>@ProductName</strong> shares</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4" Color="Color.Info">Available Shares: @AvailableShares</MudText>
+
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField @bind-Value="_model.ToMemberIdStr" Label="To Member ID (GUID)" Required="true" RequiredError="Recipient Member ID is required" />
+            
+            <MudNumericField @bind-Value="_model.NumberOfShares" Label="Number of Shares" Min="1" Max="AvailableShares" Required="true" RequiredError="Number of shares is required" Class="mt-4" />
+            
+            <MudTextField @bind-Value="_model.Notes" Label="Notes" Lines="2" Class="mt-4" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_success || _isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>Transfer</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Guid FromMemberId { get; set; }
+    [Parameter] public Guid ShareProductId { get; set; }
+    [Parameter] public string ProductName { get; set; } = string.Empty;
+    [Parameter] public int AvailableShares { get; set; }
+
+    private MudForm _form = null!;
+    private bool _success;
+    private bool _isSubmitting;
+    private readonly TransferModel _model = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        if (!Guid.TryParse(_model.ToMemberIdStr, out var toMemberId))
+        {
+            Snackbar.Add("Invalid Recipient Member ID format", Severity.Error);
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new TransferSharesRequest(FromMemberId, toMemberId, ShareProductId, _model.NumberOfShares, _model.Notes);
+            var result = await SharesService.TransferSharesAsync(request);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Shares transferred successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Data));
+            }
+            else
+            {
+                Snackbar.Add(result.Error?.Message ?? "Failed to transfer shares", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class TransferModel
+    {
+        public string ToMemberIdStr { get; set; } = string.Empty;
+        public int NumberOfShares { get; set; } = 1;
+        public string? Notes { get; set; }
+    }
+}

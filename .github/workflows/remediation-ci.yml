@@ -1,0 +1,71 @@
+name: Import And Remediation CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remediation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Baseline / ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [Api, Blazor, Unit, Architecture, Integration]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Verify baseline
+        shell: pwsh
+        run: ./scripts/verify-baseline.ps1 -Check ${{ matrix.check }} -Configuration Release
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-${{ matrix.check }}
+          path: artifacts/baseline
+          if-no-files-found: ignore
+
+  secrets:
+    name: Baseline / Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download and verify Gitleaks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          gh release download v8.30.1 --repo gitleaks/gitleaks --pattern gitleaks_8.30.1_linux_x64.tar.gz --pattern gitleaks_8.30.1_checksums.txt --dir "$RUNNER_TEMP/gitleaks"
+          cd "$RUNNER_TEMP/gitleaks"
+          sha256sum --check --ignore-missing gitleaks_8.30.1_checksums.txt
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz
+      - name: Scan committed history
+        run: '"$RUNNER_TEMP/gitleaks/gitleaks" git --redact .'
+
+  gate:
+    name: Required / Remediation
+    if: always()
+    needs: [verify, secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all baseline checks to pass
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          SECRETS_RESULT: ${{ needs.secrets.result }}
+        run: test "$VERIFY_RESULT" = success && test "$SECRETS_RESULT" = success
+

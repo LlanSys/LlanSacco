@@ -1,0 +1,93 @@
+@page "/banking/share-products"
+@using LS.SharedKernel.Features.Banking.Shares.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Banking.Components
+@inject ISharesService SharesService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+
+<PageTitle>Share Products - Control Plane</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h5">Share Products</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">New Product</MudButton>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_products" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Min Shares</MudTh>
+            <MudTh>Price Per Share</MudTh>
+            <MudTh>Status</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.Code</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Min Shares">@context.MinimumShares</MudTd>
+            <MudTd DataLabel="Price Per Share">@context.PricePerShare.ToString("N2")</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.IsActive)
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Active</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Inactive</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<ShareProductResponse> _products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        
+        var result = await SharesService.GetShareProductsAsync(includeInactive: true);
+        if (result.IsSuccess && result.Data != null)
+        {
+            _products = result.Data.ToList();
+        }
+        else
+        {
+            Snackbar.Add(result.Error?.Message ?? "Failed to load share products", Severity.Error);
+        }
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateShareProductDialog>("Create Share Product", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProductsAsync();
+        }
+    }
+}

@@ -1,7 +1,7 @@
 # Phase 0 - Git Bootstrap And Baseline
 
 Date: 2026-09-10
-Status: Git/CI foundation implemented; import remains draft with a failing application baseline.
+Status: Phase 0 complete as a Git/CI bootstrap and baseline-capture phase. Application baseline is failing; the import remains draft and blocked from merge.
 
 ## Repository
 
@@ -38,4 +38,4 @@ Also observed: NU1608 OpenAPI dependency mismatch and extensive analyzer warning
 
 .github/workflows/remediation-ci.yml runs independent API, Blazor, Unit, Architecture, Integration, and Secrets checks on every PR to main; it has no path filter. Required / Remediation succeeds only if all prerequisites succeed. The scanner download verifies the pinned release checksum. scripts/verify-baseline.ps1 is the shared local/CI entry point. Existing inherited checks remain enabled.
 
-The import must remain draft/unmerged while its checks fail. Application correctness, architecture, cache, and naming remediation remain pending; a failing baseline is evidence, not permission to bypass the ruleset. Remote run/PR evidence will be recorded after the first push.
+The import must remain draft/unmerged while its checks fail. Application correctness, architecture, cache, and naming remediation remain pending; a failing baseline is evidence, not permission to bypass the ruleset. Remote evidence: [draft PR #1](https://github.com/LlanSys/LlanSacco/pull/1), source import commit 1086b12, and [CI run 34460483754](https://github.com/LlanSys/LlanSacco/actions/runs/34460483754). Secrets passed; all five build/test jobs failed on the same source compilation blockers observed locally. Required / Remediation reported failure and GitHub reports the PR BLOCKED. The emitted check was verified as GitHub Actions app ID 15368, matching the ruleset. Container publishing was skipped; no deployment/provisioning runs were triggered. A local full-history scan of both commits also passed. These results establish the baseline and functioning guardrails, not application readiness.

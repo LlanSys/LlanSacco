@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status: Phase 0 foundation implemented; draft import and failing baseline recorded in ../development/phase-0-baseline.md. Remaining phases pending.
+Status: Phase 0 complete; draft import and failing baseline recorded in ../development/phase-0-baseline.md. Phases 1-7 pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -14,7 +14,7 @@ AGENTS.md remains canonical. The user's September 10 instructions explicitly ref
 
 - The local directory has no .git metadata. Do not infer original commits or change provenance.
 - GitHub reports LlanSys/LlanSacco is private, size 0, default branch main, with admin access for the current account. Recheck branches and contents before bootstrap; size alone is not proof of no commits.
-- The rulesets API returned HTTP 403: "Upgrade to GitHub Pro or make this repository public to enable this feature." Resolve private-repository plan eligibility with the owner; do not change visibility or purchase a plan automatically. Also inspect classic branch-protection availability. Local hooks and CI do not substitute for server-enforced merge protection.
+- Historical planning observation (superseded during Phase 0): the rulesets API returned HTTP 403: "Upgrade to GitHub Pro or make this repository public to enable this feature." Resolve private-repository plan eligibility with the owner; do not change visibility or purchase a plan automatically. Also inspect classic branch-protection availability. Local hooks and CI do not substitute for server-enforced merge protection.
 - AppResponse.cs and AppResponses.cs match the current local BaseTemplate after namespace normalization. Preserve the transport structure while fixing usage. IRepository method signatures also match; a removed feature-specific using is not a contract change.
 - Raw generic repository properties: Banking 14, CheckOff 6, Dividends 3, IAM 7, Loans 5, Membership 4 (39 total). Of these, 30 omit Repository. ControlPlane has three additional named-interface properties without the suffix. IAM's seven raw properties also exist in the current BaseTemplate.
 - CheckOff and Dividends construct generic repositories in property getters. Membership already injects named repositories but exposes several as raw interfaces.
@@ -170,7 +170,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 
 ## 7. Execution Tracking
 
-- [ ] Phase 0: Git bootstrap and baseline
+- [x] Phase 0: Git bootstrap and baseline (PR #1; failing source baseline captured, merge gate verified)
 - [ ] Phase 1: Standards and regression controls
 - [ ] Phase 2: Persistence/financial correctness
 - [ ] Phase 3: Repository/UoW alignment
@@ -180,4 +180,3 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [ ] Phase 7: Full closure
 
 Use context-sized PRs with their own tests; do not combine the entire cleanup into one merge. Phase 2 takes priority over broad mechanical renames. Update this checklist with actual commits/PRs and test evidence, not estimates of completion.
-

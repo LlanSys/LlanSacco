@@ -1,6 +1,6 @@
 # Phase 2 Persistence Correctness
 
-Status: in progress. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
+Status: Phase 2 in progress; validation/payroll slice verified on both providers. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
 
 ## First implementation slice
 
@@ -13,11 +13,12 @@ Status: in progress. Phase 1 parent: cbf373b. This record distinguishes implemen
 
 ## Tests and outstanding work
 
-API build and 84 architecture tests pass locally. Eight provider tests cover PostgreSQL/SQL Server saved state, validation diagnostics, query bounds, payroll date selection/PAYE band loading, non-destructive retries and transaction rollback from a fresh context. They compile, but local execution cannot start because Docker's Linux engine is unavailable even after Docker Desktop was launched. CI provider results must be inspected before claiming these paths verified. The first run caught a PostgreSQL non-UTC query parameter and a SQL Server fixture targeting master; both are corrected, and the fixture now creates a unique test database per test. The expanded cases cover 20 rows, rollback after a database write, and competing payroll runs.
+API build, 43 unit tests and 84 architecture tests pass locally. The local Docker Linux engine remains unavailable; database tests were executed in GitHub CI instead. [Run 34630352554](https://github.com/LlanSys/LlanSacco/actions/runs/34630352554), on implementation commit 6476ac891c7f19ec4065fa05e5a9cf30a186f6c4, passed API, Unit, Architecture, Integration and Secrets. Integration reported **24 passed, one skipped**. All eight new Phase 2 tests passed: four each on PostgreSQL and SQL Server, covering fresh-context state, 20-row bounded queries, payroll cutoff/PAYE bands, preserved payslips, rollback after a database write and competing payroll runs. The skipped test is the existing RabbitMqOutboxTransportTests.Ef_outbox_should_deliver_message_to_real_rabbitmq_consumer; outbox delivery is not certified.
 
+The first provider run identified a PostgreSQL non-UTC query parameter and a SQL Server fixture incorrectly targeting the container's master database. The cutoff now preserves the Nairobi instant while binding UTC, and each test creates its own named database. Required / Remediation remains failed because Blazor cannot resolve ApplyForLoanRequest. [PR #3](https://github.com/LlanSys/LlanSacco/pull/3) remains a blocked draft; nothing was merged or deployed. A documentation-only follow-up records this evidence.
 Phase 2 is not complete. Durable check-off dispatch and cross-context payment idempotency remain to be implemented and tested. The current workers select Pending rows although validation produces Validated, enqueue before commit, and can mark rows processed after ignored downstream failures. Shares processing is a placeholder. Hangfire does not establish a tenant/actor execution scope. A no-tracking mutation and transaction/event audit across Banking, Loans, Membership, HR and background jobs also remains, including cancellation/retry/domain-event consistency. Do not treat these as fixed by the initial validation/payroll slice or enable deployment.
 
-Four separate provider migrations were generated for HR and CheckOff with explicit existing output directories. Every Up/Down method is empty: they capture concurrency/navigation metadata and snapshot alignment only, with no application-data DDL. They were not applied to any deployed database. Local unit coverage is now 43 passing tests; architecture remains 84 passing before final migration-file verification.
+Four separate provider migrations were generated for HR and CheckOff with explicit existing output directories. Every Up/Down method is empty: they capture concurrency/navigation metadata and snapshot alignment only, with no application-data DDL. They were not applied to any deployed database. Local unit coverage is now 43 passing tests; architecture remains 84 passing with the generated migration files included.
 
 ## Additional mutation audit findings
 
@@ -31,4 +32,4 @@ Four separate provider migrations were generated for HR and CheckOff with explic
 | Integration publication | Several Banking/Loans handlers use MediatR IPublisher for integration events; the actual transport adapter is IIntegrationEventPublisher. API registers Shared and Banking bus outboxes using UseSqlServer unconditionally | Establish provider-aware, context-owned outbox/consumer transactions; prove delivery and accounting idempotency |
 | Generic UoW | CompleteAsync saves without dispatch, ordinary transaction pre-dispatches, retry transaction saves without dispatch/cancellation; Shared CompleteWithEventsAsync has its own flow | Define one tested event/retry contract without silently changing security-write commit behavior |
 
-Final local pre-PR checks: API build passed; 43 unit tests passed; 84 architecture tests passed. All four provider contexts report no pending model changes. Provider execution remains delegated to the PR CI because the local Docker engine cannot start.
+Final local pre-PR checks: API build passed; 43 unit tests passed; 84 architecture tests passed. All four provider contexts report no pending model changes. Provider execution passed in PR CI; the local Docker engine remains unavailable.

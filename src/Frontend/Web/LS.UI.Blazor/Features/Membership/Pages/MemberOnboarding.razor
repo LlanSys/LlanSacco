@@ -1,0 +1,123 @@
+@page "/membership/onboarding"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+
+<PageTitle>Member Onboarding</PageTitle>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/membership" Class="mb-4">Back to Membership</MudButton>
+
+<MudText Typo="Typo.h6" Class="mb-4">Member Onboarding</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="FirstName" Label="First Name" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="LastName" Label="Last Name" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Email" Label="Email" InputType="InputType.Email" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="PhoneNumber" Label="Phone Number" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="IdentificationNumber" Label="ID Number / Passport" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudDatePicker Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Date="DateOfBirth" Label="Date of Birth" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="SelectedMembershipType" Label="Membership Type" Required="true" >
+                <MudSelectItem Value="@("Individual")">Individual</MudSelectItem>
+                <MudSelectItem Value="@("Group")">Group</MudSelectItem>
+                <MudSelectItem Value="@("Corporate")">Corporate</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Variant="Variant.Outlined" Class="mt-4" Color="Color.Primary" OnClick="Submit" Disabled="@IsSubmitting">
+        @if (IsSubmitting)
+        {
+            <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+            <MudText Class="ms-2">Submitting...</MudText>
+        }
+        else
+        {
+            <MudText>Submit Application</MudText>
+        }
+    </MudButton>
+</MudPaper>
+
+@code {
+    private string FirstName { get; set; } = string.Empty;
+    private string LastName { get; set; } = string.Empty;
+    private string Email { get; set; } = string.Empty;
+    private string PhoneNumber { get; set; } = string.Empty;
+    private string IdentificationNumber { get; set; } = string.Empty;
+    private DateTime? DateOfBirth { get; set; }
+    private string SelectedMembershipType { get; set; } = "Individual";
+    private bool IsSubmitting { get; set; }
+
+    private async Task Submit()
+    {
+        if (!DateOfBirth.HasValue)
+        {
+            Snackbar.Add("Date of birth is required.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(IdentificationNumber))
+        {
+            Snackbar.Add("Please fill all required fields.", Severity.Warning);
+            return;
+        }
+
+        IsSubmitting = true;
+        try
+        {
+            var request = new OnboardMemberRequest(
+                FirstName,
+                LastName,
+                Email,
+                PhoneNumber,
+                IdentificationNumber,
+                DateOnly.FromDateTime(DateOfBirth.Value),
+                SelectedMembershipType);
+
+            var response = await MembershipService.OnboardMemberAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Member successfully onboarded and is pending approval.", Severity.Success);
+                NavigationManager.NavigateTo("/membership/pending-approvals");
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to onboard member.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+

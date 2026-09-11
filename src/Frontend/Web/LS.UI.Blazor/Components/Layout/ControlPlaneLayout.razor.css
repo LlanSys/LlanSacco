@@ -1,0 +1,45 @@
+.top-kicker {
+    color: #607067;
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.content {
+    padding-bottom: 4rem;
+    padding-top: 1.5rem;
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: #fffaf1;
+    border: 1px solid rgba(135, 49, 42, 0.2);
+    border-radius: 1rem;
+    bottom: 1rem;
+    box-shadow: 0 1rem 2.5rem rgba(23, 33, 27, 0.18);
+    box-sizing: border-box;
+    color: #6e211c;
+    display: none;
+    font-weight: 700;
+    left: 50%;
+    max-width: min(42rem, calc(100vw - 2rem));
+    padding: 0.85rem 3rem 0.85rem 1rem;
+    position: fixed;
+    transform: translateX(-50%);
+    width: auto;
+    z-index: 1000;
+}
+
+#blazor-error-ui a {
+    color: #4f46e5;
+    margin-left: 0.5rem;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 1rem;
+    top: 0.85rem;
+}

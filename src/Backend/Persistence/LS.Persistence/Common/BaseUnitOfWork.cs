@@ -38,7 +38,7 @@ public abstract class BaseUnitOfWork<TContext>(
             catch (DbUpdateConcurrencyException ex)
             {
                 PersistenceLogDefinitions.LogTransactionConcurrencyRollback(_logger, ex);
-                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                await RollbackAfterFailureAsync(transaction).ConfigureAwait(false);
                 Context.ChangeTracker.Clear();
                 throw;
             }
@@ -46,12 +46,25 @@ public abstract class BaseUnitOfWork<TContext>(
             {
                 PersistenceLogDefinitions.LogTransactionErrorRollback(_logger, ex);
                 Context.ChangeTracker.Clear();
-                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                await RollbackAfterFailureAsync(transaction).ConfigureAwait(false);
                 throw;
             }
         }).ConfigureAwait(false);
     }
 
+    private async Task RollbackAfterFailureAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction)
+    {
+        Context.ChangeTracker.Clear();
+        try
+        {
+            await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception cleanupError)
+        {
+            // Preserve the original operation failure if the provider already aborted/disposed its transaction.
+            PersistenceLogDefinitions.LogTransactionErrorRollback(_logger, cleanupError);
+        }
+    }
     public async Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation, int maxRetries = 3, int baseDelayMs = 50)
     {
         var strategy = Context.Database.CreateExecutionStrategy();

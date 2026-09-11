@@ -38,7 +38,7 @@ internal sealed class RunPayrollCommandHandler(
 
             var monthEnd = new DateTimeOffset(period.Year, period.Month, 1, 0, 0, 0, TimeSpan.FromHours(3)).AddMonths(1).AddTicks(-1);
             var now = DateTimeOffset.UtcNow;
-            var effectiveAt = monthEnd < now ? monthEnd : now;
+            var effectiveAt = (monthEnd < now ? monthEnd : now).ToUniversalTime();
             var activeConfig = await unitOfWork.PayrollStatutoryConfigurationRepository.FirstOrDefaultAsync(q => q
                 .Where(c => c.EffectiveDate <= effectiveAt)
                 .OrderByDescending(c => c.EffectiveDate).ThenByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id), cancellationToken);

@@ -52,7 +52,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
                     e.TenantId == tenantProvider.TenantId && e.EmployerId == batch.EmployerId && e.IsActive &&
                     chunk.Contains(e.EmployeePayrollNumber)), cancellationToken));
             }
-            var matches = employments.ToLookup(e => e.EmployeePayrollNumber, StringComparer.Ordinal);
+            var matches = employments.DistinctBy(e => e.Id).ToLookup(e => e.EmployeePayrollNumber, StringComparer.Ordinal);
             var duplicates = rows.GroupBy(r => r.RawPayrollNumber, StringComparer.Ordinal)
                 .Where(g => g.Skip(1).Any()).Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
             var balanced = rows.Sum(r => r.TotalDeducted) == batch.TotalAmountReceived;

@@ -13,6 +13,22 @@ Status: in progress. Phase 1 parent: cbf373b. This record distinguishes implemen
 
 ## Tests and outstanding work
 
-API build and 84 architecture tests pass locally. Six new tests cover PostgreSQL/SQL Server saved state, validation diagnostics, query bounds, payroll date selection/PAYE band loading, non-destructive retries and transaction rollback from a fresh context. They compile, but local execution cannot start because Docker's Linux engine is unavailable even after Docker Desktop was launched. CI provider results must be inspected before claiming these paths verified.
+API build and 84 architecture tests pass locally. Eight provider tests cover PostgreSQL/SQL Server saved state, validation diagnostics, query bounds, payroll date selection/PAYE band loading, non-destructive retries and transaction rollback from a fresh context. They compile, but local execution cannot start because Docker's Linux engine is unavailable even after Docker Desktop was launched. CI provider results must be inspected before claiming these paths verified. The first run caught a PostgreSQL non-UTC query parameter and a SQL Server fixture targeting master; both are corrected, and the fixture now creates a unique test database per test. The expanded cases cover 20 rows, rollback after a database write, and competing payroll runs.
 
 Phase 2 is not complete. Durable check-off dispatch and cross-context payment idempotency remain to be implemented and tested. The current workers select Pending rows although validation produces Validated, enqueue before commit, and can mark rows processed after ignored downstream failures. Shares processing is a placeholder. Hangfire does not establish a tenant/actor execution scope. A no-tracking mutation and transaction/event audit across Banking, Loans, Membership, HR and background jobs also remains, including cancellation/retry/domain-event consistency. Do not treat these as fixed by the initial validation/payroll slice or enable deployment.
+
+Four separate provider migrations were generated for HR and CheckOff with explicit existing output directories. Every Up/Down method is empty: they capture concurrency/navigation metadata and snapshot alignment only, with no application-data DDL. They were not applied to any deployed database. Local unit coverage is now 43 passing tests; architecture remains 84 passing before final migration-file verification.
+
+## Additional mutation audit findings
+
+| Area | Verified source evidence | Remaining work |
+| --- | --- | --- |
+| Savings deposits/withdrawals | DepositSavingsCommand.cs and WithdrawSavingsCommand.cs change Balance after FirstOrDefaultAsync without staging an account update; deposit commits a new account separately | Atomic transaction and balance persistence, stable idempotency reference, concurrent duplicate tests |
+| Savings interest | CalculateSavingsInterestJob.cs changes detached account balances, has no date idempotency key and publishes before commit | Per-day durable identity, staged balances, retry/tenant isolation tests |
+| Deposit interest/maturity | Both jobs explicitly stage updates, but catch per-account failures and then commit the shared context; daily accrual has no execution-date identity | Rollback boundary and partial-failure policy; idempotent accrual/capitalization |
+| Deposit withdrawal | WithdrawFromDepositCommandHandler.cs can stage a penalty before returning insufficient-funds failure | Stage only after all business checks or discard rejected transaction state |
+| FOSA/shares | Reviewed balance writers explicitly call UpdateAsync before CompleteAsync | Still require concurrency, retry and integration-event coverage; explicit updates alone do not establish full correctness |
+| Integration publication | Several Banking/Loans handlers use MediatR IPublisher for integration events; the actual transport adapter is IIntegrationEventPublisher. API registers Shared and Banking bus outboxes using UseSqlServer unconditionally | Establish provider-aware, context-owned outbox/consumer transactions; prove delivery and accounting idempotency |
+| Generic UoW | CompleteAsync saves without dispatch, ordinary transaction pre-dispatches, retry transaction saves without dispatch/cancellation; Shared CompleteWithEventsAsync has its own flow | Define one tested event/retry contract without silently changing security-write commit behavior |
+
+Final local pre-PR checks: API build passed; 43 unit tests passed; 84 architecture tests passed. All four provider contexts report no pending model changes. Provider execution remains delegated to the PR CI because the local Docker engine cannot start.

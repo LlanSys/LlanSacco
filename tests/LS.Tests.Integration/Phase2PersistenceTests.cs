@@ -26,6 +26,7 @@ namespace LS.Tests.Integration;
 
 public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClassFixture<TFixture> where TFixture : DbFixture
 {
+    private readonly string _databaseName = "phase2_" + Guid.CreateVersion7().ToString("N");
     private sealed class Tenant : ICurrentTenantProvider { public Guid TenantId { get; set; } = Guid.CreateVersion7(); }
     private sealed class Actor : ICurrentActorProvider { public string ActorId => "00000000-0000-0000-0000-000000000001"; }
     private sealed class Reads : DbCommandInterceptor
@@ -41,8 +42,8 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     private DbContextOptions<TContext> Options<TContext>(Reads? reads = null) where TContext : DbContext
     {
         var options = new DbContextOptionsBuilder<TContext>();
-        if (fixture is PostgreSqlDbFixture) options.UseNpgsql(fixture.GetConnectionString());
-        else options.UseSqlServer(fixture.GetConnectionString());
+        if (fixture is PostgreSqlDbFixture) options.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _databaseName }.ConnectionString);
+        else options.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _databaseName }.ConnectionString);
         if (reads is not null) options.AddInterceptors(reads);
         return options.Options;
     }
@@ -77,7 +78,6 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Guid periodId;
         await using (var context = new HrDBContext(options, tenant, new Actor()))
         {
-            await context.Database.EnsureDeletedAsync();
             await context.Database.EnsureCreatedAsync();
             var department = Department.Create("PAY", "Payroll", "", new Actor().ActorId);
             var employee = Employee.Create("E1", "e1@example.test", "One", "Employee", "123", "+254", "700000001", "+254700000001", department.Id, null, new Actor().ActorId);
@@ -119,14 +119,14 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         var tenant = new Tenant();
         var options = Options<HrDBContext>();
         await using var context = new HrDBContext(options, tenant, new Actor());
-        await context.Database.EnsureDeletedAsync();
         await context.Database.EnsureCreatedAsync();
         await using var services = Services(context, tenant);
         var uow = services.GetRequiredService<IHrUnitOfWork>();
         await Assert.ThrowsAsync<InvalidOperationException>(() => uow.ExecuteInTransactionAsync<bool>(async () =>
         {
             await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, 2, new Actor().ActorId));
-            throw new InvalidOperationException("Injected failure after staging");
+            await context.SaveChangesAsync(); // Simulate a downstream failure after a database write inside the transaction.
+            throw new InvalidOperationException("Injected failure after saving");
         }, CancellationToken.None));
         await uow.CompleteAsync();
         await using var fresh = new HrDBContext(options, tenant, new Actor());
@@ -143,11 +143,10 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Guid invalidId;
         await using (var context = new CheckOffDBContext(options, tenant, new Actor()))
         {
-            await context.Database.EnsureDeletedAsync();
             await context.Database.EnsureCreatedAsync();
             var employer = Employer.Create(tenant.TenantId, "Employer", "Contact", "employer@example.test", "+254700000000", new Actor().ActorId);
             var member = Member.Create(tenant.TenantId, "M1", "One", "Member", "m1@example.test", "+254700000001", "ID1", new DateOnly(1990, 1, 1), default, new Actor().ActorId);
-            var valid = CheckoffBatch.Create(tenant.TenantId, employer.Id, "VALID", DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc), 10, new Actor().ActorId);
+            var valid = CheckoffBatch.Create(tenant.TenantId, employer.Id, "VALID", DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc), 200, new Actor().ActorId);
             var invalid = CheckoffBatch.Create(tenant.TenantId, employer.Id, "DUPLICATE", DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc), 20, new Actor().ActorId);
             validId = valid.Id;
             invalidId = invalid.Id;
@@ -155,6 +154,12 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             context.AddRange(CheckoffStagingRow.Create(tenant.TenantId, valid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId),
                 CheckoffStagingRow.Create(tenant.TenantId, invalid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId),
                 CheckoffStagingRow.Create(tenant.TenantId, invalid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId));
+            for (var number = 2; number <= 20; number++)
+            {
+                var payrollNumber = "E" + number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                context.Add(MemberEmployment.Create(tenant.TenantId, member.Id, employer.Id, payrollNumber, new Actor().ActorId));
+                context.Add(CheckoffStagingRow.Create(tenant.TenantId, valid.Id, payrollNumber, "One", 10, 0, 0, new Actor().ActorId));
+            }
             await context.SaveChangesAsync();
         }
         await using (var context = new CheckOffDBContext(options, tenant, new Actor()))
@@ -169,12 +174,37 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         await using (var fresh = new CheckOffDBContext(options, tenant, new Actor()))
         {
             Assert.Equal(CheckoffBatchStatus.Validated, (await fresh.CheckoffBatches.SingleAsync(b => b.Id == validId)).Status);
-            Assert.Equal(CheckoffRowStatus.Validated, (await fresh.CheckoffStagingRows.SingleAsync(r => r.CheckoffBatchId == validId)).Status);
+            var validatedRows = await fresh.CheckoffStagingRows.Where(r => r.CheckoffBatchId == validId).ToListAsync();
+            Assert.Equal(20, validatedRows.Count);
+            Assert.All(validatedRows, row => Assert.Equal(CheckoffRowStatus.Validated, row.Status));
             Assert.Equal(CheckoffBatchStatus.Failed, (await fresh.CheckoffBatches.SingleAsync(b => b.Id == invalidId)).Status);
             Assert.All(await fresh.CheckoffStagingRows.Where(r => r.CheckoffBatchId == invalidId).ToListAsync(), r => { Assert.Null(r.ResolvedMemberId); Assert.Contains("Duplicate", r.ExceptionReason); });
         }
         await using var otherTenant = new CheckOffDBContext(options, new Tenant(), new Actor());
         Assert.Empty(await otherTenant.CheckoffBatches.ToListAsync());
         Assert.Empty(await otherTenant.CheckoffStagingRows.ToListAsync());
+    }
+    [Fact]
+    public async Task Two_payroll_runs_cannot_both_commit_the_same_period()
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        Guid periodId;
+        await using (var setup = new HrDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            var period = PayrollPeriod.Create(2025, 3, new Actor().ActorId);
+            setup.Add(period);
+            periodId = period.Id;
+            await setup.SaveChangesAsync();
+        }
+        await using var first = new HrDBContext(options, tenant, new Actor());
+        await using var second = new HrDBContext(options, tenant, new Actor());
+        var firstPeriod = await first.PayrollPeriods.SingleAsync(p => p.Id == periodId);
+        var secondPeriod = await second.PayrollPeriods.SingleAsync(p => p.Id == periodId);
+        firstPeriod.RecordPayrollRun(new Actor().ActorId);
+        secondPeriod.RecordPayrollRun(new Actor().ActorId);
+        await first.SaveChangesAsync();
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
     }
 }

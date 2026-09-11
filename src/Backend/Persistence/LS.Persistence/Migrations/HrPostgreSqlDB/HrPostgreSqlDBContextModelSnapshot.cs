@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.HrPostgreSqlDB
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -564,6 +564,7 @@ namespace LS.Persistence.Migrations.HrPostgreSqlDB
                         .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("ProcessedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ProcessedBy")

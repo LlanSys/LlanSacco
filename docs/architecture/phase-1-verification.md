@@ -38,7 +38,7 @@ UOW004 identifies EmployeeNumberSequenceRepository, an atomic allocation contrac
 - Unit suite: 41 passed, 0 failed, 0 skipped. The new dividend test executes handlers through MediatR with the real generic repository and EF InMemory; list/detail totals agree, declarations stay separate, empty totals are zero, and missing records return a typed failure. This is not PostgreSQL/SQL Server translation or tenant-isolation proof.
 - PR debt-growth script: isolated Git fixture accepts unchanged/removal and rejects added/deferred debt.
 - Blazor build: still fails on missing ApplyForLoanRequest in LoanService/ILoanService. Full integration/provider verification belongs to Phase 7; no claim that the entire required merge gate passes.
-- Remote PR/check links and final formatting/secret-scan evidence are recorded after publication below.
+- Staged Gitleaks: no leaks found. git diff --check and git diff --cached --check passed. Existing analyzer warnings remain (425 in the final API rebuild).
 
 ## Compilation Repairs Needed To Run The Guards
 
@@ -71,3 +71,9 @@ Backend paths above are relative to src/Backend/{layer}; UI paths are relative t
 ## Git Review Boundary
 
 Changes continue through PRs to main, with Required / Remediation enforced. Phase 0's import remains unmerged; therefore a Phase 1 PR to main necessarily includes the import ancestry. Review Phase 1 specifically against e859d0e. The full gate must pass before merging the combined candidate. Deployments, provisioning and image publishing remain manually gated and disabled. No force push or bypass was used.
+
+## Remote Evidence
+
+Draft [PR #2](https://github.com/LlanSys/LlanSacco/pull/2) publishes implementation commit f8a15611f6e5f2c38773ef0f208d62f101d4c320. [Remediation run 34586115114](https://github.com/LlanSys/LlanSacco/actions/runs/34586115114) completed on Linux: API, Architecture, Unit, Integration and Secrets passed. Integration reported 16 passed and one skipped: RabbitMqOutboxTransportTests.Ef_outbox_should_deliver_message_to_real_rabbitmq_consumer. This does not establish complete outbox or both-provider coverage.
+
+Blazor failed on the same missing ApplyForLoanRequest found locally. Required / Remediation therefore failed, confirming that successful Phase 1 checks cannot override an application build failure. Container Publish was skipped. The PR remains a blocked draft; main was not merged or deployed. A documentation-only follow-up records these results; the evidence above identifies the exact implementation commit tested.

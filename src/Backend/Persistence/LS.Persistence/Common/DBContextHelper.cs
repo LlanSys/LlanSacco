@@ -50,7 +50,7 @@ internal static class DBContextHelper
                 if (property.ClrType.IsEnum)
                 {
                     property.SetProviderClrType(typeof(string));
-                    
+
                     if (property.GetMaxLength() == null)
                     {
                         property.SetMaxLength(100);
@@ -131,7 +131,7 @@ internal static class DBContextHelper
         return Expression.Lambda(comparison, parameter);
     }
 
-    private static void ApplyQueryFilters<TContext>(ModelBuilder modelBuilder, IMutableEntityType entityType, TContext context)
+    internal static void ApplyQueryFilters<TContext>(ModelBuilder modelBuilder, IMutableEntityType entityType, TContext context)
         where TContext : DbContext, ITenantFilteredDBContext
     {
         var entityClrType = entityType.ClrType;
@@ -150,7 +150,7 @@ internal static class DBContextHelper
                 .GetMethod(nameof(CreateTenantFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(entityClrType, typeof(TContext))
                 .Invoke(null, [context])!;
-                
+
             queryFilter = CombineFilters(entityClrType, queryFilter, tenantFilter);
         }
 

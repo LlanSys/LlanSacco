@@ -38,14 +38,15 @@ public abstract class BaseUnitOfWork<TContext>(
             catch (DbUpdateConcurrencyException ex)
             {
                 PersistenceLogDefinitions.LogTransactionConcurrencyRollback(_logger, ex);
-                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
                 Context.ChangeTracker.Clear();
                 throw;
             }
             catch (Exception ex)
             {
                 PersistenceLogDefinitions.LogTransactionErrorRollback(_logger, ex);
-                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                Context.ChangeTracker.Clear();
+                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
         }).ConfigureAwait(false);

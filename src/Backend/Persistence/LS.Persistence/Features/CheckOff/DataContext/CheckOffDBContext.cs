@@ -58,6 +58,15 @@ public class CheckOffDBContext : DbContext, ITenantFilteredDBContext
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(CheckOffDBContext).Assembly,
             t => t.Namespace?.Contains("Features.CheckOff.Configurations") == true);
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes().ToArray())
+        {
+            if (entityType.IsOwned() || entityType.BaseType is not null) continue;
+            DBContextHelper.ApplyQueryFilters(modelBuilder, entityType, this);
+            // PostgreSQL bytea is not a SQL Server-generated rowversion. Keep the existing column,
+            // but generate and compare an application-owned concurrency token on each write.
+            if (Database.IsNpgsql() && typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).ValueGeneratedNever();
+        }
     }
 
     public Guid CurrentTenantId => _tenantProvider?.TenantId ?? Guid.Empty;
@@ -74,6 +83,9 @@ public class CheckOffDBContext : DbContext, ITenantFilteredDBContext
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
+            if (Database.IsNpgsql())
+                foreach (var entry in ChangeTracker.Entries<BaseEntity>().Where(e => e.State is EntityState.Added or EntityState.Modified))
+                    entry.Entity.RowVersion = Guid.CreateVersion7().ToByteArray();
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _collectedDomainEvents ??= [];
             _collectedDomainEvents.AddRange(domainEvents);

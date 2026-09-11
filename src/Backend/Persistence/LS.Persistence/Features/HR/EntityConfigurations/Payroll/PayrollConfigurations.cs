@@ -18,6 +18,7 @@ internal class PayrollStatutoryConfigurationTypeConfig : IEntityTypeConfiguratio
         builder.Property(x => x.HousingLevyRate).HasColumnType("decimal(5,2)");
         builder.Property(x => x.PersonalReliefAmount).HasColumnType("decimal(18,2)");
 
+        builder.Navigation(x => x.PayeTaxBands).AutoInclude();
         builder.HasMany(x => x.PayeTaxBands)
                .WithOne()
                .HasForeignKey(x => x.ConfigurationId)
@@ -43,6 +44,7 @@ internal class PayrollPeriodTypeConfig : IEntityTypeConfiguration<PayrollPeriod>
     public void Configure(EntityTypeBuilder<PayrollPeriod> builder)
     {
         builder.ToTable("Hr_PayrollPeriods");
+        builder.Property(x => x.ProcessedAt).IsConcurrencyToken();
         builder.HasKey(x => x.Id);
     }
 }
@@ -64,7 +66,7 @@ internal class PayrollComponentTypeConfig : IEntityTypeConfiguration<PayrollComp
     {
         builder.ToTable("Hr_PayrollComponents");
         builder.HasKey(x => x.Id);
-        
+
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
     }
 }
@@ -115,4 +117,3 @@ internal class PayslipDetailTypeConfig : IEntityTypeConfiguration<PayslipDetail>
         builder.Property(x => x.Amount).HasColumnType("decimal(18,2)");
     }
 }
-

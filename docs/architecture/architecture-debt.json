@@ -2537,30 +2537,6 @@
   },
   {
     "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Commands/RunPayrollCommandHandler.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Commands.RunPayrollCommandHandler.Handle(LS.Application.Features.HR.Payroll.Commands.RunPayrollCommand, System.Threading.CancellationToken)",
-    "Line": 31,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<bool>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"Cannot run payroll for a closed period.\"\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Commands/RunPayrollCommandHandler.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Commands.RunPayrollCommandHandler.Handle(LS.Application.Features.HR.Payroll.Commands.RunPayrollCommand, System.Threading.CancellationToken)",
-    "Line": 41,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<bool>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"No active statutory configuration found.\"\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Commands/RunPayrollCommandHandler.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Commands.RunPayrollCommandHandler.Handle(LS.Application.Features.HR.Payroll.Commands.RunPayrollCommand, System.Threading.CancellationToken)",
-    "Line": 28,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<bool>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"Payroll period not found.\"\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
     "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Queries/GetPayrollConfigurationQuery.cs",
     "Symbol": "LS.Application.Features.HR.Payroll.Queries.GetPayrollConfigurationQueryHandler.Handle(LS.Application.Features.HR.Payroll.Queries.GetPayrollConfigurationQuery, System.Threading.CancellationToken)",
     "Line": 23,

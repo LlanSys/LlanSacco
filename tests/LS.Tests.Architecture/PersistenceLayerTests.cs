@@ -24,9 +24,7 @@ public sealed class PersistenceLayerTests
             .HaveNameEndingWith("Configuration")
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue(
-            because: "All IEntityTypeConfiguration<T> implementations must end in 'Configuration'. " +
-                     "Failing types: {0}", string.Join(", ", result.FailingTypes?.Select(t => t.Name) ?? []));
+        Guardrails.ArchitectureDebt.AssertMembers("EF001", result.FailingTypes ?? [], "Entity configuration name must end in Configuration", 6);
     }
 
     [Fact]
@@ -39,10 +37,7 @@ public sealed class PersistenceLayerTests
             .NotBePublic()
             .GetResult();
 
-        result.IsSuccessful.Should().BeTrue(
-            because: "Entity configurations are internal persistence details " +
-                     "and must not be public. Failing types: {0}", string.Join(", ",
-                result.FailingTypes?.Select(t => t.Name) ?? []));
+        Guardrails.ArchitectureDebt.AssertMembers("EF002", result.FailingTypes ?? [], "Entity configuration must be internal", 7);
     }
 
     [Fact]
@@ -57,12 +52,10 @@ public sealed class PersistenceLayerTests
             .Where(t => t.Namespace is null ||
                         !t.Namespace.StartsWith("LS.Persistence.Features.", StringComparison.Ordinal) ||
                         !t.Namespace.Contains(".EntityConfigurations", StringComparison.Ordinal))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
-        misplacedTypes.Should().BeEmpty(
-            because: "entity configurations must live under their owning Persistence feature folder. Found: {0}",
-            string.Join(", ", misplacedTypes));
+        Guardrails.ArchitectureDebt.AssertMembers("EF003", misplacedTypes, "Configuration must reside in feature EntityConfigurations namespace", 6);
     }
 
     [Fact]
@@ -78,7 +71,7 @@ public sealed class PersistenceLayerTests
 
         var missingConfigurations = dbSetEntityTypes
             .Where(t => !configuredEntityTypes.Contains(t))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
         missingConfigurations.Should().BeEmpty(
@@ -93,12 +86,10 @@ public sealed class PersistenceLayerTests
             .Where(t => !typeof(ISoftDeletable).IsAssignableFrom(t) &&
                         !(t.Namespace?.Contains(".ControlPlane.") ?? false) &&
                         !(t.Namespace?.Contains(".Shared.") ?? false))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
-        hardDeleteOnlyEntities.Should().BeEmpty(
-            because: "persisted bounded-context entities should support soft delete by default (excluding ControlPlane and Shared features). Missing: {0}",
-            string.Join(", ", hardDeleteOnlyEntities));
+        Guardrails.ArchitectureDebt.AssertMembers("EF004", hardDeleteOnlyEntities, "DbSet entity lacks ISoftDeletable; review ledger retention policy before changing", 7);
     }
 
     [Fact]
@@ -107,7 +98,7 @@ public sealed class PersistenceLayerTests
         var entitiesWithoutTenantId = GetDeclaredDbSetEntityTypes()
             .Where(t => t.GetProperty("TenantId") is null && 
                         !(t.Namespace?.Contains(".ControlPlane.") ?? false))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
         entitiesWithoutTenantId.Should().BeEmpty(
@@ -211,27 +202,14 @@ public sealed class PersistenceLayerTests
 
         dbContextTypes.Should().NotBeEmpty("Persistence must define EF Core DBContext types.");
 
-        var allowedNamespaces = new[]
-        {
-            "LS.Persistence.Features.Accounting.DataContext",
-            "LS.Persistence.Features.HR.DataContext",
-            "LS.Persistence.Features.IAM.DataContext",
-            "LS.Persistence.Features.Shared.DataContext",
-            "LS.Persistence.Features.ControlPlane.DataContext",
-            "LS.Persistence.Features.Membership.DataContext",
-            "LS.Persistence.Features.Banking.DataContext",
-            "LS.Persistence.Features.Loans.DataContext",
-            "LS.Persistence.Features.CheckOff.DataContext"
-        };
+        var allowedNamespaces = Guardrails.BoundedContextRegistry.Names.Select(name => $"LS.Persistence.Features.{name}.DataContext").ToArray();
 
         var misplacedTypes = dbContextTypes
             .Where(t => t.Namespace is null || !allowedNamespaces.Contains(t.Namespace))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
-        misplacedTypes.Should().BeEmpty(
-            because: "DBContext subclasses must live in one of the bounded-context DataContext namespaces. Found: {0}",
-            string.Join(", ", misplacedTypes));
+        Guardrails.ArchitectureDebt.AssertMembers("EF005", misplacedTypes, "DBContext must reside in registered context DataContext namespace", 6);
     }
 
     [Fact]
@@ -260,7 +238,7 @@ public sealed class PersistenceLayerTests
             .GetTypes()
             .Where(t => t.GetProperty("CurrentTenantId") is null &&
                         !(t.Namespace?.Contains(".ControlPlane.") ?? false))
-            .Select(t => t.FullName)
+            .Select(t => t)
             .ToList();
 
         dbContextsWithoutTenantContext.Should().BeEmpty(

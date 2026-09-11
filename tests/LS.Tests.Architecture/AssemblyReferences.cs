@@ -23,24 +23,11 @@ internal static class AssemblyReferences
 {
     internal static readonly Assembly Domain = typeof(BaseEntity).Assembly;
     internal static readonly Assembly Api = typeof(BaseController).Assembly;
-    internal static readonly Assembly Application = Assembly.LoadFrom(
-        Path.GetFullPath(Path.Combine(
-            FindRepoRoot(),
-            "src", "Backend", "Application", "LS.Application", "bin", BuildConfiguration, "net10.0", "LS.Application.dll")));
+    internal static readonly Assembly Application = typeof(LS.Application.Extensions.DependencyInjection).Assembly;
     internal static readonly Assembly Persistence = typeof(SharedDBContext).Assembly;
     internal static readonly Assembly SharedKernel = typeof(LookupResponse).Assembly;
     internal static readonly Assembly SharedKernelValidation = typeof(GetLookupRequestValidator).Assembly;
     internal static string RepoRoot => FindRepoRoot();
-
-    private static string BuildConfiguration
-    {
-        get
-        {
-            var assemblyDirectory = new DirectoryInfo(Path.GetDirectoryName(typeof(SharedDBContext).Assembly.Location)!);
-            return assemblyDirectory.Parent?.Name
-                ?? throw new DirectoryNotFoundException("Could not determine build configuration from persistence assembly output path.");
-        }
-    }
 
     private static string FindRepoRoot()
     {

@@ -12,7 +12,7 @@ namespace LS.Infrastructure.Jobs;
 [DisallowConcurrentExecution]
 public class MediatorSerializedJob(IServiceProvider _serviceProvider) : IJob
 {
-    public async Task Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -38,7 +38,7 @@ public class MediatorSerializedJob(IServiceProvider _serviceProvider) : IJob
             var sender = scope.ServiceProvider.GetRequiredService<ISender>();
 
             // Send it back through MediatR (This triggers EmailHandler, etc.)
-            await sender.Send(request).ConfigureAwait(false);
+            await sender.Send(request, cancellationToken).ConfigureAwait(false);
         }
     }
 }

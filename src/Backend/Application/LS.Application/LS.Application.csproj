@@ -27,4 +27,5 @@
 
   
 
+  <ItemGroup><InternalsVisibleTo Include="LS.Tests.Unit" /></ItemGroup>
 </Project>

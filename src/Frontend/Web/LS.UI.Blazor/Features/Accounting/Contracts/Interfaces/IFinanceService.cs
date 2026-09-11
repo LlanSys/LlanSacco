@@ -15,4 +15,4 @@ internal interface IFinanceService
     Task<AppResponse<Guid>> PostJournalAsync(CreateJournalRequest request);
     Task<AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorDto>>> GetIntegrationErrorsAsync(string? status = null);
     Task<AppResponse<bool>> RetryIntegrationEventAsync(Guid errorId);
-
+}

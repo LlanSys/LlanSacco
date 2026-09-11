@@ -16,7 +16,7 @@ internal class GetDividendPreferencesQueryHandler(
 {
     public async Task<AppResponse<IEnumerable<DividendPreferenceDto>>> Handle(GetDividendPreferencesQuery request, CancellationToken cancellationToken)
     {
-        var preferences = await uow.DividendDistributionPreferences.GetAllAsync(cancellationToken);
+        var preferences = await uow.DividendDistributionPreferences.ListAsync(ct: cancellationToken);
 
         var dtos = preferences.Select(p => new DividendPreferenceDto
         {

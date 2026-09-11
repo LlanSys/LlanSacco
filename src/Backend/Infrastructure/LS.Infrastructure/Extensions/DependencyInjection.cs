@@ -54,7 +54,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz;
-using Quartz.Simpl;
+
 using QuestPDF.Infrastructure;
 using Serilog;
 using Serilog.Core;
@@ -981,15 +981,15 @@ public static class DependencyInjection
         services.AddQuartz(q =>
         {
             // Use a unique ID for this scheduler instance
-            q.SchedulerId = "BT_Q_Scheduler";
+            q.ConfigureScheduler(options => options.InstanceId = "BT_Q_Scheduler");
 
-            q.UseJobFactory<MicrosoftDependencyInjectionJobFactory>();
+            // Quartz 4 uses its scoped DI job factory by default.
 
             q.UsePersistentStore(s =>
             {
-                s.UseProperties = true;
+                s.ConfigureStore(options => options.StoreJobDataAsStrings = true);
 
-                s.UseNewtonsoftJsonSerializer();
+                s.UseSerializer<Quartz.Impl.SystemTextJsonObjectSerializer>();
 
                 if (dbProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1147,5 +1147,3 @@ public static class DependencyInjection
     }
 
 }
-
-

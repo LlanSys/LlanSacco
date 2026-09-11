@@ -67,9 +67,8 @@ internal sealed class BackgroundJobService(ISchedulerFactory _schedulerFactory, 
             .Build();
 
         // Schedule the job
-        await scheduler.ScheduleJob(job, trigger, ct).ConfigureAwait(false);
+        await scheduler.ScheduleJob(job, trigger, cancellationToken: ct).ConfigureAwait(false);
     }
 
 
 }
-

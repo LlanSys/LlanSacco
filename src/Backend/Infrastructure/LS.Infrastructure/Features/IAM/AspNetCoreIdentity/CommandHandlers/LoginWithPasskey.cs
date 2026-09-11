@@ -64,7 +64,7 @@ internal sealed class LoginWithPasskey(
             return AppResponses.Failure<LoginResponse>("Invalid assertion response.");
         }
 
-        var credentialIdBytes = Fido2NetLib.Base64Url.Decode(assertionIdStr);
+        var credentialIdBytes = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(assertionIdStr);
 
         AppUser? user = null;
         LS.Domain.Features.IAM.Users.Entities.Fido2Credential? credential = null;
@@ -206,4 +206,3 @@ internal sealed class LoginWithPasskey(
         return AppResponses.Success("Passkey Login successful", loginResponse);
     }
 }
-

@@ -24,36 +24,15 @@ public class TenantIsolationGuardrailTests
                      && !t.Name.Contains("PostgreSql", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // Path to the Integration Tests project
-        var integrationTestsDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..", "..", "tests", "LS.Tests.Integration");
-        
-        if (!Directory.Exists(integrationTestsDir))
-        {
-            var currentDir = new DirectoryInfo(Directory.GetCurrentDirectory());
-            while (currentDir != null && currentDir.Name != "LlanSacco")
-            {
-                currentDir = currentDir.Parent;
-            }
-            if (currentDir != null)
-            {
-                integrationTestsDir = Path.Combine(currentDir.FullName, "tests", "LS.Tests.Integration");
-            }
-        }
-
+        var integrationTestsDir = Path.Combine(AssemblyReferences.RepoRoot, "tests", "LS.Tests.Integration");
         Assert.True(Directory.Exists(integrationTestsDir), $"Could not find Integration Tests directory at {integrationTestsDir}");
 
         var testFiles = Directory.GetFiles(integrationTestsDir, "*TenantIsolationTests.cs", SearchOption.AllDirectories)
                                  .Select(Path.GetFileNameWithoutExtension)
                                  .ToList();
 
-        foreach (var contextType in tenantContexts)
-        {
-            var expectedTestClassName = contextType.Name.Replace("DBContext", "") + "TenantIsolationTests";
-            
-            var hasTestFile = testFiles.Contains(expectedTestClassName);
-
-            hasTestFile.Should().BeTrue(
-                $"Because {contextType.Name} implements ITenantFilteredDBContext, there MUST be an integration test file named {expectedTestClassName}.cs to verify its tenant query filters are correctly isolated.");
-        }
+        var missing = tenantContexts.Where(t => !testFiles.Contains(t.Name.Replace("DBContext", "") + "TenantIsolationTests"));
+        Guardrails.ArchitectureDebt.AssertMembers("TENANT001", missing,
+            "Tenant-filtered context lacks named tenant-isolation integration test; file presence is not proof of execution", 7);
     }
 }

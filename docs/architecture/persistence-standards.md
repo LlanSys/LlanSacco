@@ -1,6 +1,6 @@
 # Persistence Standards
 
-> Last updated: 2026-06-01
+> Last updated: 2026-09-10
 >
 > This document defines how LlanSacco uses EF Core, repositories, Unit of Work, soft delete, and feature-bound persistence code.
 
@@ -80,7 +80,18 @@ Not allowed:
 
 ## 4. Unit Of Work Boundary
 
-The Unit of Work should coordinate `SaveChangesAsync`.
+The Unit of Work coordinates SaveChangesAsync and exposes feature-specific contracts with the Repository suffix:
+
+```csharp
+public interface IMembershipUnitOfWork : ITransactionalUnitOfWork
+{
+    IMemberTransactionRepository MemberTransactionRepository { get; }
+}
+```
+
+IMemberTransactionRepository inherits IRepository<MemberTransaction>. Inject the corresponding thin implementation into MembershipUnitOfWork; do not widen the property to IRepository<MemberTransaction> or construct a repository on access. IAM security/non-entity repositories may use specialized contracts; their property names still end in Repository. ControlPlane is a global catalog with its existing non-transactional UoW contract; no tenant transactional inheritance is implied by this exception.
+
+Ordinary handlers stage mutations and call CompleteAsync(ct) once. ExecuteInTransactionAsync(operation, ct) already owns saving/committing; do not call CompleteAsync redundantly inside it. Read-only generic methods use no tracking: explicitly stage detached mutations or use a tracked load. Retry and domain-event consistency across commit paths is tracked in remediation Phase 2.
 
 Repositories should normally stage changes only. They should not call `SaveChangesAsync` inside ordinary create, update, revoke, or delete methods unless the method is intentionally an atomic persistence operation and the exception is documented.
 

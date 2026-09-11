@@ -171,7 +171,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 ## 7. Execution Tracking
 
 - [x] Phase 0: Git bootstrap and baseline (PR #1; failing source baseline captured, merge gate verified)
-- [ ] Phase 1: Standards and regression controls
+- [x] Phase 1: Standards and regression controls (84 architecture tests, 41 unit tests; see phase-1-verification.md for debt and remaining gate blockers)
 - [ ] Phase 2: Persistence/financial correctness
 - [ ] Phase 3: Repository/UoW alignment
 - [ ] Phase 4: AppResponse alignment

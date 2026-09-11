@@ -1,3 +1,4 @@
+using LS.SharedKernel.Features.Accounting.Dtos;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Features.Accounting.Services;
 using LS.Domain.Features.Accounting.Contracts;
-using LS.Domain.Features.Accounting.Contracts.Services;
+
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Shared.Contracts.Common;
 using NSubstitute;
@@ -35,10 +36,10 @@ public class LedgerServiceTests
         // Arrange
         var accountId1 = Guid.NewGuid();
         var accountId2 = Guid.NewGuid();
-        var entries = new List<JournalEntryDto>
+        var entries = new List<CreateJournalEntryDto>
         {
-            new JournalEntryDto(accountId1, 100, 0, "Debit entry"),
-            new JournalEntryDto(accountId2, 0, 100, "Credit entry")
+            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 0, Description = "Debit entry" },
+            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = 100, Description = "Credit entry" }
         };
 
         // Act
@@ -62,10 +63,10 @@ public class LedgerServiceTests
         // Arrange
         var accountId1 = Guid.NewGuid();
         var accountId2 = Guid.NewGuid();
-        var entries = new List<JournalEntryDto>
+        var entries = new List<CreateJournalEntryDto>
         {
-            new JournalEntryDto(accountId1, 100, 0, "Debit entry"),
-            new JournalEntryDto(accountId2, 0, 90, "Credit entry")
+            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 0, Description = "Debit entry" },
+            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = 90, Description = "Credit entry" }
         };
 
         // Act & Assert
@@ -87,10 +88,10 @@ public class LedgerServiceTests
         // Arrange
         var accountId1 = Guid.NewGuid();
         var accountId2 = Guid.NewGuid();
-        var entries = new List<JournalEntryDto>
+        var entries = new List<CreateJournalEntryDto>
         {
-            new JournalEntryDto(accountId1, -100, 0, "Debit entry"),
-            new JournalEntryDto(accountId2, 0, -100, "Credit entry")
+            new CreateJournalEntryDto { AccountId = accountId1, Debit = -100, Credit = 0, Description = "Debit entry" },
+            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = -100, Description = "Credit entry" }
         };
 
         // Act & Assert
@@ -111,9 +112,9 @@ public class LedgerServiceTests
     {
         // Arrange
         var accountId1 = Guid.NewGuid();
-        var entries = new List<JournalEntryDto>
+        var entries = new List<CreateJournalEntryDto>
         {
-            new JournalEntryDto(accountId1, 100, 100, "Both entry"),
+            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 100, Description = "Both entry" },
         };
 
         // Act & Assert

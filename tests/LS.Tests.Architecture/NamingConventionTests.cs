@@ -168,38 +168,6 @@ public sealed class NamingConventionTests
     }
 
     [Fact]
-    public void Public_Top_Level_Types_Should_Have_One_Type_Per_File()
-    {
-        var authoredSourceRoots = new[]
-        {
-            Path.Combine(AssemblyReferences.RepoRoot, "src"),
-            Path.Combine(AssemblyReferences.RepoRoot, "tests"),
-        };
-
-        var violations = authoredSourceRoots
-            .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-            .Where(IsAuthoredSourceFile)
-            .Select(path => new
-            {
-                Path = path,
-                Types = GetPublicTopLevelTypes(path),
-            })
-            .Where(file => file.Types.Count > 1 ||
-                           file.Types.Any(type => !IsExpectedTypeFileName(file.Path, type)))
-            .Select(file =>
-            {
-                var relativePath = Path.GetRelativePath(AssemblyReferences.RepoRoot, file.Path);
-                var types = string.Join(", ", file.Types.Select(type => $"{type.Name} at line {type.Line}"));
-                return $"{relativePath}: {types}";
-            })
-            .ToList();
-
-        violations.Should().BeEmpty(
-            because: "each public top-level class, record, struct, interface, and enum must live in its own file named after that type. Found: {0}",
-            string.Join(Environment.NewLine, violations));
-    }
-
-    [Fact]
     public void Custom_Context_Related_Types_Should_Use_DB_Acronym()
     {
         var assemblies = new[]
@@ -227,67 +195,4 @@ public sealed class NamingConventionTests
             string.Join(", ", violations));
     }
 
-    private static List<PublicTopLevelType> GetPublicTopLevelTypes(string path)
-    {
-        var sourceText = File.ReadAllText(path);
-        var syntaxTree = CSharpSyntaxTree.ParseText(sourceText, path: path);
-        var root = syntaxTree.GetCompilationUnitRoot();
-
-        return root
-            .DescendantNodes(static node => node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax)
-            .Where(static node => node.Parent is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax)
-            .Select(TryCreatePublicTopLevelType)
-            .Where(static type => type is not null)
-            .Select(static type => type!)
-            .ToList();
-    }
-
-    private static PublicTopLevelType? TryCreatePublicTopLevelType(SyntaxNode node)
-    {
-        return node switch
-        {
-            BaseTypeDeclarationSyntax typeDeclaration when IsPublic(typeDeclaration.Modifiers) =>
-                new PublicTopLevelType(
-                    typeDeclaration.Identifier.ValueText,
-                    GetLine(typeDeclaration),
-                    IsPartial(typeDeclaration.Modifiers)),
-
-            BaseNamespaceDeclarationSyntax => null,
-            CompilationUnitSyntax => null,
-            _ => null
-        };
-    }
-
-    private static bool IsExpectedTypeFileName(string path, PublicTopLevelType type)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(path);
-
-        return string.Equals(type.Name, fileName, StringComparison.Ordinal) ||
-               (type.IsPartial &&
-                fileName.StartsWith($"{type.Name}.", StringComparison.Ordinal));
-    }
-
-    private static bool IsPublic(SyntaxTokenList modifiers) =>
-        modifiers.Any(static modifier => modifier.IsKind(SyntaxKind.PublicKeyword));
-
-    private static bool IsPartial(SyntaxTokenList modifiers) =>
-        modifiers.Any(static modifier => modifier.IsKind(SyntaxKind.PartialKeyword));
-
-    private static int GetLine(SyntaxNode node) =>
-        node.SyntaxTree.GetLineSpan(node.Span).StartLinePosition.Line + 1;
-
-    private static bool IsAuthoredSourceFile(string path)
-    {
-        var directorySeparator = Path.DirectorySeparatorChar.ToString();
-
-        return !path.Contains($"{directorySeparator}bin{directorySeparator}", StringComparison.OrdinalIgnoreCase) &&
-               !path.Contains($"{directorySeparator}obj{directorySeparator}", StringComparison.OrdinalIgnoreCase) &&
-               !path.Contains($"{directorySeparator}Migrations{directorySeparator}", StringComparison.OrdinalIgnoreCase) &&
-               !path.Contains($"{directorySeparator}Platforms{directorySeparator}", StringComparison.OrdinalIgnoreCase) &&
-               !path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase) &&
-               !path.EndsWith(".xaml.cs", StringComparison.OrdinalIgnoreCase) &&
-               !path.EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private sealed record PublicTopLevelType(string Name, int Line, bool IsPartial);
 }

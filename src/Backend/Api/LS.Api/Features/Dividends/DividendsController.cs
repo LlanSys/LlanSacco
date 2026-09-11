@@ -1,3 +1,4 @@
+using LS.SharedKernel.Dtos.Common;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Dividends.Commands;
 using LS.Application.Features.Dividends.Queries;

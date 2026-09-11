@@ -3,7 +3,7 @@
 > Last updated: 2026-07-03
 >
 > This file explains how to execute `PLAN.md` without jumping between unrelated work.
-> `PLAN.md` defines what the template should become. This file defines sequencing, dependencies, readiness gates, and safe parallel work.
+> `PLAN.md` defines what the SACCO product should become. This file defines sequencing, dependencies, readiness gates, and safe parallel work.
 
 ---
 
@@ -95,7 +95,7 @@ Current near-term focus:
 | SignalR | Auth and user/group strategy | Hubs need secure user, role, tenant, and context grouping. |
 | QuestPDF reporting | Feature data and storage/download strategy | Reports should be generated from real features and delivered consistently. |
 | Payments | Domain feature needing payments, provider abstraction | Provider integrations need idempotency, audit, callbacks, and reconciliation. |
-| Product modules such as loans | LlanSacco completed and cloned downstream | SACCO/product-specific behavior belongs in the downstream solution, not the reusable template core. |
+| Product modules such as loans | Verified LlanSacco platform foundations | SACCO capabilities belong in this product, within their bounded contexts. |
 
 ---
 
@@ -231,7 +231,7 @@ Avoid these until their gates are ready:
 - External verification provider integrations before Customer/Employee identity evidence and audit models are stable.
 - Azure deployment before local run, health checks, and secret strategy are stable.
 - Entra ID SSO before AppUser linking and claims model are stable.
-- SACCO/product modules before LlanSacco platform foundations are reliable and cloned downstream.
+- Expansion of SACCO modules before the relevant platform and remediation gates are verified.
 - Plugin-driven modules before static/dynamic module catalog is proven.
 - Heavy maturity polish before a working local product demo exists.
 
@@ -272,7 +272,7 @@ Recommended immediate order:
 3. Certify Phase 2: platform storage, cache, exception, validation, and messaging hardening.
 4. Certify Phase 3: health checks, observability, API security/deprecation/throttling, and operational diagnostics.
 5. Certify Phase 4: CI/CD deployment readiness, migration bundles, Docker local platform, and Azure App Service release flow. (Complete)
-6. Move product-specific work such as SACCO loans, KYC/CRB, AML, payroll, or full HR into downstream solutions cloned from LlanSacco.
+6. Build SACCO loans, KYC/CRB, AML, payroll, and HR in this product after their platform and remediation dependencies pass.
 
 ---
 

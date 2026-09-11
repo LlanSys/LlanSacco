@@ -71,13 +71,11 @@ public sealed class ApiAuthorizationTests
             .Where(action => !ControllersAllowedWithoutPermissionRequirement.Contains(action.Controller.Name, StringComparer.Ordinal))
             .Where(action => !ActionsAllowedWithoutPermissionRequirement.Contains($"{action.Controller.Name}.{action.Method.Name}", StringComparer.Ordinal))
             .Where(action => !HasPermissionRequirement(action.Controller, action.Method))
-            .Select(action => $"{action.Controller.Name}.{action.Method.Name}")
-            .Order(StringComparer.Ordinal)
+            .Select(action => action.Method)
+            .OrderBy(method => method.DeclaringType!.FullName + "." + method.Name, StringComparer.Ordinal)
             .ToList();
 
-        actionsWithoutPermissions.Should().BeEmpty(
-            because: "feature/admin API actions must use [RequirePermission] so authorization stays permission-driven. Found: {0}",
-            string.Join(", ", actionsWithoutPermissions));
+        Guardrails.ArchitectureDebt.AssertMembers("AUTH001", actionsWithoutPermissions, "Feature action lacks RequirePermission; Authorize alone is insufficient", 7);
     }
 
     [Fact]

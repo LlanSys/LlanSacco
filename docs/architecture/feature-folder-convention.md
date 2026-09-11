@@ -39,7 +39,7 @@ Keep only genuinely generic transport primitives in root shared folders, such as
 
 ## Ownership Rules
 
-- Banking owns customer business capabilities, including customer entities, customer commands/queries, customer repositories, customer email consumers, and customer number generation.
+- Membership owns member onboarding, accounts, beneficiaries, guarantor relationships, and member number generation. Banking owns shares, savings, deposits, and FOSA. Accounting owns the ledger; Loans owns lending and collections; CheckOff owns employer deductions; Dividends owns declarations/distributions. ControlPlane owns the global tenant/stamp catalog. The complete context registry is bounded-contexts.json.
 - HR owns employee business capabilities, including employee entities, employee repositories, employee events, and employee number generation.
 - IAM owns identity and access capabilities, including AppUser services, claims, JWT, sessions, identity resolution, user context, and authentication-oriented SMS composition.
 - Shared owns reusable platform/business-support capabilities such as notifications, email templates, lookups, outbox, failed messages, integration event publishing, caching, encryption, and background jobs.
@@ -207,3 +207,10 @@ refactor: move IAM services into feature-owned contracts
 ```
 
 Commit messages should be specific enough to understand the change later, but not a full changelog.
+
+
+## Command Slice And Validator Files
+
+The default is Features/{Context}/{Feature}/Commands/CreateOrder.cs containing public CreateOrderCommand and internal CreateOrderCommandHandler. Keep the type suffixes; the paired file name is the operation only. No other types belong in that file. Keep CreateOrderCommandValidator in Validators/CreateOrderCommandValidator.cs, even if internal. This is the sole default exception to public-type/file equality. Separate command files require reviewed exact exceptions; existing deviations are temporary debt, not examples to copy. Transport request/response types and their validators remain in their respective SharedKernel feature projects.
+
+Every new validator must be discoverable through the configured DI path. A source convention test cannot prove runtime registration; Phase 6 adds/extends execution tests while extracting legacy validators.

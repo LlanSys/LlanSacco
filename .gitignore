@@ -441,3 +441,4 @@ api_logs.txt
 *.pem
 *.key
 *.p12
+/src/Backend/Api/LS.Api/ef_env.txt

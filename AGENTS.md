@@ -23,12 +23,12 @@ This file is the canonical source of truth and working contract for AI coding to
 
 - Repo: `LlanSys/LlanSacco`
 - Product: LlanSacco
-- Root namespace prefix: `BT`
-- Rename a clone with `scripts/rename-template.ps1` before its first run or deployment.
+- Root namespace prefix: `LS`
+- LlanSacco is the SACCO product, derived from BaseTemplate. Do not rerun template renaming on this established application.
 - After protected data has been issued, `DataProtection:ApplicationName` is immutable without an explicit migration or security reset.
 - Target framework: `.NET 10`
 - Architecture: modular monolith with Clean Architecture boundaries and bounded-context feature folders.
-- Current bounded contexts: `IAM`, `Membership`, `Accounting`, `Loans`, `HR`, and `Shared`.
+- Current bounded contexts: `Accounting`, `Banking`, `CheckOff`, `ControlPlane`, `Dividends`, `HR`, `IAM`, `Loans`, `Membership`, and `Shared`. The machine-readable registry is `docs/architecture/bounded-contexts.json`.
 
 ## Architecture Rules
 
@@ -44,17 +44,17 @@ This file is the canonical source of truth and working contract for AI coding to
 
 - Use MediatR request/handler flows already established in the repo.
 - Commands/queries and handlers should remain feature-owned.
-- Each public top-level type must live in its own file named after that type. This applies to classes, records, structs, interfaces, and enums; do not bundle multiple public DTOs, validators, settings POCOs, entities, or helper types in one file.
+- Each public top-level type normally occupies its own type-named file. The narrow default exception is a command slice: `CreateOrder.cs` contains `CreateOrderCommand` and its internal `CreateOrderCommandHandler`, and no unrelated types. Keep Command/Handler type suffixes; omit them from the paired file name. Separate command/handler files require a reviewed, exact exception. Validators always occupy separate type-named files, including internal validators: `Validators/CreateOrderCommandValidator.cs`. Do not bundle unrelated DTOs, settings, entities, or helpers. Partial generated companions retain their existing type-based naming.
 - Use C# 12 Primary Constructors where applicable for classes, records, and struct declarations (e.g. controllers, handlers, services) instead of traditional constructor boilerplate.
 - Use `Request` and `Response` suffixes for transport models instead of `Dto`. Do not mirror Domain enums to SharedKernel; use `string` properties in transport records and map them using `ToEnum()` at the boundaries.
-- Use `AppResponse<T>` for expected business outcomes.
+- Use `AppResponse<T>` and existing `AppResponses`/`AppError` factories for expected business outcomes. Failure envelopes must contain a typed Error; Message alone is insufficient. Preserve the response contract and use the correct NotFound/Forbidden/Validation/BusinessRule semantics.
 - Throw exceptions only for unexpected or exceptional failures.
 - API responses must go through the established response/problem-details pattern.
 - Do not leak exception type names, stack traces, provider errors, connection strings, or internal IDs into user-facing messages.
 - All user-facing errors from the UI must be sanitized through the shared messaging pattern.
 - Provider-specific integration DTOs belong beside the provider adapter. Shared contracts should stay provider-neutral and should not expose Stripe, M-Pesa, Azure, or other provider wire payloads.
 - When a capability supports multiple runtime providers per operation, use a router/factory over isolated provider adapters. Do not make one provider adapter understand another provider's DTOs, credentials, or callbacks.
-- Application-layer command/query handlers must use bounded-context Unit of Work interfaces (`ISharedUnitOfWork`, `IBankingUnitOfWork`, etc.) for persistence orchestration, not raw `IRepository<T>`. Always call `CompleteAsync` with a `CancellationToken` after write operations.
+- Application-layer command/query handlers must use bounded-context Unit of Work interfaces (`ISharedUnitOfWork`, `IBankingUnitOfWork`, etc.) for persistence orchestration, not raw `IRepository<T>`. Stage writes and commit once with a `CancellationToken`: use `CompleteAsync(ct)` for the ordinary path, or let `ExecuteInTransactionAsync(operation, ct)` own its save/commit. Do not add a second save merely to satisfy this rule. Define retry/domain-event semantics before selecting another transaction helper.
 - Pass `CancellationToken` to all async I/O calls (`ReadAsStringAsync`, `CompleteAsync`, `SaveChangesAsync`, etc.) where the parameter is available.
 - Use `StringComparison.OrdinalIgnoreCase` for case-insensitive comparisons. Reserve `ToUpperInvariant()`/`ToLowerInvariant()` for value normalization (stored keys, wire formats, display strings) — never for equality checks. C# `switch` on normalized strings is acceptable when `StringComparison` is not supported by the expression.
 - Always use `Guid.CreateVersion7()` instead of `Guid.NewGuid()` to ensure time-ordered identifiers.
@@ -65,7 +65,9 @@ This file is the canonical source of truth and working contract for AI coding to
 - Custom persistence context-related types use the project `DB` acronym, for example `IamDBContext`, `DBContextHelper`, and `ITenantFilteredDBContext`; keep Microsoft framework API names unchanged.
 - Respect tenant isolation, soft delete, and audit actor conventions.
 - `CreatedBy`, `UpdatedBy`, `ActivatedBy`, `DeactivatedBy`, and `DeletedBy` must store stable actor identifiers, not display names or labels such as `DevelopmentSeed`.
-- Prefer generic repository methods unless a concrete repository method is persistence-specific.
+- Every Unit of Work repository property uses a feature-specific interface and the `Repository` suffix, for example `IMemberTransactionRepository MemberTransactionRepository`. Entity repository interfaces inherit `IRepository<TEntity>`; never expose raw `IRepository<TEntity>` from a Unit of Work. Inject implementations; never construct generic repositories in property getters. Specialized non-entity/security contracts require a documented exception to inheritance, not naming.
+- Prefer inherited generic repository methods unless a concrete repository method is persistence-specific. Use specifications for reusable query rules; do not invent aliases such as GetAllAsync/GetByIdAsync when ListAsync/FindByIdAsync already exist.
+- Read-only generic methods are no-tracking. Mutations must use tracked retrieval or explicitly stage changes with UpdateAsync/UpdateRangeAsync before the Unit of Work commits.
 - Compose queries before materialization. Do not call `ToListAsync` before filters, tenant scope, paging, projection, or security scope are applied.
 - Use `Any` for existence checks, not `Count > 0`.
 - Use `CountAsync` only when the count is returned, logged, or used for a decision.
@@ -77,10 +79,10 @@ This file is the canonical source of truth and working contract for AI coding to
 
 ## Validation, Logging, And Caching
 
-- Add FluentValidation validators for write requests that can accept user input.
+- Add FluentValidation validators for write requests that can accept user input. Keep each validator in a separate type-named file under its feature and prove it is discovered by DI and runs through MediatR. Internal validators require explicit scanning/registration; file placement alone does not prove execution.
 - Use source-generated `LoggerMessage` methods; do not add free-form logging in new code paths.
 - Every `catch` block must log or deliberately translate the error into an expected result.
-- Use `ICachableRequest` for cacheable queries and `ICacheInvalidatorRequest` for commands that invalidate cache.
+- Every query needs an explicit cache policy through `ICachableRequest`; sensitive/fresh reads use BypassCache deliberately. Every command needs a cache-impact decision: use `ICacheInvalidatorRequest` for affected cached reads or a reviewed exact no-cached-dependents decision. Do not add empty marker implementations just to pass checks. Invalidation follows a successful committed outcome; failed results must not be cached. Validate behavior ordering, tenant/user/permission scope, and non-MediatR writers.
 - Keep cache keys tenant-aware where data is tenant-scoped.
 
 ## IAM And Security
@@ -122,6 +124,7 @@ This file is the canonical source of truth and working contract for AI coding to
 ## Workflow Rules
 
 - Preserve user changes. Do not revert unrelated work.
+- Architecture debt is recorded exactly in `docs/architecture/architecture-debt.json`, with rule, file, symbol, evidence, and owning remediation phase. CI rejects new violations and stale entries. Never regenerate or expand the register to hide a regression; remove resolved entries in the fixing PR. See `docs/architecture/architecture-guardrails.md`.
 - Prefer small, focused commits with clear messages.
 - When adding or modifying constructor dependencies for core abstractions (like `DbContext`), ensure the dependency injection configurations in the integration tests are also updated to provide those services.
 - Before opening or updating a PR, run:
@@ -143,4 +146,3 @@ The following files exist only to point other AI tools back to this canonical fi
 - `.windsurfrules`
 
 Keep these files short and aligned with this file. Do not let them become independent rulebooks.
-

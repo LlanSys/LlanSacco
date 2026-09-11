@@ -14,7 +14,7 @@ LlanSacco is a multi-tenant SaaS platform for Kenyan Savings and Credit Co-opera
 
 The solution is structured as a **Logical Modular Monolith**:
 - **Single Deployable Unit:** Simplifies deployment, operations, and hosting costs while the domain is evolving.
-- **Bounded Contexts:** Clear separation of concerns (IAM, Membership, Accounting, Loans, HR, Shared) with separate database schemas and DbContexts to prevent cross-context table joins.
+- **Bounded Contexts:** Clear separation of concerns (Accounting, Banking, CheckOff, ControlPlane, Dividends, HR, IAM, Loans, Membership, Shared) with separate database schemas and DbContexts to prevent cross-context table joins.
 - **Clean Architecture:** Strict inward-pointing dependency directions (Domain & SharedKernel -> Application -> Infrastructure & Persistence -> API & UI Hosts).
 - **Vertical Slice Structure:** Cross-layer feature folders to maximize readability and reduce code scatteredness.
 - **Client Decoupling:** Both Blazor Web and MAUI Hybrid serve as clean HTTP API clients, ensuring the web host requires zero database connectivity or secrets.
@@ -26,12 +26,12 @@ The solution is structured as a **Logical Modular Monolith**:
 ### 2.1 Core Architecture
 The platform implements:
 - Bounded Contexts with context-scoped `DbContext` and `IUnitOfWork`.
-- CQRS via MediatR (templated) and Mediator.SourceGenerator (compiled).
+- CQRS via MediatR with the registered validation, logging, exception, caching, and invalidation pipeline.
 - Domain Events (in-process) and Integration Events with MassTransit EF Outbox (cross-process).
 - Architecture-tests-as-guardrails to block regression in CI/CD.
 
 ### 2.2 SaaS Tenancy And Deployment Stamps
-LlanSacco is a SaaS-ready template, not a single-client application template. It uses a hybrid deployment-stamp model:
+LlanSacco is a multi-tenant SACCO product derived from BaseTemplate. It uses a hybrid deployment-stamp model:
 
 - A tenant is a customer organization, business unit, or client workspace.
 - A deployment stamp is an isolated runtime and resource boundary.
@@ -80,7 +80,7 @@ src/Backend/Application/LS.Application/Features/{BoundedContext}/{Feature}
 ```
 All query records, command records, validators, mapping profiles, and handlers for a given feature slice reside in the same folder. Shared plumbing (observability, caching abstractions, logging, base controllers) lives in root-level directories.
 
-Every public top-level type must live in its own file named after that type. This applies to DTOs, validators, settings POCOs, entities, interfaces, records, enums, and public helper classes. Bundling public types into one file is not allowed because it makes future refactoring and maintenance painful.
+Public top-level types normally occupy type-named files. The default command slice is CreateOrder.cs containing CreateOrderCommand and its internal CreateOrderCommandHandler only. Validators always occupy separate type-named files. AGENTS.md and architecture-guardrails.md define the narrow operation-file exception and reviewed legacy debt.
 
 ---
 
@@ -227,7 +227,7 @@ EventIds are structured by architectural layer to simplify searching in logs:
 - [x] **Azure Deployment Workflows:** Wire Blue/Green deployment slot switches for API services in GitHub Actions after Azure subscription/billing is active.
 
 ### Phase 5 - Template Extensibility
-*Goal: complete reusable extension points without adding product-specific SACCO/domain features to the template.*
+*Goal: complete reusable platform extension points that support the SACCO product.*
 - [x] **Dynamic Permissions-Based Menus:** Implement backend menu/module API that constructs the UI layout based on user permissions, roles, and active feature flags.
 - [x] **MudBlazor UI Shell:** Implement responsive theme, layouts, and auth pages in the Shared Razor Class Library (RCL).
 - [x] **Feature Flags:** Generic fail-closed feature-flag abstraction is registered with configuration-backed evaluation.

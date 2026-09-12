@@ -1,12 +1,16 @@
 # Gemini Instructions
 
-Read `AGENTS.md` first. It is the canonical source of truth for this repository.
+You must strictly follow the rules in this file before generating any code or suggestions. `AGENTS.md` is the absolute canonical source of truth for this repository.
 
-Before writing code, debugging, or reviewing changes:
+## Pre-Flight Compliance Rules
 
-1. Read `AGENTS.md`.
-2. Read `PLAN.md` and `PLAN_EXECUTION_STRATEGY.md` when the work touches architecture, phases, or roadmap decisions.
-3. Read the relevant `docs/architecture/*` or `docs/development/*` file for the area being changed.
-4. Update `AGENTS.md` and the relevant docs when a convention changes.
+Before writing code, debugging, or reviewing changes, you MUST execute these steps in your hidden thought process or output:
 
-Do not duplicate long-lived rules here. If this file and `AGENTS.md` disagree, follow `AGENTS.md` and update this file.
+1. Locate and read `@AGENTS.md`, `@PLAN.md`, and any relevant files in `@docs/architecture/`, `@docs/development/` and `@docs/reference/`.
+2. Do not rely on general coding conventions. You must use the specific domain rules found in the files above.
+3. CRITICAL: In your very first response sentence, you must output a "Compliance Anchor" in this exact format:
+   "Compliance Check: Verified against AGENTS.md rules for [Insert Sacco Component Name Here]."
+
+## Conflict Resolution
+
+Do not duplicate long-lived rules here. If this file and `AGENTS.md` disagree, follow `AGENTS.md` and immediately flag the conflict to the user.

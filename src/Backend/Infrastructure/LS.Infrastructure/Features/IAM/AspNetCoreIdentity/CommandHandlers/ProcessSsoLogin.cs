@@ -121,9 +121,8 @@ internal sealed class ProcessSsoLogin(
         {
             await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
             await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-            await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
             return true;
-        }).ConfigureAwait(false);
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
         

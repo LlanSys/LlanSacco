@@ -153,7 +153,7 @@ internal sealed class CreateAppUser(
                     .ConfigureAwait(false);
 
                 return true;
-            }).ConfigureAwait(false);
+            }, cancellationToken: ct).ConfigureAwait(false);
 
             appUser.RaiseAppUserCreatedEvent();
 

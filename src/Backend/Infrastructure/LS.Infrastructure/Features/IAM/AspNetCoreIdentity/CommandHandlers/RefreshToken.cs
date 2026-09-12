@@ -93,9 +93,8 @@ internal sealed class RefreshToken(
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
                     await iamUnitOfWork.TokenRepository.RevokeRefreshTokenAsync(storedRefreshToken, "Token expired").ConfigureAwait(false);
-                    await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                     return true;
-                }).ConfigureAwait(false);
+                }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 return AppResponses.Failure<RefreshTokenResponse>("Refresh token has expired");
             }
@@ -112,9 +111,8 @@ internal sealed class RefreshToken(
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
                     await iamUnitOfWork.TokenRepository.RevokeAllUserTokensAsync(userId, "Token reuse detected").ConfigureAwait(false);
-                    await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                     return true;
-                }).ConfigureAwait(false);
+                }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 return AppResponses.Failure<RefreshTokenResponse>("Refresh token has already been used");
             }
@@ -168,9 +166,8 @@ internal sealed class RefreshToken(
                 await iamUnitOfWork.TokenRepository.MarkTokenAsUsedAsync(storedRefreshToken).ConfigureAwait(false);
                 await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(newRefreshTokenEntity).ConfigureAwait(false);
                 await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(userId).ConfigureAwait(false);
-                await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                 return true;
-            }).ConfigureAwait(false);
+            }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             user.MarkUpdated(user.Id);
             await userManager.UpdateAsync(user).ConfigureAwait(false);

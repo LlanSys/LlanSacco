@@ -10,6 +10,7 @@ public class DepositAccount : BaseEntity
     public DepositProduct Product { get; set; } = null!;
     
     public decimal Balance { get; set; }
+    public DateOnly? LastInterestAccruedOn { get; set; }
     public decimal AccruedInterest { get; set; }
     
     public DateTimeOffset MaturityDate { get; set; }

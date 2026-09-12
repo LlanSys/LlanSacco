@@ -1,87 +1,56 @@
+using System.Collections.ObjectModel;
+using LS.Application.Features.Banking.Logging;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.Savings.Entities;
 using LS.Domain.Features.Banking.Savings.Enums;
+using LS.Domain.Shared.Contracts.Common;
 using LS.SharedKernel.Features.Banking.Savings.Events;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace LS.Application.Features.Banking.Savings.Jobs;
 
 public class CalculateSavingsInterestJob(
     IBankingUnitOfWork unitOfWork,
     ILogger<CalculateSavingsInterestJob> logger,
-    MediatR.IPublisher publisher)
+    MediatR.IPublisher publisher,
+    ICurrentTenantProvider tenantProvider,
+    TimeProvider? timeProvider = null)
 {
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Starting Savings Interest Accrual Job...");
-
-        var activeProducts = await unitOfWork.SavingsProducts.ListAsync(q => q.Where(x => x.IsActive && x.InterestRate > 0), cancellationToken);
-
-        if (!activeProducts.Any())
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        var accrualDate = DateOnly.FromDateTime((timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+        var processed = 0;
+        while (true)
         {
-            logger.LogInformation("No active savings products with an interest rate found. Exiting job.");
-            return;
-        }
-
-        int processedAccounts = 0;
-
-        foreach (var product in activeProducts)
-        {
-            // Daily interest calculation = (InterestRate / 100) / 365
-            decimal dailyRate = (product.InterestRate / 100m) / 365m;
-
-            var accounts = await unitOfWork.SavingsAccounts.ListAsync(q => q.Where(x => x.SavingsProductId == product.Id && x.IsActive), cancellationToken);
-
-            foreach (var account in accounts)
+            var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                decimal availableBalance = account.GetAvailableBalance(product.MinimumBalance);
-                
-                if (availableBalance <= 0)
+                var products = await unitOfWork.SavingsProducts.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
+                var productIds = products.Select(p => p.Id).ToArray();
+                var byId = products.ToDictionary(p => p.Id);
+                var accounts = await unitOfWork.SavingsAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
+                        && productIds.Contains(a.SavingsProductId) && (a.LastInterestAccruedOn == null || a.LastInterestAccruedOn < accrualDate))
+                    .OrderBy(a => a.Id).Take(200), cancellationToken);
+                foreach (var account in accounts)
                 {
-                    continue; // No interest for zero or negative available balance
-                }
-
-                decimal interestToApply = Math.Round(availableBalance * dailyRate, 2);
-
-                if (interestToApply > 0)
-                {
-                    account.Balance += interestToApply;
-
-                    var transaction = SavingsTransaction.Create(
-                        account.Id,
-                        SavingsTransactionType.Interest,
-                        interestToApply,
-                        $"Daily Interest Accrual at {product.InterestRate}% p.a.",
-                        null,
-                        "System"
-                    );
-
+                    var product = byId[account.SavingsProductId];
+                    var availableBalance = account.GetAvailableBalance(product.MinimumBalance);
+                    var interest = Math.Round(Math.Max(0, availableBalance) * (product.InterestRate / 100m) / 365m, 2);
+                    account.LastInterestAccruedOn = accrualDate;
+                    if (interest <= 0) continue;
+                    account.Balance += interest;
+                    var transaction = SavingsTransaction.Create(account.Id, SavingsTransactionType.Interest, interest,
+                        $"Daily interest for {accrualDate:yyyy-MM-dd}", $"INT:{account.Id:N}:{accrualDate:yyyyMMdd}", ICurrentActorProvider.SystemActor);
                     await unitOfWork.SavingsTransactions.CreateAsync(transaction, cancellationToken);
-                    
-                    await publisher.Publish(new SavingsInterestAppliedIntegrationEvent(
-                        account.MemberId,
-                        account.Id,
-                        product.Id,
-                        interestToApply
-                    ), cancellationToken);
-
-                    processedAccounts++;
+                    await publisher.Publish(new SavingsInterestAppliedIntegrationEvent(account.MemberId, account.Id, product.Id, interest), cancellationToken);
                 }
-            }
+                await unitOfWork.SavingsAccounts.UpdateRangeAsync(new Collection<SavingsAccount>(accounts), cancellationToken);
+                return accounts.Count;
+            }, cancellationToken: cancellationToken);
+            processed += count;
+            if (count < 200) break;
         }
-
-        if (processedAccounts > 0)
-        {
-            await unitOfWork.CompleteAsync(cancellationToken);
-            logger.LogInformation("Successfully applied interest to {Count} savings accounts.", processedAccounts);
-        }
-        else
-        {
-            logger.LogInformation("No savings accounts were eligible for interest today.");
-        }
+        BankingInterestLogDefinitions.Completed(logger, "Savings accrual", processed);
     }
 }

@@ -252,9 +252,8 @@ internal sealed class Login(
             {
                 await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
                 await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-                await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                 return true;
-            }).ConfigureAwait(false);
+            }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return AppResponses.Success("Login successful", new LoginResponse(
                 user.Id,

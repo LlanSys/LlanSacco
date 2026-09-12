@@ -45,9 +45,8 @@ internal sealed class Logout(
                     await iamUnitOfWork.TokenRepository
                         .RevokeAllUserTokensAsync(userId, "User signed out", httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString())
                         .ConfigureAwait(false);
-                    await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                     return true;
-                }).ConfigureAwait(false);
+                }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 await publisher.Publish(new UserLogoutEvent(userId, sessionId), cancellationToken).ConfigureAwait(false);
             }

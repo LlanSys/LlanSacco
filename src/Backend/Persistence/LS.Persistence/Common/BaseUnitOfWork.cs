@@ -23,7 +23,7 @@ public abstract class BaseUnitOfWork<TContext>(
     {
         var strategy = Context.Database.CreateExecutionStrategy();
 
-        return await strategy.ExecuteAsync(async () =>
+        return await strategy.ExecuteAsync(async _ =>
         {
             var transaction = await Context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredTransaction = transaction.ConfigureAwait(false);
@@ -49,7 +49,7 @@ public abstract class BaseUnitOfWork<TContext>(
                 await RollbackAfterFailureAsync(transaction).ConfigureAwait(false);
                 throw;
             }
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task RollbackAfterFailureAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction)
@@ -65,40 +65,46 @@ public abstract class BaseUnitOfWork<TContext>(
             PersistenceLogDefinitions.LogTransactionErrorRollback(_logger, cleanupError);
         }
     }
-    public async Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation, int maxRetries = 3, int baseDelayMs = 50)
+    public async Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation,
+        int maxRetries = 3, int baseDelayMs = 50, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxRetries, 1);
+        ArgumentOutOfRangeException.ThrowIfNegative(baseDelayMs);
+        cancellationToken.ThrowIfCancellationRequested();
         var strategy = Context.Database.CreateExecutionStrategy();
 
-        return await strategy.ExecuteAsync(async () =>
+        return await strategy.ExecuteAsync(async _ =>
         {
             for (var attempt = 1; attempt <= maxRetries; attempt++)
             {
-                var transaction = await Context.Database.BeginTransactionAsync().ConfigureAwait(false);
-                await using var configuredTransaction = transaction.ConfigureAwait(false);
-                try
+                cancellationToken.ThrowIfCancellationRequested();
+                await using (var transaction = await Context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var result = await operation().ConfigureAwait(false);
-                    await Context.SaveChangesAsync().ConfigureAwait(false);
-                    await transaction.CommitAsync().ConfigureAwait(false);
-                    return result;
+                    try
+                    {
+                        var result = await operation().ConfigureAwait(false);
+                        await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                        return result;
+                    }
+                    catch (DbUpdateConcurrencyException ex) when (attempt < maxRetries)
+                    {
+                        PersistenceLogDefinitions.LogTransactionConcurrencyRetry(_logger, attempt, maxRetries, ex);
+                        await RollbackAfterFailureAsync(transaction).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        PersistenceLogDefinitions.LogRetryableTransactionErrorRollback(_logger, ex);
+                        await RollbackAfterFailureAsync(transaction).ConfigureAwait(false);
+                        throw;
+                    }
                 }
-                catch (DbUpdateConcurrencyException ex) when (attempt < maxRetries)
-                {
-                    PersistenceLogDefinitions.LogTransactionConcurrencyRetry(_logger, attempt, maxRetries, ex);
-                    await transaction.RollbackAsync().ConfigureAwait(false);
-                    Context.ChangeTracker.Clear();
-                    await Task.Delay(TimeSpan.FromMilliseconds(baseDelayMs * attempt)).ConfigureAwait(false);
-                    continue;
-                }
-                catch (Exception ex)
-                {
-                    PersistenceLogDefinitions.LogRetryableTransactionErrorRollback(_logger, ex);
-                    await transaction.RollbackAsync().ConfigureAwait(false);
-                    throw;
-                }
+                // Release the transaction before waiting. Cancellation must also stop the backoff.
+                await Task.Delay(TimeSpan.FromMilliseconds((double)baseDelayMs * attempt), cancellationToken).ConfigureAwait(false);
             }
             throw new InvalidOperationException("Max retry attempts exceeded due to concurrency conflicts.");
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<int> CompleteAsync(CancellationToken ct = default)

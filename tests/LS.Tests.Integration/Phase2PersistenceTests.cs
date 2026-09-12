@@ -1,3 +1,5 @@
+using LS.Application.Features.Banking.Savings.Jobs;
+using LS.Application.Features.Banking.Deposits.Jobs;
 using LS.Application.Features.Banking.Savings.Commands;
 using LS.Application.Features.Banking.Deposits.Commands;
 using LS.Domain.Features.Banking.Contracts;
@@ -58,10 +60,11 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         if (reads is not null) options.AddInterceptors(reads);
         return options.Options;
     }
-    private static ServiceProvider Services<TContext>(TContext context, Tenant tenant, bool failSavingsPublication = false) where TContext : DbContext
+    private static ServiceProvider Services<TContext>(TContext context, Tenant tenant, bool failSavingsPublication = false, TimeProvider? clock = null, bool failInterestPublication = false) where TContext : DbContext
     {
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton(context);
+        services.AddSingleton<TimeProvider>(clock ?? TimeProvider.System);
         services.AddSingleton<ICurrentTenantProvider>(tenant);
         services.AddSingleton<ICurrentActorProvider>(new Actor());
         services.AddMediatR(c => c.RegisterServicesFromAssemblyContaining<RunPayrollCommand>());
@@ -85,6 +88,8 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
                 services.AddTransient<INotificationHandler<SavingsDepositedIntegrationEvent>, RejectSavingsPublication>();
         }
         else services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
+        if (failInterestPublication)
+            services.AddSingleton<INotificationHandler<SavingsInterestAppliedIntegrationEvent>>(new RejectInterestPublication());
         return services.BuildServiceProvider();
     }
 
@@ -92,6 +97,304 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     {
         public Task Handle(SavingsDepositedIntegrationEvent notification, CancellationToken cancellationToken)
             => throw new InvalidOperationException("Injected publication failure.");
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class RejectInterestPublication : INotificationHandler<SavingsInterestAppliedIntegrationEvent>
+    {
+        private int _calls;
+        public Task Handle(SavingsInterestAppliedIntegrationEvent notification, CancellationToken cancellationToken)
+        {
+            if (++_calls == 2) throw new InvalidOperationException("Injected second-account failure.");
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task Provider_specific_checkoff_context_resolves_tenant_and_actor_through_DI()
+    {
+        ServiceProvider CreateProvider(Tenant tenant)
+        {
+            var services = new ServiceCollection().AddLogging();
+            services.AddSingleton<ICurrentTenantProvider>(tenant);
+            services.AddSingleton<ICurrentActorProvider>(new Actor());
+            if (fixture is PostgreSqlDbFixture)
+            {
+                services.AddSingleton(Options<CheckOffPostgreSqlDBContext>());
+                services.AddScoped<CheckOffDBContext, CheckOffPostgreSqlDBContext>();
+            }
+            else
+            {
+                services.AddSingleton(Options<CheckOffSqlServerDBContext>());
+                services.AddScoped<CheckOffDBContext, CheckOffSqlServerDBContext>();
+            }
+            return services.BuildServiceProvider();
+        }
+        var tenant = new Tenant();
+        await using (var services = CreateProvider(tenant))
+        {
+            var context = services.GetRequiredService<CheckOffDBContext>();
+            Assert.Equal(tenant.TenantId, context.CurrentTenantId);
+            await context.Database.EnsureCreatedAsync();
+            var employer = Employer.Create(Guid.Empty, "Employer", "Contact", "contact@example.test", "+254700000001", "");
+            context.Add(employer);
+            await context.SaveChangesAsync();
+            Assert.Equal(tenant.TenantId, employer.TenantId);
+            Assert.Equal(new Actor().ActorId, employer.CreatedBy);
+        }
+        await using (var services = CreateProvider(tenant))
+        {
+            Assert.Single(await services.GetRequiredService<CheckOffDBContext>().Employers.ToListAsync());
+        }
+        await using var otherTenant = CreateProvider(new Tenant());
+        Assert.Empty(await otherTenant.GetRequiredService<CheckOffDBContext>().Employers.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Banking_migration_chain_matches_the_current_runtime_model()
+    {
+        if (fixture is PostgreSqlDbFixture)
+        {
+            var options = new DbContextOptionsBuilder<BankingPostgreSqlDBContext>(Options<BankingPostgreSqlDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentNpgsqlMigrationsSqlGenerator>().Options;
+            await using var migrated = new BankingPostgreSqlDBContext(options);
+            await migrated.Database.MigrateAsync();
+            Assert.False(migrated.Database.HasPendingModelChanges());
+        }
+        else
+        {
+            var options = new DbContextOptionsBuilder<BankingSqlServerDBContext>(Options<BankingSqlServerDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentSqlServerMigrationsSqlGenerator>().Options;
+            await using var migrated = new BankingSqlServerDBContext(options);
+            await migrated.Database.MigrateAsync();
+            Assert.False(migrated.Database.HasPendingModelChanges());
+        }
+        var tenant = new Tenant();
+        await using var runtime = new BankingDBContext(Options<BankingDBContext>(), tenant, new Actor());
+        // Query the actual tables/columns from the deployed model, including previously missing mappings.
+        Assert.Empty(await runtime.SavingsAccounts.ToListAsync());
+        Assert.Empty(await runtime.DepositAccounts.ToListAsync());
+        Assert.Empty(await runtime.SavingsProducts.ToListAsync());
+        Assert.Empty(await runtime.FosaAccounts.ToListAsync());
+        Assert.Empty(await runtime.FosaTransactions.ToListAsync());
+        Assert.Empty(await runtime.TellerTills.ToListAsync());
+        Assert.Empty(await runtime.TillBalancingRecords.ToListAsync());
+        Assert.Empty(await runtime.Vaults.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Interest_jobs_are_repeat_safe_bounded_and_stop_deposit_accrual_at_maturity()
+    {
+        var tenant = new Tenant();
+        var reads = new Reads();
+        var options = Options<BankingDBContext>(reads);
+        var today = new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var savingsProduct = SavingsProduct.Create("Savings", "SAV", 36.5m, 0, true, 0, null, null, true, new Actor().ActorId);
+        var depositProduct = new DepositProduct { Name = "Fixed", Code = "FIX", CreatedBy = new Actor().ActorId, InterestRate = 36.5m };
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(savingsProduct, depositProduct);
+            for (var i = 0; i < 201; i++)
+            {
+                var memberId = Guid.CreateVersion7();
+                var savings = SavingsAccount.Create(memberId, savingsProduct.Id, new Actor().ActorId);
+                savings.Balance = 10000;
+                var deposit = DepositAccount.Create(memberId, depositProduct.Id, today.AddDays(2), new Actor().ActorId);
+                deposit.Balance = 10000;
+                setup.AddRange(savings, deposit);
+            }
+            await setup.SaveChangesAsync();
+        }
+        // Repeat each date using a fresh scope/context, as a restarted background worker would.
+        foreach (var date in new[] { today, today, today.AddDays(1), today.AddDays(1) })
+        {
+            await using var context = new BankingDBContext(options, tenant, new Actor());
+            await using var services = Services(context, tenant, clock: new FixedClock(date));
+            reads.Count = 0;
+            await ActivatorUtilities.CreateInstance<CalculateSavingsInterestJob>(services).ExecuteAsync(CancellationToken.None);
+            await ActivatorUtilities.CreateInstance<CalculateDepositInterestJob>(services).ProcessAsync(CancellationToken.None);
+            Assert.InRange(reads.Count, 1, 8);
+        }
+        await using (var fresh = new BankingDBContext(options, tenant, new Actor()))
+        {
+            Assert.All(await fresh.SavingsAccounts.ToListAsync(), a => { Assert.Equal(10020.01m, a.Balance); Assert.Equal(new DateOnly(2030, 1, 2), a.LastInterestAccruedOn); });
+            Assert.All(await fresh.DepositAccounts.ToListAsync(), a => Assert.Equal(20m, a.AccruedInterest));
+            Assert.Equal(402, await fresh.SavingsTransactions.CountAsync());
+        }
+        for (var run = 0; run < 2; run++)
+        {
+            await using var context = new BankingDBContext(options, tenant, new Actor());
+            await using var services = Services(context, tenant, clock: new FixedClock(today.AddDays(2)));
+            await ActivatorUtilities.CreateInstance<CalculateDepositInterestJob>(services).ProcessAsync(CancellationToken.None);
+            await ActivatorUtilities.CreateInstance<ProcessDepositMaturitiesJob>(services).ProcessAsync(CancellationToken.None);
+        }
+        await using var final = new BankingDBContext(options, tenant, new Actor());
+        Assert.All(await final.DepositAccounts.ToListAsync(), a => { Assert.Equal(10020m, a.Balance); Assert.Equal(0m, a.AccruedInterest); });
+        Assert.Equal(201, await final.DepositTransactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Failed_interest_batch_leaves_no_partial_balances_dates_or_transactions()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var product = SavingsProduct.Create("Savings", "SAV", 36.5m, 0, true, 0, null, null, true, new Actor().ActorId);
+        await using var context = new BankingDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        context.Add(product);
+        for (var i = 0; i < 2; i++)
+        {
+            var account = SavingsAccount.Create(Guid.CreateVersion7(), product.Id, new Actor().ActorId);
+            account.Balance = 10000;
+            context.Add(account);
+        }
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        await using var services = Services(context, tenant, failInterestPublication: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ActivatorUtilities.CreateInstance<CalculateSavingsInterestJob>(services).ExecuteAsync(CancellationToken.None));
+        await services.GetRequiredService<IBankingUnitOfWork>().CompleteAsync();
+        await using var fresh = new BankingDBContext(options, tenant, new Actor());
+        Assert.All(await fresh.SavingsAccounts.ToListAsync(), a => { Assert.Equal(10000m, a.Balance); Assert.Null(a.LastInterestAccruedOn); });
+        Assert.False(await fresh.SavingsTransactions.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Banking_rejects_competing_detached_balance_updates()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var product = SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId);
+        var account = SavingsAccount.Create(Guid.CreateVersion7(), product.Id, new Actor().ActorId);
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(product, account);
+            await setup.SaveChangesAsync();
+        }
+        await using var first = new BankingDBContext(options, tenant, new Actor());
+        await using var second = new BankingDBContext(options, tenant, new Actor());
+        await using var firstServices = Services(first, tenant);
+        await using var secondServices = Services(second, tenant);
+        var firstUow = firstServices.GetRequiredService<IBankingUnitOfWork>();
+        var secondUow = secondServices.GetRequiredService<IBankingUnitOfWork>();
+        var a = await firstUow.SavingsAccounts.FirstOrDefaultAsync(x => x.Id == account.Id);
+        var b = await secondUow.SavingsAccounts.FirstOrDefaultAsync(x => x.Id == account.Id);
+        a!.Balance += 100;
+        b!.Balance += 200;
+        await firstUow.SavingsAccounts.UpdateAsync(a);
+        await secondUow.SavingsAccounts.UpdateAsync(b);
+        await firstUow.CompleteAsync();
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondUow.CompleteAsync());
+        await using var fresh = new BankingDBContext(options, tenant, new Actor());
+        Assert.Equal(100m, (await fresh.SavingsAccounts.SingleAsync()).Balance);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Retry_failure_clears_writes_even_after_database_save(bool concurrencyFailure)
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        await using var context = new HrDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        await using var services = Services(context, tenant);
+        var uow = services.GetRequiredService<IHrUnitOfWork>();
+        var attempts = 0;
+        var original = concurrencyFailure ? new DbUpdateConcurrencyException("Injected conflict") : new InvalidOperationException("Injected failure") as Exception;
+        var thrown = await Assert.ThrowsAnyAsync<Exception>(() => uow.ExecuteInTransactionWithRetryAsync<int>(async () =>
+        {
+            attempts++;
+            await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, attempts, new Actor().ActorId));
+            await context.SaveChangesAsync();
+            throw original;
+        }, maxRetries: 2, baseDelayMs: 0));
+        Assert.Same(original, thrown);
+        Assert.Equal(concurrencyFailure ? 2 : 1, attempts);
+        Assert.Empty(context.ChangeTracker.Entries());
+        await uow.CompleteAsync();
+        await using var fresh = new HrDBContext(options, tenant, new Actor());
+        Assert.False(await fresh.PayrollPeriods.AnyAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Retry_cancellation_rolls_back_and_stops_further_attempts(bool duringBackoff)
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        await using var context = new HrDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        await using var services = Services(context, tenant);
+        var uow = services.GetRequiredService<IHrUnitOfWork>();
+        using var cancellation = new CancellationTokenSource();
+        var attempts = 0;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => uow.ExecuteInTransactionWithRetryAsync(async () =>
+        {
+            attempts++;
+            await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, attempts, new Actor().ActorId));
+            await context.SaveChangesAsync();
+            cancellation.Cancel();
+            if (duringBackoff) throw new DbUpdateConcurrencyException("Injected conflict before backoff");
+            return true;
+        }, baseDelayMs: 60000, cancellationToken: cancellation.Token));
+        Assert.Equal(1, attempts);
+        Assert.Empty(context.ChangeTracker.Entries());
+        await uow.CompleteAsync();
+        await using var fresh = new HrDBContext(options, tenant, new Actor());
+        Assert.False(await fresh.PayrollPeriods.AnyAsync());
+    }
+
+    [Fact]
+    public async Task Retry_reloads_after_conflict_and_commits_only_the_successful_attempt()
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        await using var context = new HrDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        await using var services = Services(context, tenant);
+        var uow = services.GetRequiredService<IHrUnitOfWork>();
+        var attempts = 0;
+        var result = await uow.ExecuteInTransactionWithRetryAsync(async () =>
+        {
+            attempts++;
+            Assert.False(await uow.PayrollPeriodRepository.AnyAsync(p => p.Year == 2025));
+            await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, attempts, new Actor().ActorId));
+            if (attempts == 1)
+            {
+                await context.SaveChangesAsync();
+                throw new DbUpdateConcurrencyException("Injected first-attempt conflict");
+            }
+            return attempts;
+        }, baseDelayMs: 0);
+        Assert.Equal(2, result);
+        await using var fresh = new HrDBContext(options, tenant, new Actor());
+        Assert.Equal(2, (await fresh.PayrollPeriods.SingleAsync()).Month);
+    }
+
+    [Fact]
+    public async Task Rejected_result_can_still_commit_intentional_diagnostics()
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        await using var context = new HrDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        await using var services = Services(context, tenant);
+        var uow = services.GetRequiredService<IHrUnitOfWork>();
+        var result = await uow.ExecuteInTransactionWithRetryAsync(async () =>
+        {
+            await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, 1, new Actor().ActorId));
+            return LS.SharedKernel.Dtos.Common.AppResponses.Failure<bool>("Expected rejection after intentional writes.");
+        });
+        Assert.False(result.IsSuccess);
+        await using var fresh = new HrDBContext(options, tenant, new Actor());
+        Assert.Single(await fresh.PayrollPeriods.ToListAsync());
     }
 
     [Fact]

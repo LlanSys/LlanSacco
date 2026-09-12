@@ -125,7 +125,7 @@ internal sealed class VerifyEmailOtp(
             await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
             await iamUnitOfWork.CompleteAsync(ct).ConfigureAwait(false);
             return true;
-        }).ConfigureAwait(false);
+        }, cancellationToken: ct).ConfigureAwait(false);
 
         if (req.RememberDevice) await signInManager.RememberTwoFactorClientAsync(user).ConfigureAwait(false);
         await signInManager.SignInAsync(user, req.RememberMe).ConfigureAwait(false);

@@ -141,9 +141,8 @@ internal sealed class SessionService(
                 }
 
                 // Commit the transaction
-                await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
                 return AppResponses.Success("Session created successfully", sessionId);
-            }, maxRetries, 50).ConfigureAwait(false);
+            }, maxRetries, 50, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

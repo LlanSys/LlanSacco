@@ -1,59 +1,48 @@
+using System.Collections.ObjectModel;
+using LS.Application.Features.Banking.Logging;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.Deposits.Entities;
+using LS.Domain.Shared.Contracts.Common;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using System.Linq;
 
 namespace LS.Application.Features.Banking.Deposits.Jobs;
 
 public class CalculateDepositInterestJob(
     IBankingUnitOfWork unitOfWork,
-    ILogger<CalculateDepositInterestJob> logger)
+    ILogger<CalculateDepositInterestJob> logger,
+    ICurrentTenantProvider tenantProvider,
+    TimeProvider? timeProvider = null)
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Starting CalculateDepositInterestJob");
-
-        var activeAccounts = await unitOfWork.DepositAccounts.ListAsync(
-            q => q.Where(x => x.IsActive && x.Balance > 0),
-            cancellationToken);
-
-        var productIds = activeAccounts.Select(x => x.DepositProductId).Distinct().ToList();
-        var products = await unitOfWork.DepositProducts.ListAsync(
-            q => q.Where(x => productIds.Contains(x.Id) && x.InterestRate > 0),
-            cancellationToken);
-            
-        var interestProducts = products.ToDictionary(x => x.Id);
-
-        foreach (var account in activeAccounts)
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var accrualDate = DateOnly.FromDateTime(now.UtcDateTime);
+        var processed = 0;
+        while (true)
         {
-            try
+            var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                if (!interestProducts.TryGetValue(account.DepositProductId, out var product))
+                var products = await unitOfWork.DepositProducts.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
+                var productIds = products.Select(p => p.Id).ToArray();
+                var byId = products.ToDictionary(p => p.Id);
+                var accounts = await unitOfWork.DepositAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive && a.Balance > 0
+                        && a.MaturityDate > now && productIds.Contains(a.DepositProductId)
+                        && (a.LastInterestAccruedOn == null || a.LastInterestAccruedOn < accrualDate))
+                    .OrderBy(a => a.Id).Take(200), cancellationToken);
+                foreach (var account in accounts)
                 {
-                    continue; // Skip if product has no interest rate
+                    var product = byId[account.DepositProductId];
+                    account.AccruedInterest += Math.Round(account.Balance * (product.InterestRate / 100m) / 365m, 4);
+                    account.LastInterestAccruedOn = accrualDate;
                 }
-
-                // Daily interest calculation: (Balance * Rate) / 365
-                decimal dailyRate = (product.InterestRate / 100m) / 365m;
-                decimal dailyInterest = account.Balance * dailyRate;
-
-                // Add to accrued interest
-                account.AccruedInterest += dailyInterest;
-                
-                await unitOfWork.DepositAccounts.UpdateAsync(account, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error calculating interest for deposit account {AccountId}", account.Id);
-            }
+                await unitOfWork.DepositAccounts.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
+                return accounts.Count;
+            }, cancellationToken: cancellationToken);
+            processed += count;
+            if (count < 200) break;
         }
-
-        await unitOfWork.CompleteAsync(cancellationToken);
-
-        logger.LogInformation("Finished CalculateDepositInterestJob");
+        BankingInterestLogDefinitions.Completed(logger, "Deposit accrual", processed);
     }
 }

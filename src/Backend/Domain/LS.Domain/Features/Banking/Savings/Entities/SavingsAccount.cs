@@ -10,6 +10,7 @@ public class SavingsAccount : BaseEntity
     public SavingsProduct Product { get; set; } = null!;
     
     public decimal Balance { get; set; }
+    public DateOnly? LastInterestAccruedOn { get; set; }
     public decimal LockedFunds { get; set; }
     
     public bool IsActive { get; set; } = true;

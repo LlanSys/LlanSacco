@@ -63,13 +63,13 @@ internal sealed class CreateEmployeeCommandHandler(
                         request.ManagerId,
                         command.User);
 
-                var createdEmployee = await unitOfWork.EmployeeRepository.CreateAsync(entityToCreate).ConfigureAwait(false);
+                var createdEmployee = await unitOfWork.EmployeeRepository.CreateAsync(entityToCreate, cancellationToken).ConfigureAwait(false);
 
                 return AppResponses.Success(
                     "Account created successfully! Please check your email to confirm your account.",
                     createdEmployee.ToEmployeeResponse());
 
-            }).ConfigureAwait(false);
+            }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return result;
         }

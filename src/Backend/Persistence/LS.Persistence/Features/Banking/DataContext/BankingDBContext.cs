@@ -83,6 +83,9 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);
+        if (Database.IsNpgsql())
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(t => typeof(BaseEntity).IsAssignableFrom(t.ClrType)))
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).ValueGeneratedNever();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -92,6 +95,9 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
+            if (Database.IsNpgsql())
+                foreach (var entry in ChangeTracker.Entries<BaseEntity>().Where(e => e.State is EntityState.Added or EntityState.Modified))
+                    entry.Entity.RowVersion = Guid.CreateVersion7().ToByteArray();
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _collectedDomainEvents ??= [];
             _collectedDomainEvents.AddRange(domainEvents);

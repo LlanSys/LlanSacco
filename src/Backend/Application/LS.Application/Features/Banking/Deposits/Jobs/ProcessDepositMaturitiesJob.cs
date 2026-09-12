@@ -1,68 +1,47 @@
+using System.Collections.ObjectModel;
+using LS.Application.Features.Banking.Logging;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.Deposits.Entities;
 using LS.Domain.Features.Banking.Deposits.Enums;
 using LS.Domain.Shared.Contracts.Common;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using System.Linq;
 
 namespace LS.Application.Features.Banking.Deposits.Jobs;
 
 public class ProcessDepositMaturitiesJob(
     IBankingUnitOfWork unitOfWork,
-    ILogger<ProcessDepositMaturitiesJob> logger)
+    ILogger<ProcessDepositMaturitiesJob> logger,
+    ICurrentTenantProvider tenantProvider,
+    TimeProvider? timeProvider = null)
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Starting ProcessDepositMaturitiesJob");
-        
-        // Find all active accounts that have reached or passed maturity
-        var now = DateTimeOffset.UtcNow;
-        var maturedAccounts = await unitOfWork.DepositAccounts.ListAsync(
-            q => q.Where(x => x.IsActive && x.MaturityDate <= now),
-            cancellationToken);
-
-        foreach (var account in maturedAccounts)
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var processed = 0;
+        while (true)
         {
-            try
+            var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                // Capitalize accrued interest
-                if (account.AccruedInterest > 0)
+                var accounts = await unitOfWork.DepositAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
+                        && a.MaturityDate <= now && a.AccruedInterest > 0)
+                    .OrderBy(a => a.Id).Take(200), cancellationToken);
+                foreach (var account in accounts)
                 {
-                    account.Balance += account.AccruedInterest;
-                    
-                    var interestTx = DepositTransaction.Create(
-                        account.Id,
-                        DepositTransactionType.InterestAccrual,
-                        account.AccruedInterest,
-                        account.Balance,
-                        "Maturity Interest Capitalization",
-                        ICurrentActorProvider.SystemActor
-                    );
-                    
+                    var interest = account.AccruedInterest;
+                    account.Balance += interest;
                     account.AccruedInterest = 0;
-                    
-                    await unitOfWork.DepositTransactions.CreateAsync(interestTx, cancellationToken);
+                    await unitOfWork.DepositTransactions.CreateAsync(DepositTransaction.Create(account.Id,
+                        DepositTransactionType.InterestAccrual, interest, account.Balance, "Maturity Interest Capitalization",
+                        ICurrentActorProvider.SystemActor), cancellationToken);
                 }
-                
-                // For a fixed deposit, once matured, we might close it or auto-renew it. 
-                // Currently, we just mark it inactive so it can't be deposited into easily, 
-                // or we could leave it active and let members withdraw without penalty.
-                // We'll leave it active for now but it has passed MaturityDate, so penalties won't apply.
-                
-                await unitOfWork.DepositAccounts.UpdateAsync(account, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error processing maturity for account {AccountId}", account.Id);
-            }
+                await unitOfWork.DepositAccounts.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
+                return accounts.Count;
+            }, cancellationToken: cancellationToken);
+            processed += count;
+            if (count < 200) break;
         }
-        
-        await unitOfWork.CompleteAsync(cancellationToken);
-        
-        logger.LogInformation("Finished ProcessDepositMaturitiesJob");
+        BankingInterestLogDefinitions.Completed(logger, "Deposit maturity", processed);
     }
 }

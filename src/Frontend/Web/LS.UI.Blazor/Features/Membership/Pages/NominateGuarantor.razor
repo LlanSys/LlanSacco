@@ -1,0 +1,112 @@
+@page "/membership/guarantors/nominate"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@using CurrieTechnologies.Razor.SweetAlert2
+@inject SweetAlertService Swal
+@attribute [Authorize]
+
+<PageTitle>Nominate Guarantor</PageTitle>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/membership" Class="mb-4">Back to Membership</MudButton>
+
+<MudText Typo="Typo.h6" Class="mb-4">Nominate a Guarantor</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="MemberIdString" Label="Your Member ID (Guid)" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="NominatedGuarantorMemberIdString" Label="Nominated Guarantor Member ID (Guid)" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="AmountToGuarantee" Label="Amount to Guarantee" Required="true" Min="0.01m"  />
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Variant="Variant.Outlined" Class="mt-4" Color="Color.Primary" OnClick="Submit" Disabled="@IsSubmitting">
+        @if (IsSubmitting)
+        {
+            <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+            <MudText Class="ms-2" Typo="Typo.body2">Submitting...</MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2">Nominate Guarantor</MudText>
+        }
+    </MudButton>
+</MudPaper>
+
+@code {
+    private string MemberIdString { get; set; } = string.Empty;
+    private string NominatedGuarantorMemberIdString { get; set; } = string.Empty;
+    private decimal AmountToGuarantee { get; set; } = 0.0m;
+    private bool IsSubmitting { get; set; }
+
+    private async Task Submit()
+    {
+        if (!Guid.TryParse(MemberIdString, out var memberId))
+        {
+            Snackbar.Add("Invalid Member ID.", Severity.Warning);
+            return;
+        }
+
+        if (!Guid.TryParse(NominatedGuarantorMemberIdString, out var nominatedId))
+        {
+            Snackbar.Add("Invalid Nominated Guarantor Member ID.", Severity.Warning);
+            return;
+        }
+
+        if (AmountToGuarantee <= 0)
+        {
+            Snackbar.Add("Amount must be greater than zero.", Severity.Warning);
+            return;
+        }
+
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Confirm Nomination",
+            Text = $"Are you sure you want to nominate this member to guarantee {AmountToGuarantee:C}?",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, Nominate",
+            ConfirmButtonColor = "#112250"
+        });
+
+        if (!result.IsConfirmed) return;
+
+        IsSubmitting = true;
+        try
+        {
+            var request = new NominateGuarantorRequest(memberId, nominatedId, AmountToGuarantee);
+
+            var response = await MembershipService.NominateGuarantorAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Guarantor successfully nominated.", Severity.Success);
+                NavigationManager.NavigateTo("/membership");
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to nominate guarantor.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+}
+
+
+
+
+
+

@@ -1,0 +1,109 @@
+@page "/membership/guarantors/requests"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@using CurrieTechnologies.Razor.SweetAlert2
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject SweetAlertService Swal
+@attribute [Authorize]
+
+<PageTitle>Guarantor Requests</PageTitle>
+
+<MudText Typo="Typo.h6" Class="mb-4">Pending Guarantor Requests</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudText Class="mb-4">Enter a request ID to respond to a pending guarantor request.</MudText>
+    
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudTextField @bind-Value="RequestIdString" Label="Guarantor Request ID (Guid)" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="12">
+            <MudTextField @bind-Value="ResponseNote" Label="Response Note (Optional)" Lines="3"  />
+        </MudItem>
+    </MudGrid>
+
+    <div class="mt-4 d-flex gap-4">
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="() => Submit(true)" Disabled="@IsSubmitting">
+            @if (IsSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+                <MudText Class="ms-2" Typo="Typo.body2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2">Accept Request</MudText>
+            }
+        </MudButton>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="() => Submit(false)" Disabled="@IsSubmitting">
+            @if (IsSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2">Reject Request</MudText>
+            }
+        </MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    private string RequestIdString { get; set; } = string.Empty;
+    private string ResponseNote { get; set; } = string.Empty;
+    private bool IsSubmitting { get; set; }
+
+    private async Task Submit(bool accept)
+    {
+        if (!Guid.TryParse(RequestIdString, out var requestId))
+        {
+            Snackbar.Add("Invalid Request ID.", Severity.Warning);
+            return;
+        }
+
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = accept ? "Accept Request?" : "Reject Request?",
+            Text = $"Are you sure you want to {(accept ? "accept" : "reject")} this guarantor request?",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = accept ? "Yes, Accept" : "Yes, Reject",
+            ConfirmButtonColor = accept ? "#28a745" : "#d32f2f"
+        });
+
+        if (!result.IsConfirmed) return;
+
+        IsSubmitting = true;
+        try
+        {
+            var request = new RespondToGuarantorRequest(requestId, accept, string.IsNullOrWhiteSpace(ResponseNote) ? null : ResponseNote);
+
+            var response = await MembershipService.RespondToGuarantorAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add($"Guarantor request successfully {(accept ? "accepted" : "rejected")}.", Severity.Success);
+                RequestIdString = string.Empty;
+                ResponseNote = string.Empty;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to process request.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+}
+
+
+
+
+
+

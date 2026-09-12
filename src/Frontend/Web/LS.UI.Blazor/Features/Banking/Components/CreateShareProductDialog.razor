@@ -1,0 +1,82 @@
+@using LS.SharedKernel.Features.Banking.Shares.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@inject ISharesService SharesService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField @bind-Value="_model.Name" Label="Product Name" Required="true" RequiredError="Product Name is required!" />
+            <MudTextField @bind-Value="_model.Code" Label="Product Code" Required="true" RequiredError="Product Code is required!" />
+            <MudTextField @bind-Value="_model.Description" Label="Description" Lines="3" />
+            <MudNumericField @bind-Value="_model.PricePerShare" Label="Price Per Share" Format="N2" Min="0.01M" Required="true" RequiredError="Price per share must be greater than 0" />
+            <MudNumericField @bind-Value="_model.MinimumShares" Label="Minimum Shares" Min="1" Required="true" RequiredError="Minimum shares must be at least 1" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_success || _isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Saving...</MudText>
+            }
+            else
+            {
+                <MudText>Save</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _success;
+    private bool _isSubmitting;
+    private readonly CreateShareProductModel _model = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new CreateShareProductRequest(_model.Name, _model.Code, _model.Description, _model.PricePerShare, _model.MinimumShares);
+            var result = await SharesService.CreateShareProductAsync(request);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Share product created successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Data));
+            }
+            else
+            {
+                Snackbar.Add(result.Error?.Message ?? "Failed to create share product", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class CreateShareProductModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal PricePerShare { get; set; } = 100M;
+        public int MinimumShares { get; set; } = 1;
+    }
+}

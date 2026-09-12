@@ -1,6 +1,6 @@
 # Phase 2 Persistence Correctness
 
-Status: Phase 2 in progress; validation/payroll slice verified on both providers. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
+Status: Phase 2 in progress; validation/payroll and Banking persistence slices verified on both providers. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
 
 ## First implementation slice
 
@@ -24,12 +24,24 @@ Four separate provider migrations were generated for HR and CheckOff with explic
 
 | Area | Verified source evidence | Remaining work |
 | --- | --- | --- |
-| Savings deposits/withdrawals | DepositSavingsCommand.cs and WithdrawSavingsCommand.cs change Balance after FirstOrDefaultAsync without staging an account update; deposit commits a new account separately | Atomic transaction and balance persistence, stable idempotency reference, concurrent duplicate tests |
+| Savings deposits/withdrawals | DepositSavingsCommand.cs and WithdrawSavingsCommand.cs change Balance after FirstOrDefaultAsync without staging an account update; deposit commits a new account separately | Balance staging and single-save first deposits fixed in the next slice below; stable idempotency references and concurrent duplicate tests remain |
 | Savings interest | CalculateSavingsInterestJob.cs changes detached account balances, has no date idempotency key and publishes before commit | Per-day durable identity, staged balances, retry/tenant isolation tests |
 | Deposit interest/maturity | Both jobs explicitly stage updates, but catch per-account failures and then commit the shared context; daily accrual has no execution-date identity | Rollback boundary and partial-failure policy; idempotent accrual/capitalization |
-| Deposit withdrawal | WithdrawFromDepositCommandHandler.cs can stage a penalty before returning insufficient-funds failure | Stage only after all business checks or discard rejected transaction state |
+| Deposit withdrawal | WithdrawFromDepositCommandHandler.cs can stage a penalty before returning insufficient-funds failure | Fixed: reject before changing the tracked balance or staging a penalty; verified after a later save on the same Unit of Work |
 | FOSA/shares | Reviewed balance writers explicitly call UpdateAsync before CompleteAsync | Still require concurrency, retry and integration-event coverage; explicit updates alone do not establish full correctness |
 | Integration publication | Several Banking/Loans handlers use MediatR IPublisher for integration events; the actual transport adapter is IIntegrationEventPublisher. API registers Shared and Banking bus outboxes using UseSqlServer unconditionally | Establish provider-aware, context-owned outbox/consumer transactions; prove delivery and accounting idempotency |
 | Generic UoW | CompleteAsync saves without dispatch, ordinary transaction pre-dispatches, retry transaction saves without dispatch/cancellation; Shared CompleteWithEventsAsync has its own flow | Define one tested event/retry contract without silently changing security-write commit behavior |
 
-Final local pre-PR checks: API build passed; 43 unit tests passed; 84 architecture tests passed. All four provider contexts report no pending model changes. Provider execution passed in PR CI; the local Docker engine remains unavailable.
+First-slice local pre-PR checks (2026-09-11): API build passed; 43 unit tests passed; 84 architecture tests passed. All four provider contexts report no pending model changes. Provider execution passed in PR CI; the local Docker engine remains unavailable.
+
+## Banking persistence slice - 2026-09-12
+
+Savings deposits now explicitly stage existing detached account balances. First deposits stage the new account and transaction using the domain-assigned ID and call CompleteAsync once, removing the earlier empty-account commit. Withdrawals explicitly stage the deducted balance, including the fee. Both savings notification calls now receive the request CancellationToken.
+
+Fixed-deposit withdrawals check affordability including the flat penalty before changing the tracked account or staging a penalty transaction. Insufficient funds therefore leave no penalty for a later save to accidentally commit. Exact-balance successful withdrawals still save both the penalty and withdrawal.
+
+Local Docker is now available. All 16 focused Phase2PersistenceTests passed locally on PostgreSQL and SQL Server, including eight new provider cases: successive deposits plus fee-bearing withdrawal verified from fresh contexts; publication failure during the first deposit leaves no committed account/transaction; rejected early withdrawal followed by CompleteAsync preserves balance and has no transactions; and exact-balance withdrawal persists both records. The test fixture uses the real Banking context, repositories, Unit of Work and MediatR handlers. No database model or migration changes were required for this slice.
+
+This establishes single-save persistence, not durable accounting delivery or safe duplicate execution. Existing savings notifications remain in-process and precede the save. No outbox, receiver deduplication, PostgreSQL savings concurrency repair or background tenant scope is claimed. Those remain prerequisites for durable check-off dispatch; Phase 2 remains in progress.
+
+Banking-slice pre-PR checks: API build passed, all 43 unit tests passed and all 84 architecture tests passed. The architecture debt register was unchanged.

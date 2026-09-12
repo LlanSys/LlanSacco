@@ -62,13 +62,13 @@ internal class DepositSavingsCommandHandler(
 
         var account = await unitOfWork.SavingsAccounts.FirstOrDefaultAsync(x => x.MemberId == request.MemberId && x.SavingsProductId == request.SavingsProductId, cancellationToken);
 
+        bool isNewAccount = account == null;
         if (account == null)
         {
             // Open a new savings account automatically on first deposit
             account = SavingsAccount.Create(request.MemberId, request.SavingsProductId, actorProvider.ActorId.ToString());
             await unitOfWork.SavingsAccounts.CreateAsync(account, cancellationToken);
-            // Save immediately so we have the ID for the transaction
-            await unitOfWork.CompleteAsync(cancellationToken);
+            // The domain factory assigns the ID; account and transaction commit together.
         }
 
         if (!account.IsActive)
@@ -90,6 +90,8 @@ internal class DepositSavingsCommandHandler(
 
         // Update balance
         account.Balance += request.Amount;
+        if (!isNewAccount)
+            await unitOfWork.SavingsAccounts.UpdateAsync(account, cancellationToken);
 
         // Publish event for Accounting
         await publisher.Publish(new SavingsDepositedIntegrationEvent(
@@ -98,7 +100,7 @@ internal class DepositSavingsCommandHandler(
             product.Id,
             request.Amount,
             request.ExternalReferenceId ?? string.Empty
-        ));
+        ), cancellationToken);
 
         await unitOfWork.CompleteAsync(cancellationToken);
 

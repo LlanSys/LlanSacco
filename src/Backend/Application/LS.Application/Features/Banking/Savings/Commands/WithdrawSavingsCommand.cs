@@ -122,6 +122,7 @@ internal class WithdrawSavingsCommandHandler(
 
         // Update balance
         account.Balance -= totalDeduction;
+        await unitOfWork.SavingsAccounts.UpdateAsync(account, cancellationToken);
 
         // Record withdrawal transaction
         var withdrawalTransaction = SavingsTransaction.Create(
@@ -156,7 +157,7 @@ internal class WithdrawSavingsCommandHandler(
             request.Amount,
             request.ExternalReferenceId ?? string.Empty,
             product.WithdrawalFee
-        ));
+        ), cancellationToken);
 
         // Let EF handle optimistic concurrency on SaveChangesAsync. If RowVersion changed, it will throw DbUpdateConcurrencyException
         await unitOfWork.CompleteAsync(cancellationToken);

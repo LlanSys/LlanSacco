@@ -1,3 +1,14 @@
+using LS.Application.Features.Banking.Savings.Commands;
+using LS.Application.Features.Banking.Deposits.Commands;
+using LS.Domain.Features.Banking.Contracts;
+using LS.Domain.Features.Banking.Savings.Entities;
+using LS.Domain.Features.Banking.Savings.Enums;
+using LS.Domain.Features.Banking.Deposits.Entities;
+using LS.Domain.Features.Banking.Deposits.Enums;
+using LS.Persistence.Features.Banking.DataContext;
+using LS.SharedKernel.Features.Banking.Savings.Dtos;
+using LS.SharedKernel.Features.Banking.Savings.Events;
+using LS.SharedKernel.Features.Banking.Deposits.Dtos;
 using System.Data.Common;
 using LS.Application.Features.CheckOff.Commands.Batches;
 using LS.Application.Features.HR.Payroll.Commands;
@@ -47,7 +58,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         if (reads is not null) options.AddInterceptors(reads);
         return options.Options;
     }
-    private static ServiceProvider Services<TContext>(TContext context, Tenant tenant) where TContext : DbContext
+    private static ServiceProvider Services<TContext>(TContext context, Tenant tenant, bool failSavingsPublication = false) where TContext : DbContext
     {
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton(context);
@@ -65,8 +76,128 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             }
             services.AddScoped<IHrUnitOfWork, HrUnitOfWork>();
         }
+        else if (context is BankingDBContext)
+        {
+            var implementation = typeof(BankingDBContext).Assembly.GetTypes()
+                .Single(t => t.IsClass && !t.IsAbstract && typeof(IBankingUnitOfWork).IsAssignableFrom(t));
+            services.AddScoped(typeof(IBankingUnitOfWork), sp => ActivatorUtilities.CreateInstance(sp, implementation));
+            if (failSavingsPublication)
+                services.AddTransient<INotificationHandler<SavingsDepositedIntegrationEvent>, RejectSavingsPublication>();
+        }
         else services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
         return services.BuildServiceProvider();
+    }
+
+    private sealed class RejectSavingsPublication : INotificationHandler<SavingsDepositedIntegrationEvent>
+    {
+        public Task Handle(SavingsDepositedIntegrationEvent notification, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("Injected publication failure.");
+    }
+
+    [Fact]
+    public async Task Savings_deposits_and_withdrawal_persist_balances_and_fee_from_fresh_contexts()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var memberId = Guid.CreateVersion7();
+        var product = SavingsProduct.Create("Savings", "SAV", 0, 10, true, 5, null, null, true, new Actor().ActorId);
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(product);
+            await setup.SaveChangesAsync();
+        }
+        // The second deposit must update a detached existing account, not just insert a transaction.
+        foreach (var amount in new[] { 100m, 50m })
+        {
+            await using var context = new BankingDBContext(options, tenant, new Actor());
+            await using var services = Services(context, tenant);
+            var result = await services.GetRequiredService<ISender>().Send(new DepositSavingsCommand(
+                new DepositSavingsRequest(memberId, product.Id, amount, null, null)));
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+        await using (var context = new BankingDBContext(options, tenant, new Actor()))
+        {
+            Assert.Equal(150m, (await context.SavingsAccounts.AsNoTracking().SingleAsync()).Balance);
+            await using var services = Services(context, tenant);
+            var result = await services.GetRequiredService<ISender>().Send(new WithdrawSavingsCommand(
+                new WithdrawSavingsRequest(memberId, product.Id, 40m, null, null)));
+            Assert.True(result.IsSuccess, result.Error?.Message);
+            Assert.Equal(105m, result.Data!.Balance);
+        }
+        await using (var fresh = new BankingDBContext(options, tenant, new Actor()))
+        {
+            var account = await fresh.SavingsAccounts.SingleAsync();
+            Assert.Equal(105m, account.Balance);
+            Assert.Equal(95m, account.GetAvailableBalance(product.MinimumBalance));
+            var transactions = await fresh.SavingsTransactions.ToListAsync();
+            Assert.Equal(4, transactions.Count);
+            Assert.Equal(150m, transactions.Where(t => t.Type == SavingsTransactionType.Deposit).Sum(t => t.Amount));
+            Assert.Equal(40m, Assert.Single(transactions, t => t.Type == SavingsTransactionType.Withdrawal).Amount);
+            Assert.Equal(5m, Assert.Single(transactions, t => t.Type == SavingsTransactionType.Fee).Amount);
+        }
+    }
+
+    [Fact]
+    public async Task First_savings_deposit_does_not_commit_an_empty_account_when_publication_fails()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var product = SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId);
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(product);
+            await setup.SaveChangesAsync();
+        }
+        await using (var context = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await using var services = Services(context, tenant, failSavingsPublication: true);
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => services.GetRequiredService<ISender>()
+                .Send(new DepositSavingsCommand(new DepositSavingsRequest(Guid.CreateVersion7(), product.Id, 100, null, null))));
+            Assert.Equal("Injected publication failure.", failure.Message);
+        }
+        await using var fresh = new BankingDBContext(options, tenant, new Actor());
+        Assert.False(await fresh.SavingsAccounts.AnyAsync());
+        Assert.False(await fresh.SavingsTransactions.AnyAsync());
+    }
+
+    [Theory]
+    [InlineData(100, false, 100)]
+    [InlineData(110, true, 0)]
+    public async Task Early_withdrawal_checks_penalty_before_staging_changes(decimal balance, bool succeeds, decimal expectedBalance)
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var product = new DepositProduct { Name = "Fixed", Code = "FIX", CreatedBy = new Actor().ActorId, PenaltyStrategy = EarlyWithdrawalPenaltyStrategy.FlatPercentage, FlatPenaltyRate = 10 };
+        var account = DepositAccount.Create(Guid.CreateVersion7(), product.Id, DateTimeOffset.UtcNow.AddMonths(1), new Actor().ActorId);
+        account.Balance = balance;
+        account.AccruedInterest = 25;
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(product, account);
+            await setup.SaveChangesAsync();
+        }
+        await using (var context = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await using var services = Services(context, tenant);
+            var result = await services.GetRequiredService<ISender>().Send(new WithdrawFromDepositCommand(account.Id, new DepositTransactionRequest(100, "test")));
+            Assert.Equal(succeeds, result.IsSuccess);
+            // A later save on the same unit of work must not charge a rejected withdrawal's penalty.
+            await services.GetRequiredService<IBankingUnitOfWork>().CompleteAsync(CancellationToken.None);
+        }
+        await using var fresh = new BankingDBContext(options, tenant, new Actor());
+        var persisted = await fresh.DepositAccounts.SingleAsync();
+        Assert.Equal(expectedBalance, persisted.Balance);
+        Assert.Equal(25m, persisted.AccruedInterest);
+        var transactions = await fresh.DepositTransactions.ToListAsync();
+        Assert.Equal(succeeds ? 2 : 0, transactions.Count);
+        if (succeeds)
+        {
+            Assert.Equal(10m, Assert.Single(transactions, t => t.Type == DepositTransactionType.Penalty).Amount);
+            Assert.Equal(100m, Assert.Single(transactions, t => t.Type == DepositTransactionType.Withdrawal).Amount);
+        }
     }
 
     [Fact]

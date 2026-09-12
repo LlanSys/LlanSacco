@@ -54,6 +54,11 @@ internal class WithdrawFromDepositCommandHandler(
             {
                 // Charge a flat fee on the withdrawn amount
                 decimal penaltyAmount = request.Amount * (product.FlatPenaltyRate.Value / 100m);
+                // Reject before mutating the tracked account or staging a penalty.
+                if (account.Balance - penaltyAmount < request.Amount)
+                {
+                    return AppResponses.Failure<DepositTransactionResponse>("Insufficient balance for withdrawal after early withdrawal penalties.");
+                }
                 account.Balance -= penaltyAmount;
                 
                 var penaltyTx = DepositTransaction.Create(
@@ -107,11 +112,7 @@ internal class WithdrawFromDepositCommandHandler(
             }
         }
 
-        // Execute withdrawal (this might fail if the flat penalty dropped balance below amount)
-        if (account.Balance < request.Amount)
-        {
-             return AppResponses.Failure<DepositTransactionResponse>("Insufficient balance for withdrawal after early withdrawal penalties.");
-        }
+        // All balance checks have passed; stage the withdrawal with its penalty.
         
         account.Balance -= request.Amount;
 

@@ -7,5 +7,6 @@ public record PurchaseSharesCommand(
     Guid MemberId,
     Guid ShareProductId,
     decimal Amount,
-    string? Notes
+    string? Notes,
+    string? ReferenceNumber = null
 ) : IRequest<AppResponse<Guid>>;

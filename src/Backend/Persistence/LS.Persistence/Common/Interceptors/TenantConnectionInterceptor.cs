@@ -24,8 +24,7 @@ public class TenantConnectionInterceptor(IServiceProvider serviceProvider) : DbC
 
     public override async ValueTask<InterceptionResult> ConnectionOpeningAsync(DbConnection connection, ConnectionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var resolver = scope.ServiceProvider.GetRequiredService<ITenantConnectionResolver>();
+        var resolver = _serviceProvider.GetRequiredService<ITenantConnectionResolver>();
 
         var newConnectionString = await resolver.GetConnectionStringAsync(cancellationToken).ConfigureAwait(false);
 

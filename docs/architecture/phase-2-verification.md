@@ -1,6 +1,6 @@
 # Phase 2 Persistence Correctness
 
-Status: Phase 2 in progress; validation/payroll and Banking persistence slices verified on both providers. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
+Status: Phase 2 in progress. The latest dated section records outbox, payment replay, accounting replay and background-scope corrections; earlier sections are historical evidence. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
 
 ## First implementation slice
 
@@ -64,3 +64,36 @@ Still open: durable check-off dispatch and receiver/ledger idempotency; explicit
 Outbox implementation reference: the installed MassTransit 9.2.1 supports IScopedBusOutbox<TDbContext>, default outbox selection and provider-specific locking with schema caching disabled for multiple contexts. See https://masstransit.massient.com/configuration/middleware/outbox#multiple-dbcontext-types. This capability was verified in the documentation; no outbox registration or dispatcher correction is claimed by this slice.
 
 Final local verification for this slice: API build passed; 84 architecture tests passed; 43 unit tests passed; full integration suite passed with 54 tests and the one pre-existing external RabbitMQ test skipped. This includes 38 Phase 2 provider cases. Staged secret and whitespace checks passed. No new architecture-debt entries were added. A concurrent local GEMINI.md edit used AGENT.md; only those references were corrected to AGENTS.md, and that user-owned edit is excluded from this commit.
+
+## Durable financial posting and replay corrections - 2026-09-13
+
+GEMINI.md is committed in e68ac27 with its canonical AGENTS.md references preserved.
+
+- Banking, CheckOff and Loans now have context-owned MassTransit bus outboxes. Registration selects PostgreSQL or SQL Server and disables schema lock-statement caching for multiple contexts. Untyped publication retains the Shared default. Disabled messaging fails before a financial operation can commit without its event.
+- CheckOff posting commits Posting status and its dispatch event in the same transaction. The consumer establishes tenant/actor scope. Workers process Validated rows in bounded batches, check every downstream result, execute actual share purchases, use stable row/allocation payment references, and set Posted only after every row is Processed. Failed payments leave the row retryable. Each downstream payment uses a fresh service scope so earlier successful payments can be recognized during retry. New CheckOff savings payments require exactly one active default target; share payments require exactly one active share product. Ambiguity rejects the row instead of choosing arbitrarily.
+- Savings deposits, share purchases and loan repayments recognize matching reference replays and reject changed financial details. Savings/share reference indexes are unique per tenant and transaction type. Loan repayments are explicitly staged through the new ILoanRepaymentRepository, using inherited CreateAsync and the Repository suffix; adding them only to a tracked navigation had produced concurrency exceptions on both providers.
+- Journal posting recognizes matching financial entries and rejects conflicting reference reuse. Timestamp comparison uses microsecond precision shared by both providers. Accounting consumers explicitly establish tenant scope and use the stable system actor identifier.
+- Savings events, share purchases/transfers, loan repayments/disbursements and savings-interest events are staged in their owning outbox before commit, with stable transaction identifiers. No new Banking-to-ledger consumer is claimed: product-specific GL integration still follows the product roadmap.
+- Share transfer rejects self-transfer and correctly creates a new recipient account. Loan disbursement checks for an amortization strategy before mutating tracked state.
+- Background tenant/actor providers now support explicit execution context. TenantConnectionInterceptor is scoped in all nine tenant data contexts and resolves the connection in that same scope; creating a nested scope had discarded the background tenant.
+- ApplyForLoanRequest restores the existing Blazor API transport contract. The Blazor build now passes locally; GitHub gate status must still be checked against the pushed commit.
+
+Provider migration corrections:
+
+- Separate Banking, CheckOff and Loans outbox migrations were generated for PostgreSQL and SQL Server. Banking includes the unique payment-reference indexes.
+- Both custom index generators now terminate their command batches. PostgreSQL preserves native uniqueness, predicates and provider options instead of reconstructing an incomplete CREATE INDEX statement. SQL Server uses the schema-qualified object and escaped identifiers in its existence check.
+- The historical Collections migrations used a predicate against nonexistent IsDeleted and a numeric/boolean value for a string Status. Their invalid predicates are corrected so clean migration chains can run. New provider-specific index migrations also rebuild the index for existing databases. The SQL Server historical migration is in Migrations/LoansSqlServerDB; it was not missing. Downgrade intentionally retains the valid index rather than recreating the invalid predicate.
+- Full Banking and Loans migration chains are exercised in fresh provider databases and checked for pending model changes. No deployed database was migrated. Existing duplicate payment references must be resolved explicitly before applying the unique indexes; this work does not delete or rewrite financial records.
+
+Verified coverage includes outbox rollback, two commits in one scope, persisted messages delivered by a new host after the publishing host is disposed, savings/share/loan replay and conflicting references, ledger replay, CheckOff rejection/retry/completion, and share-transfer balance conservation. Outbox recovery uses the real EF outbox with an in-memory transport; it does not certify RabbitMQ connectivity. The separate existing external RabbitMQ test remains skipped.
+
+Remaining Phase 2 closure work:
+
+1. Complete the IAM captured-state retry and wider mutation audit, including failure-result paths and FOSA/background writers.
+2. Settle and test generic/Shared domain-event commit semantics; scoped financial outboxes do not fix every domain-event helper.
+3. Complete tenant/database selection for recurring interest jobs and outbox delivery in dedicated tenant databases, plus end-to-end CheckOff dispatch/failure recovery across contexts, including competing deliveries. The current provider tests separately cover worker state and receiver replay.
+4. Verify upgrades of existing accounting indexes created by the older generator, and check Required / Remediation on the pushed PR commit.
+
+Phase 2 remains open. Deployment and publishing gates remain disabled, and the PR remains a draft.
+
+Local verification for this checkpoint: 69 integration tests passed with the one existing external RabbitMQ test skipped; 43 unit tests passed. The journal replay precision regression passed separately on both providers. API and Blazor builds passed, all 84 architecture checks passed, and staged whitespace/secret scans passed. The architecture debt register was not expanded.

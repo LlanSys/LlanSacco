@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using FluentValidation;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.Savings.Entities;
@@ -30,25 +31,34 @@ internal class DepositSavingsCommandValidator : AbstractValidator<DepositSavings
 internal class DepositSavingsCommandHandler(
     IBankingUnitOfWork unitOfWork,
     ICurrentActorProvider actorProvider,
-    IPublisher publisher) 
+    IContextEventPublisher<IBankingUnitOfWork> publisher, ICurrentTenantProvider tenantProvider)
     : IRequestHandler<DepositSavingsCommand, AppResponse<SavingsAccountResponse>>
 {
     public async Task<AppResponse<SavingsAccountResponse>> Handle(DepositSavingsCommand command, CancellationToken cancellationToken)
     {
         var request = command.Request;
 
-        // Check if external reference was already processed
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) return AppResponses.Failure<SavingsAccountResponse>(AppError.Forbidden("A tenant is required."));
+        if (request.Amount <= 0) return AppResponses.Failure<SavingsAccountResponse>("Deposit amount must be positive.");
         if (!string.IsNullOrWhiteSpace(request.ExternalReferenceId))
         {
-            bool alreadyProcessed = await unitOfWork.SavingsTransactions.AnyAsync(x => x.ExternalReferenceId == request.ExternalReferenceId && x.Type == SavingsTransactionType.Deposit, cancellationToken);
-            
-            if (alreadyProcessed)
+            var prior = await unitOfWork.SavingsTransactions.FirstOrDefaultAsync(t => t.TenantId == tenantId
+                && t.ExternalReferenceId == request.ExternalReferenceId && t.Type == SavingsTransactionType.Deposit, cancellationToken);
+            if (prior is not null)
             {
-                return AppResponses.Failure<SavingsAccountResponse>($"A deposit with the external reference ID '{request.ExternalReferenceId}' has already been processed.");
+                var priorAccount = await unitOfWork.SavingsAccounts.FirstOrDefaultAsync(a => a.TenantId == tenantId && a.Id == prior.SavingsAccountId, cancellationToken);
+                if (priorAccount is null || priorAccount.MemberId != request.MemberId || priorAccount.SavingsProductId != request.SavingsProductId || prior.Amount != request.Amount)
+                    return AppResponses.Failure<SavingsAccountResponse>("This payment reference is already associated with different deposit details.");
+                var priorProduct = await unitOfWork.SavingsProducts.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == priorAccount.SavingsProductId, cancellationToken);
+                if (priorProduct is null) return AppResponses.NotFound<SavingsAccountResponse>("Savings product not found.");
+                return AppResponses.Success("Deposit already processed.", new SavingsAccountResponse(priorAccount.Id, priorAccount.MemberId,
+                    priorAccount.SavingsProductId, priorProduct.Name, priorAccount.Balance, priorAccount.LockedFunds,
+                    priorAccount.GetAvailableBalance(priorProduct.MinimumBalance), priorAccount.IsActive, priorAccount.CreatedAt));
             }
         }
 
-        var product = await unitOfWork.SavingsProducts.FirstOrDefaultAsync(x => x.Id == request.SavingsProductId, cancellationToken);
+        var product = await unitOfWork.SavingsProducts.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == request.SavingsProductId, cancellationToken);
 
         if (product == null)
         {
@@ -60,7 +70,7 @@ internal class DepositSavingsCommandHandler(
             return AppResponses.Failure<SavingsAccountResponse>($"Savings product '{product.Name}' is not active.");
         }
 
-        var account = await unitOfWork.SavingsAccounts.FirstOrDefaultAsync(x => x.MemberId == request.MemberId && x.SavingsProductId == request.SavingsProductId, cancellationToken);
+        var account = await unitOfWork.SavingsAccounts.FirstOrDefaultAsync(x => x.TenantId == tenantId && x.MemberId == request.MemberId && x.SavingsProductId == request.SavingsProductId, cancellationToken);
 
         bool isNewAccount = account == null;
         if (account == null)
@@ -94,13 +104,13 @@ internal class DepositSavingsCommandHandler(
             await unitOfWork.SavingsAccounts.UpdateAsync(account, cancellationToken);
 
         // Publish event for Accounting
-        await publisher.Publish(new SavingsDepositedIntegrationEvent(
+        await publisher.PublishAsync(new SavingsDepositedIntegrationEvent(
             request.MemberId,
             account.Id,
             product.Id,
             request.Amount,
             request.ExternalReferenceId ?? string.Empty
-        ), cancellationToken);
+        ) { TenantId = tenantId, TransactionId = transaction.Id, OccurredAt = transaction.CreatedAt }, cancellationToken);
 
         await unitOfWork.CompleteAsync(cancellationToken);
 

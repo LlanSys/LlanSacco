@@ -18,16 +18,21 @@ public class IdempotentSqlServerMigrationsSqlGenerator(
         MigrationCommandListBuilder builder,
         bool terminate = true)
     {
-        builder.Append($"IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = '{operation.Name}' AND object_id = OBJECT_ID('{operation.Table}'))").AppendLine();
+        var indexName = operation.Name.Replace("'", "''", StringComparison.Ordinal);
+        var tableName = Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table, operation.Schema)
+            .Replace("'", "''", StringComparison.Ordinal);
+        builder.Append($"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{indexName}' AND object_id = OBJECT_ID(N'{tableName}'))").AppendLine();
         builder.AppendLine("BEGIN");
         using (builder.Indent())
         {
             base.Generate(operation, model, builder, false);
         }
+        builder.AppendLine();
         builder.AppendLine("END");
         if (terminate)
         {
             builder.AppendLine(";");
+            builder.EndCommand();
         }
     }
 #pragma warning restore EF1001 // Internal EF Core API usage.

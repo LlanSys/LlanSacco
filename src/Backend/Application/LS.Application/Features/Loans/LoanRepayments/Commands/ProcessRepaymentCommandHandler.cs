@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.Application.Features.Loans.IntegrationEvents;
 using LS.Domain.Features.Loans.Contracts;
@@ -16,7 +17,7 @@ internal sealed partial class ProcessRepaymentCommandHandler(
     ILoansUnitOfWork unitOfWork,
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider,
-    IPublisher publisher,
+    IContextEventPublisher<ILoansUnitOfWork> publisher,
     ILogger<ProcessRepaymentCommandHandler> logger)
     : IRequestHandler<ProcessRepaymentCommand, AppResponse<Guid>>
 {
@@ -24,18 +25,29 @@ internal sealed partial class ProcessRepaymentCommandHandler(
     {
         var tenantId = tenantProvider.TenantId;
         var actorId = actorProvider.ActorId;
+        if (tenantId == Guid.Empty) return AppResponses.Failure<Guid>(AppError.Forbidden("A tenant is required."));
+        if (request.Amount <= 0 || string.IsNullOrWhiteSpace(request.ReceiptNumber) || request.ReceiptNumber.Length > 50)
+            return AppResponses.Failure<Guid>("A positive amount and valid receipt number are required.");
+        var prior = await unitOfWork.LoanApplicationRepository.FirstOrDefaultAsync(q => q.Where(l => l.TenantId == tenantId)
+            .SelectMany(l => l.Repayments).Where(r => r.ReceiptNumber == request.ReceiptNumber), cancellationToken);
+        if (prior is not null)
+            return prior.LoanApplicationId == request.LoanApplicationId && prior.TotalAmount == request.Amount
+                ? AppResponses.Success(prior.Id)
+                : AppResponses.Failure<Guid>("This receipt number is already associated with different repayment details.");
 
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken).ConfigureAwait(false);
-        if (loan == null)
+        if (loan == null || loan.TenantId != tenantId)
         {
             return AppResponses.Failure<Guid>("Loan application not found.");
         }
 
         if (loan.Status != LoanStatus.Disbursed && loan.Status != LoanStatus.Defaulted && loan.Status != LoanStatus.Active)
         {
-            return AppResponses.Failure<Guid>("Cannot process repayment for loan in status $($loan.Status).");
+            return AppResponses.Failure<Guid>("This loan is not eligible for repayment.");
         }
 
+        if (request.Amount > loan.OutstandingPrincipal + loan.OutstandingInterest)
+            return AppResponses.Failure<Guid>("Repayment exceeds the outstanding balance.");
         decimal remainingAmount = request.Amount;
         decimal penaltyComponent = 0; 
         decimal interestComponent = Math.Min(remainingAmount, loan.OutstandingInterest);
@@ -65,7 +77,7 @@ internal sealed partial class ProcessRepaymentCommandHandler(
             loan.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
-        loan.Repayments.Add(repayment);
+        await unitOfWork.LoanRepaymentRepository.CreateAsync(repayment, cancellationToken);
 
         await unitOfWork.LoanApplicationRepository.UpdateAsync(loan, cancellationToken).ConfigureAwait(false);
         
@@ -83,9 +95,9 @@ internal sealed partial class ProcessRepaymentCommandHandler(
             BranchId: request.BranchId,
             CostCenterId: request.CostCenterId,
             PaymentChannelGlAccountId: request.PaymentChannelGlAccountId
-        );
+        ) { EventId = repayment.Id, OccurredAt = repayment.PaymentDate };
 
-        await publisher.Publish(repaymentEvent, cancellationToken).ConfigureAwait(false);
+        await publisher.PublishAsync(repaymentEvent, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         LogRepaymentProcessed(logger, repayment.Id, loan.ApplicationNumber, request.Amount);

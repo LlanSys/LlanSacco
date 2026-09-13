@@ -1,3 +1,4 @@
+using MassTransit;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
@@ -75,6 +76,7 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.AddTransactionalOutboxEntities(entity => entity.ToTable(entity.Metadata.GetDefaultTableName()!, "banking"));
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(BankingDBContext).Assembly,

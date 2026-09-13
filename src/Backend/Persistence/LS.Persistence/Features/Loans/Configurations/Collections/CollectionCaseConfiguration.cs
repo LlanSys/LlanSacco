@@ -20,9 +20,9 @@ public class CollectionCaseConfiguration : IEntityTypeConfiguration<CollectionCa
                .OnDelete(DeleteBehavior.Restrict);
                
         // Enforce only one OPEN collection case per loan application.
-        // Assuming CollectionCaseStatus.Open = 1
+        // Status is stored using the shared string enum convention.
         builder.HasIndex(c => c.LoanApplicationId)
                .IsUnique()
-               .HasFilter("[Status] = 1 AND IsDeleted = 0");
+               .HasFilter("[Status] = 'Open'");
     }
 }

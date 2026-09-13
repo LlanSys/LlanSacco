@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using Asp.Versioning;
 
 using Azure.Identity;
@@ -423,11 +424,23 @@ internal static partial class DependencyInjection
     public static IServiceCollection ConfigureOutBoxMessagingWithGlobalRetry(this IServiceCollection services, IConfiguration configuration)
     {
         var messagingSettings = configuration.GetSection(MessagingSettings.SectionName).Get<MessagingSettings>() ?? new MessagingSettings();
+        services.AddScoped(typeof(IContextEventPublisher<>), typeof(LS.Infrastructure.Contracts.Implementations.Common.DisabledContextEventPublisher<>));
         if (!messagingSettings.Enabled)
         {
             return services;
         }
 
+        var databaseProvider = configuration.GetSection(LS.Persistence.Common.Configuration.DatabaseSettings.SectionName)
+            .Get<LS.Persistence.Common.Configuration.DatabaseSettings>()?.Provider ?? "SqlServer";
+        var usePostgres = databaseProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase);
+        if (!usePostgres && !databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Unsupported database provider for transactional messaging.");
+        services.AddScoped<IContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork>,
+            LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork, LS.Persistence.Features.Banking.DataContext.BankingDBContext>>();
+        services.AddScoped<IContextEventPublisher<LS.Domain.Features.CheckOff.Contracts.ICheckOffUnitOfWork>,
+            LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.CheckOff.Contracts.ICheckOffUnitOfWork, LS.Persistence.Features.CheckOff.DataContext.CheckOffDBContext>>();
+        services.AddScoped<IContextEventPublisher<LS.Domain.Features.Loans.Contracts.ILoansUnitOfWork>,
+            LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.Loans.Contracts.ILoansUnitOfWork, LS.Persistence.Features.Loans.DataContext.LoansDBContext>>();
         var assembly = typeof(IntegrationEventEmailConsumer<>).Assembly;
 
         services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherOptions>(options =>
@@ -441,7 +454,7 @@ internal static partial class DependencyInjection
             // EF Outbox
             x.AddEntityFrameworkOutbox<SharedDBContext>(o =>
             {
-                o.UseSqlServer();
+                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
                 o.QueryDelay = TimeSpan.FromSeconds(30);
@@ -450,12 +463,24 @@ internal static partial class DependencyInjection
             
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.Banking.DataContext.BankingDBContext>(o =>
             {
-                o.UseSqlServer();
+                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
                 o.QueryDelay = TimeSpan.FromSeconds(30);
                 o.QueryMessageLimit = 100;
             });
+
+            x.AddEntityFrameworkOutbox<LS.Persistence.Features.CheckOff.DataContext.CheckOffDBContext>(o =>
+            {
+                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                o.UseBusOutbox();
+            });
+            x.AddEntityFrameworkOutbox<LS.Persistence.Features.Loans.DataContext.LoansDBContext>(o =>
+            {
+                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                o.UseBusOutbox();
+            });
+            x.UseDefaultEntityFrameworkBusOutbox<SharedDBContext>();
 
             // Register all consumers from assemblies
             x.AddConsumers(assembly);

@@ -106,7 +106,7 @@ namespace LS.Persistence.Migrations.LoansSqlServerDB
                 table: "CollectionCases",
                 column: "LoanApplicationId",
                 unique: true,
-                filter: "[Status] = 1 AND IsDeleted = 0");
+                filter: "[Status] = 'Open'");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CollectionPromises_CollectionCaseId",

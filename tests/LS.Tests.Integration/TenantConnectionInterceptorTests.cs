@@ -44,6 +44,26 @@ public class TenantConnectionInterceptorTests
     }
 
     [Fact]
+    public async Task ConnectionOpeningAsync_PreservesBackgroundTenantScope()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>();
+        services.AddScoped<ITenantConnectionResolver>(sp => new FakeTenantConnectionResolver(
+            $"Server=Test;Database={sp.GetRequiredService<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>().TenantId:N};"));
+        services.AddScoped<TenantConnectionInterceptor>();
+        await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        foreach (var tenantId in new[] { Guid.CreateVersion7(), Guid.CreateVersion7() })
+        {
+            await using var scope = provider.CreateAsyncScope();
+            scope.ServiceProvider.GetRequiredService<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>()
+                .Initialize(tenantId, ICurrentActorProvider.SystemActor);
+            using var connection = new FakeDbConnection();
+            await scope.ServiceProvider.GetRequiredService<TenantConnectionInterceptor>()
+                .ConnectionOpeningAsync(connection, null!, default, CancellationToken.None);
+            Assert.Equal($"Server=Test;Database={tenantId:N};", connection.ConnectionString);
+        }
+    }
+    [Fact]
     public async Task ConnectionOpeningAsync_ShouldChangeConnectionString_WhenResolverProvidesOne()
     {
         // Arrange

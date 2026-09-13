@@ -1,3 +1,4 @@
+using MassTransit;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
@@ -66,6 +67,7 @@ public class LoansDBContext : DbContext, ITenantFilteredDBContext
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.AddTransactionalOutboxEntities(entity => entity.ToTable(entity.Metadata.GetDefaultTableName()!, "loans"));
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(LoansDBContext).Assembly,
@@ -74,6 +76,9 @@ public class LoansDBContext : DbContext, ITenantFilteredDBContext
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);
+        if (Database.IsNpgsql())
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(t => typeof(LS.Domain.Shared.Entities.BaseEntity).IsAssignableFrom(t.ClrType)))
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(LS.Domain.Shared.Entities.BaseEntity.RowVersion)).ValueGeneratedNever();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -83,6 +88,9 @@ public class LoansDBContext : DbContext, ITenantFilteredDBContext
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
+            if (Database.IsNpgsql())
+                foreach (var entry in ChangeTracker.Entries<LS.Domain.Shared.Entities.BaseEntity>().Where(e => e.State is EntityState.Added or EntityState.Modified))
+                    entry.Entity.RowVersion = Guid.CreateVersion7().ToByteArray();
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _collectedDomainEvents ??= [];
             _collectedDomainEvents.AddRange(domainEvents);

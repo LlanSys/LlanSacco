@@ -4,12 +4,13 @@ using System.Security.Claims;
 
 namespace LS.Infrastructure.Contracts.Implementations.Common;
 
-internal sealed class CurrentActorProvider(IHttpContextAccessor httpContextAccessor) : ICurrentActorProvider
+internal sealed class CurrentActorProvider(IHttpContextAccessor httpContextAccessor, BackgroundExecutionContext backgroundContext) : ICurrentActorProvider
 {
     public string ActorId
     {
         get
         {
+            if (backgroundContext.ActorId is string backgroundActorId) return backgroundActorId;
             var user = httpContextAccessor.HttpContext?.User;
             var userId = user?.FindFirstValue(ClaimTypes.NameIdentifier);
 

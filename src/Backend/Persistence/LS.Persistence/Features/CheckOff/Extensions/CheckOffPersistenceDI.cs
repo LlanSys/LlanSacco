@@ -25,7 +25,7 @@ public static class CheckOffPersistenceDI
         services.Configure<DatabaseSettings>(configuration.GetSection(DatabaseSettings.SectionName));
         var dbSettings = configuration.GetSection(DatabaseSettings.SectionName).Get<DatabaseSettings>() ?? new DatabaseSettings();
 
-        services.TryAddSingleton<TenantConnectionInterceptor>();
+        services.TryAddScoped<TenantConnectionInterceptor>();
 
         void ConfigureDbContextOptions(IServiceProvider provider, DbContextOptionsBuilder options)
         {

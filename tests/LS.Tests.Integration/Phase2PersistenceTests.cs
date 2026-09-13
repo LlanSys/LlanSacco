@@ -1,3 +1,23 @@
+using NSubstitute;
+using LS.SharedKernel.Dtos.Common;
+using LS.Application.Contracts.Interfaces.Common;
+using LS.Application.Features.CheckOff.Jobs;
+using LS.Domain.Features.Accounting.Contracts;
+using LS.Domain.Features.Accounting.Entities;
+using LS.Domain.Features.Accounting.Enums;
+using LS.Persistence.Features.Accounting.DataContext;
+using LS.Persistence.Features.Accounting.Repositories;
+using LS.Application.Features.Accounting.Services;
+using LS.SharedKernel.Features.Accounting.Dtos;
+using LS.Domain.Features.Loans.Contracts;
+using LS.Domain.Features.Loans.Entities;
+using LS.Domain.Features.Loans.Enums;
+using LS.Persistence.Features.Loans;
+using LS.Persistence.Features.Loans.DataContext;
+using LS.Application.Features.Loans.LoanRepayments.Commands;
+using MassTransit;
+using MassTransit.EntityFrameworkCoreIntegration;
+using Microsoft.Extensions.Hosting;
 using LS.Application.Features.Banking.Savings.Jobs;
 using LS.Application.Features.Banking.Deposits.Jobs;
 using LS.Application.Features.Banking.Savings.Commands;
@@ -64,6 +84,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     {
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton(context);
+        services.AddScoped<LS.Application.Contracts.Interfaces.Common.IContextEventPublisher<IBankingUnitOfWork>, PersistenceTestPublisher>();
         services.AddSingleton<TimeProvider>(clock ?? TimeProvider.System);
         services.AddSingleton<ICurrentTenantProvider>(tenant);
         services.AddSingleton<ICurrentActorProvider>(new Actor());
@@ -87,10 +108,39 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             if (failSavingsPublication)
                 services.AddTransient<INotificationHandler<SavingsDepositedIntegrationEvent>, RejectSavingsPublication>();
         }
+        else if (context is AccountingDBContext)
+        {
+            foreach (var contract in typeof(IAccountingUnitOfWork).GetProperties().Select(p => p.PropertyType))
+            {
+                var implementation = typeof(AccountingUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+                services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+            }
+            services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
+        }
+        else if (context is LoansDBContext)
+        {
+            services.AddScoped<DbContext>(_ => context);
+            services.AddScoped(typeof(LS.Domain.Shared.Contracts.Repositories.IRepository<>), typeof(LS.Persistence.Common.Repositories.Repository<>));
+            foreach (var contract in new[] { typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanProductRepository), typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanApplicationRepository), typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanRepaymentRepository) })
+            {
+                var implementation = typeof(LoansUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+                services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+            }
+            services.AddScoped<ILoansUnitOfWork, LoansUnitOfWork>();
+            services.AddScoped<LS.Application.Contracts.Interfaces.Common.IContextEventPublisher<ILoansUnitOfWork>, LoanTestPublisher>();
+        }
         else services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
         if (failInterestPublication)
             services.AddSingleton<INotificationHandler<SavingsInterestAppliedIntegrationEvent>>(new RejectInterestPublication());
         return services.BuildServiceProvider();
+    }
+
+    // Persistence fault injection only; durable delivery is tested separately with the real bus outbox.
+    private sealed class PersistenceTestPublisher(IPublisher publisher)
+        : LS.Application.Contracts.Interfaces.Common.IContextEventPublisher<IBankingUnitOfWork>
+    {
+        public Task PublishAsync<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : class
+            => publisher.Publish(message, cancellationToken);
     }
 
     private sealed class RejectSavingsPublication : INotificationHandler<SavingsDepositedIntegrationEvent>
@@ -114,6 +164,297 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         }
     }
 
+    private sealed class LoanTestPublisher(IPublisher publisher) : LS.Application.Contracts.Interfaces.Common.IContextEventPublisher<ILoansUnitOfWork>
+    {
+        public Task PublishAsync<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : class
+            => publisher.Publish(message, cancellationToken);
+    }
+
+    private sealed class CheckoffPaymentSender : IBackgroundRequestSender
+    {
+        public bool Reject { get; set; } = true;
+        public List<string?> References { get; } = [];
+        public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+        {
+            var command = Assert.IsType<DepositSavingsCommand>(request);
+            References.Add(command.Request.ExternalReferenceId);
+            var result = Reject ? AppResponses.Failure<SavingsAccountResponse>("Injected payment rejection")
+                : AppResponses.Success<SavingsAccountResponse>(default!);
+            return Task.FromResult((TResponse)(object)result);
+        }
+    }
+
+    [Fact]
+    public async Task Share_transfer_creates_destination_and_rejects_self_transfer_without_changing_balance()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var product = LS.Domain.Features.Banking.Shares.Entities.ShareProduct.Create("Shares", "SHR", 10, 1, new Actor().ActorId);
+        var source = LS.Domain.Features.Banking.Shares.Entities.ShareAccount.Create(Guid.CreateVersion7(), product.Id, new Actor().ActorId);
+        source.AddShares(100, 10, new Actor().ActorId);
+        var destination = Guid.CreateVersion7();
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(product, source);
+            await setup.SaveChangesAsync();
+        }
+        await using (var db = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await using var services = Services(db, tenant);
+            var sender = services.GetRequiredService<ISender>();
+            Assert.False((await sender.Send(new LS.Application.Features.Banking.Shares.Commands.TransferSharesCommand(source.MemberId, source.MemberId, product.Id, 10, null))).IsSuccess);
+            await services.GetRequiredService<IBankingUnitOfWork>().CompleteAsync();
+            Assert.True((await sender.Send(new LS.Application.Features.Banking.Shares.Commands.TransferSharesCommand(source.MemberId, destination, product.Id, 10, null))).IsSuccess);
+        }
+        await using var verify = new BankingDBContext(options, tenant, new Actor());
+        var accounts = await verify.ShareAccounts.ToListAsync();
+        Assert.Equal(2, accounts.Count);
+        Assert.Equal(90, accounts.Single(a => a.MemberId == source.MemberId).TotalShares);
+        Assert.Equal(10, accounts.Single(a => a.MemberId == destination).TotalShares);
+        Assert.Equal(1000m, accounts.Sum(a => a.TotalValue));
+        Assert.Equal(2, await verify.ShareTransactions.CountAsync());
+    }
+    [Fact]
+    public async Task Checkoff_worker_leaves_rejected_rows_retryable_and_finishes_only_after_success()
+    {
+        var tenant = new Tenant();
+        var options = Options<CheckOffDBContext>();
+        var employer = Employer.Create(tenant.TenantId, "Employer", "Contact", "employer@example.test", "+254700000000", new Actor().ActorId);
+        var member = Member.Create(tenant.TenantId, "M1", "One", "Member", "m1@example.test", "+254700000001", "ID1", new DateOnly(1990, 1, 1), default, new Actor().ActorId);
+        var batch = CheckoffBatch.Create(tenant.TenantId, employer.Id, "POST", DateTime.UtcNow, 100, new Actor().ActorId);
+        batch.Status = CheckoffBatchStatus.Posting;
+        var row = CheckoffStagingRow.Create(tenant.TenantId, batch.Id, "E1", "One", 100, 0, 0, new Actor().ActorId);
+        row.ResolvedMemberId = member.Id;
+        row.Status = CheckoffRowStatus.Validated;
+        await using (var setup = new CheckOffDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(employer, member, batch, row);
+            await setup.SaveChangesAsync();
+        }
+        var banking = Substitute.For<IBankingUnitOfWork>();
+        var product = SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId);
+        banking.SavingsProducts.ListAsync(Arg.Any<Func<IQueryable<SavingsProduct>, IQueryable<SavingsProduct>>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<SavingsProduct> { product });
+        var payments = new CheckoffPaymentSender();
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await using var db = new CheckOffDBContext(options, tenant, new Actor());
+            await using var services = Services(db, tenant);
+            var uow = services.GetRequiredService<ICheckOffUnitOfWork>();
+            var child = new ChildCheckoffChunkJob(uow, banking, Substitute.For<ILoansUnitOfWork>(), payments, tenant);
+            var master = new MasterCheckoffBatchJob(uow, child, tenant);
+            if (attempt == 0)
+                await Assert.ThrowsAsync<InvalidOperationException>(() => master.ExecuteAsync(batch.Id, CancellationToken.None));
+            else await master.ExecuteAsync(batch.Id, CancellationToken.None);
+            await using var fresh = new CheckOffDBContext(options, tenant, new Actor());
+            Assert.Equal(attempt == 0 ? CheckoffRowStatus.Validated : CheckoffRowStatus.Processed,
+                (await fresh.CheckoffStagingRows.SingleAsync()).Status);
+            Assert.Equal(attempt == 0 ? CheckoffBatchStatus.Posting : CheckoffBatchStatus.Posted,
+                (await fresh.CheckoffBatches.SingleAsync()).Status);
+            payments.Reject = false;
+        }
+        Assert.Equal(2, payments.References.Count);
+        Assert.All(payments.References, reference => Assert.Equal($"CHK:{row.Id:N}:S", reference));
+    }
+    [Fact]
+    public async Task Journal_replay_preserves_one_posting_and_rejects_changed_entries()
+    {
+        var tenant = new Tenant();
+        var options = Options<AccountingDBContext>();
+        var debit = Account.Create(tenant.TenantId, "T-DEBIT", "Test debit", AccountType.Asset, null, new Actor().ActorId);
+        var credit = Account.Create(tenant.TenantId, "T-CREDIT", "Test credit", AccountType.Liability, null, new Actor().ActorId);
+        await using (var setup = new AccountingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(debit, credit);
+            await setup.SaveChangesAsync();
+        }
+        var date = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(7);
+        Guid? journalId = null;
+        foreach (var amount in new[] { 100m, 100m, 90m })
+        {
+            await using var db = new AccountingDBContext(options, tenant, new Actor());
+            await using var services = Services(db, tenant);
+            var ledger = new LedgerService(services.GetRequiredService<IAccountingUnitOfWork>(), tenant);
+            Task<Guid> Post() => ledger.PostJournalAsync("replay", "test", date,
+                [new CreateJournalEntryDto { AccountId = debit.Id, Debit = amount }, new CreateJournalEntryDto { AccountId = credit.Id, Credit = amount }], new Actor().ActorId);
+            if (amount == 90m) await Assert.ThrowsAsync<InvalidOperationException>(Post);
+            else
+            {
+                var id = await Post();
+                if (journalId is not null) Assert.Equal(journalId, id);
+                journalId = id;
+            }
+        }
+        await using var verify = new AccountingDBContext(options, tenant, new Actor());
+        Assert.Equal(1, await verify.Journals.CountAsync(j => j.ReferenceNumber == "replay"));
+    }
+
+    [Fact]
+    public async Task Loans_migration_chain_matches_the_current_runtime_model()
+    {
+        if (fixture is PostgreSqlDbFixture)
+        {
+            var options = new DbContextOptionsBuilder<LoansPostgreSqlDBContext>(Options<LoansPostgreSqlDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentNpgsqlMigrationsSqlGenerator>().Options;
+            await using var migrated = new LoansPostgreSqlDBContext(options);
+            await migrated.Database.MigrateAsync();
+            Assert.False(migrated.Database.HasPendingModelChanges());
+        }
+        else
+        {
+            var options = new DbContextOptionsBuilder<LoansSqlServerDBContext>(Options<LoansSqlServerDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentSqlServerMigrationsSqlGenerator>().Options;
+            await using var migrated = new LoansSqlServerDBContext(options);
+            await migrated.Database.MigrateAsync();
+            Assert.False(migrated.Database.HasPendingModelChanges());
+        }
+        await using var runtime = new LoansDBContext(Options<LoansDBContext>(), new Tenant(), new Actor());
+        Assert.Empty(await runtime.LoanApplications.ToListAsync());
+        Assert.Empty(await runtime.CollectionCases.ToListAsync());
+        Assert.Empty(await runtime.CollectionActions.ToListAsync());
+        Assert.Empty(await runtime.CollectionPromises.ToListAsync());
+    }
+    [Fact]
+    public async Task Loan_repayment_replay_saves_one_payment_and_rejects_conflicting_receipt()
+    {
+        var tenant = new Tenant();
+        var options = Options<LoansDBContext>();
+        var product = LoanProduct.Create(tenant.TenantId, "TEST", "Test loan", null, 0, InterestMethod.Flat, 12, 10000, new Actor().ActorId);
+        var loan = LoanApplication.Create(tenant.TenantId, "TEST-1", Guid.CreateVersion7(), product.Id, 100, 12, 0, InterestMethod.Flat, new Actor().ActorId);
+        loan.Status = LoanStatus.Disbursed;
+        await using (var setup = new LoansDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(product); setup.Add(loan);
+            await setup.SaveChangesAsync();
+        }
+        Guid? paymentId = null;
+        foreach (var amount in new[] { 100m, 100m, 90m })
+        {
+            await using var db = new LoansDBContext(options, tenant, new Actor());
+            await using var services = Services(db, tenant);
+            var result = await services.GetRequiredService<ISender>().Send(new ProcessRepaymentCommand
+                { LoanApplicationId = loan.Id, Amount = amount, ReceiptNumber = "CHK:replay" });
+            if (amount == 90m) Assert.False(result.IsSuccess);
+            else
+            {
+                Assert.True(result.IsSuccess, result.Message);
+                if (paymentId is not null) Assert.Equal(paymentId, result.Data);
+                paymentId = result.Data;
+            }
+        }
+        await using var verify = new LoansDBContext(options, tenant, new Actor());
+        Assert.Equal(0, (await verify.Set<LoanApplication>().SingleAsync(l => l.Id == loan.Id)).OutstandingPrincipal);
+        Assert.Equal(1, await verify.Set<LoanRepayment>().CountAsync());
+    }
+
+    [Fact]
+    public async Task Savings_and_share_replay_do_not_credit_twice_or_accept_changed_amounts()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var savings = SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId);
+        var shares = LS.Domain.Features.Banking.Shares.Entities.ShareProduct.Create("Shares", "SHR", 10, 1, new Actor().ActorId);
+        var member = Guid.CreateVersion7();
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(savings); setup.Add(shares);
+            await setup.SaveChangesAsync();
+        }
+        foreach (var amount in new[] { 100m, 100m, 90m })
+        {
+            await using var db = new BankingDBContext(options, tenant, new Actor());
+            await using var services = Services(db, tenant);
+            var sender = services.GetRequiredService<ISender>();
+            var deposit = await sender.Send(new DepositSavingsCommand(new DepositSavingsRequest(member, savings.Id, amount, null, "CHK:savings")));
+            var purchase = await sender.Send(new LS.Application.Features.Banking.Shares.Commands.PurchaseSharesCommand(member, shares.Id, amount, null, "CHK:shares"));
+            Assert.Equal(amount == 100m, deposit.IsSuccess);
+            Assert.Equal(amount == 100m, purchase.IsSuccess);
+        }
+        await using var verify = new BankingDBContext(options, tenant, new Actor());
+        Assert.Equal(100m, (await verify.Set<SavingsAccount>().SingleAsync()).Balance);
+        Assert.Equal(1, await verify.Set<SavingsTransaction>().CountAsync());
+        Assert.Equal(1, await verify.Set<LS.Domain.Features.Banking.Shares.Entities.ShareTransaction>().CountAsync());
+    }
+    [Fact]
+    public async Task Banking_outbox_rolls_back_and_recovers_committed_messages_after_host_restart()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+            await setup.Database.EnsureCreatedAsync();
+        var received = new System.Collections.Concurrent.ConcurrentDictionary<Guid, bool>();
+        IHost CreateHost()
+        {
+            LogContext.ConfigureCurrentLogContext(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+            var builder = Host.CreateApplicationBuilder();
+            builder.Services.AddSingleton<ICurrentTenantProvider>(tenant);
+            builder.Services.AddSingleton<ICurrentActorProvider>(new Actor());
+            builder.Services.AddScoped(_ => new BankingDBContext(options, tenant, new Actor()));
+            builder.Services.AddMassTransit(bus =>
+            {
+                bus.AddEntityFrameworkOutbox<BankingDBContext>(outbox =>
+                {
+                    if (fixture is PostgreSqlDbFixture) outbox.UsePostgres(false); else outbox.UseSqlServer(false);
+                    outbox.UseBusOutbox();
+                    outbox.QueryDelay = TimeSpan.FromMilliseconds(100);
+                });
+                bus.UsingInMemory((context, cfg) => cfg.ReceiveEndpoint("phase2-recovery", endpoint =>
+                    endpoint.Handler<SavingsDepositedIntegrationEvent>(message =>
+                    {
+                        received.TryAdd(message.Message.TransactionId, true);
+                        return Task.CompletedTask;
+                    })));
+            });
+            return builder.Build();
+        }
+        SavingsDepositedIntegrationEvent Message(Guid id) => new(Guid.CreateVersion7(), Guid.CreateVersion7(),
+            Guid.CreateVersion7(), 100m, "outbox-test") { TenantId = tenant.TenantId, TransactionId = id, OccurredAt = DateTimeOffset.UtcNow };
+        var rejectedId = Guid.CreateVersion7();
+        var committedIds = new[] { Guid.CreateVersion7(), Guid.CreateVersion7() };
+        using (var writer = CreateHost())
+        {
+            await using (var scope = writer.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<BankingDBContext>();
+                var publisher = scope.ServiceProvider.GetRequiredService<IScopedBusOutbox<BankingDBContext>>();
+                await using var transaction = await db.Database.BeginTransactionAsync();
+                await publisher.Publish(Message(rejectedId));
+                await db.SaveChangesAsync();
+                await transaction.RollbackAsync();
+            }
+            await using (var fresh = new BankingDBContext(options, tenant, new Actor()))
+                Assert.Equal(0, await fresh.Set<OutboxMessage>().CountAsync());
+            // Two commits in one scope exercise the same lifecycle as an interest job's successive batches.
+            await using (var scope = writer.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<BankingDBContext>();
+                var publisher = scope.ServiceProvider.GetRequiredService<IScopedBusOutbox<BankingDBContext>>();
+                foreach (var id in committedIds)
+                {
+                    await publisher.Publish(Message(id));
+                    await db.SaveChangesAsync();
+                }
+            }
+            await using var verify = new BankingDBContext(options, tenant, new Actor());
+            Assert.Equal(2, await verify.Set<OutboxMessage>().CountAsync());
+            Assert.Empty(received);
+        }
+        using var recovery = CreateHost();
+        await recovery.StartAsync();
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            while (committedIds.Any(id => !received.ContainsKey(id)))
+                await Task.Delay(100, timeout.Token);
+            Assert.False(received.ContainsKey(rejectedId));
+        }
+        finally { await recovery.StopAsync(); }
+    }
     [Fact]
     public async Task Provider_specific_checkoff_context_resolves_tenant_and_actor_through_DI()
     {

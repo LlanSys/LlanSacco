@@ -1,3 +1,4 @@
+using LS.Infrastructure.Contracts.Implementations.Common;
 using LS.Domain.Features.Accounting.Contracts;
 using LS.Application.Features.Accounting.Contracts.Interfaces;
 using LS.SharedKernel.Features.Accounting.Dtos;
@@ -13,8 +14,8 @@ namespace LS.Infrastructure.Messaging.Consumers.Accounting;
 public class LoanRepaymentIntegrationEventHandler(
     IAccountingUnitOfWork unitOfWork,
     ILedgerService ledgerService,
-    ILogger<LoanRepaymentIntegrationEventHandler> logger)
-    : AccountingEventHandlerBase<LoanRepaymentIntegrationEvent>(unitOfWork, ledgerService, logger)
+    ILogger<LoanRepaymentIntegrationEventHandler> logger, BackgroundExecutionContext executionContext)
+    : AccountingEventHandlerBase<LoanRepaymentIntegrationEvent>(unitOfWork, ledgerService, logger, executionContext)
 {
     protected override string GetTransactionTypeCode(LoanRepaymentIntegrationEvent evt) => "LOAN_REPAYMENT";
     protected override string GetReferenceNumber(LoanRepaymentIntegrationEvent evt) => evt.ReceiptNumber;

@@ -25,7 +25,7 @@ public static class LoansPersistenceDI
         services.Configure<DatabaseSettings>(configuration.GetSection(DatabaseSettings.SectionName));
         var dbSettings = configuration.GetSection(DatabaseSettings.SectionName).Get<DatabaseSettings>() ?? new DatabaseSettings();
 
-        services.TryAddSingleton<TenantConnectionInterceptor>();
+        services.TryAddScoped<TenantConnectionInterceptor>();
 
         void ConfigureDbContextOptions(IServiceProvider provider, DbContextOptionsBuilder options)
         {
@@ -64,6 +64,7 @@ public static class LoansPersistenceDI
 
         services.AddScoped<ILoanProductRepository, LoanProductRepository>();
         services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
+        services.AddScoped<ILoanRepaymentRepository, LoanRepaymentRepository>();
         services.AddScoped<ILoansUnitOfWork, LoansUnitOfWork>();
 
         return services;

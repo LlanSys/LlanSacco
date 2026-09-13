@@ -10,5 +10,10 @@ public record SavingsDepositedIntegrationEvent(
     Guid SavingsProductId,
     decimal Amount,
     string ExternalReferenceId
-) : INotification;
+) : INotification
+{
+    public Guid TenantId { get; init; }
+    public Guid TransactionId { get; init; }
+    public DateTimeOffset OccurredAt { get; init; }
+}
 

@@ -1,37 +1,34 @@
-using Hangfire;
 using LS.Domain.Features.CheckOff.Contracts;
 using LS.Domain.Features.CheckOff.Enums;
-using Microsoft.Extensions.Logging;
+using LS.Domain.Shared.Contracts.Common;
 
 namespace LS.Application.Features.CheckOff.Jobs;
 
-public class MasterCheckoffBatchJob(
-    ICheckOffUnitOfWork unitOfWork,
-    IBackgroundJobClient backgroundJobClient,
-    ILogger<MasterCheckoffBatchJob> logger)
+public class MasterCheckoffBatchJob(ICheckOffUnitOfWork unitOfWork,
+    ChildCheckoffChunkJob childJob, ICurrentTenantProvider tenantProvider)
 {
     public async Task ExecuteAsync(Guid batchId, CancellationToken cancellationToken)
     {
-        logger.LogInformation("MasterCheckoffBatchJob started for BatchId: {BatchId}", batchId);
-
-        var rowIds = await unitOfWork.CheckoffStagingRows.ListAsync(
-            q => q.Where(r => r.CheckoffBatchId == batchId && r.Status == CheckoffRowStatus.Pending)
-                  .Select(r => r.Id),
-            cancellationToken);
-
-        if (rowIds.Count == 0)
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        var batch = await unitOfWork.CheckoffBatches.FirstOrDefaultAsync(b => b.Id == batchId && b.TenantId == tenantId, cancellationToken)
+            ?? throw new InvalidOperationException("Checkoff batch was not found.");
+        if (batch.Status == CheckoffBatchStatus.Posted) return;
+        if (batch.Status != CheckoffBatchStatus.Posting) throw new InvalidOperationException("Checkoff batch is not ready for posting.");
+        while (true)
         {
-            logger.LogInformation("No pending rows found for BatchId: {BatchId}", batchId);
-            return;
+            var ids = await unitOfWork.CheckoffStagingRows.ListAsync(q => q
+                .Where(r => r.TenantId == tenantId && r.CheckoffBatchId == batchId && r.Status == CheckoffRowStatus.Validated)
+                .OrderBy(r => r.Id).Take(100).Select(r => r.Id), cancellationToken);
+            if (ids.Count == 0) break;
+            await childJob.ExecuteAsync(batchId, ids.ToList(), cancellationToken);
         }
-
-        int chunkSize = 100;
-        for (int i = 0; i < rowIds.Count; i += chunkSize)
-        {
-            var chunk = rowIds.Skip(i).Take(chunkSize).ToList();
-            backgroundJobClient.Enqueue<ChildCheckoffChunkJob>(j => j.ExecuteAsync(batchId, chunk, CancellationToken.None));
-        }
-
-        logger.LogInformation("MasterCheckoffBatchJob completed. Queued {ChunkCount} chunks for BatchId: {BatchId}", Math.Ceiling((double)rowIds.Count / chunkSize), batchId);
+        var incomplete = await unitOfWork.CheckoffStagingRows.ListAsync(q => q
+            .Where(r => r.TenantId == tenantId && r.CheckoffBatchId == batchId && r.Status != CheckoffRowStatus.Processed)
+            .Take(1).Select(r => r.Id), cancellationToken);
+        if (incomplete.Count != 0) throw new InvalidOperationException("Checkoff batch contains unprocessed rows.");
+        batch.Status = CheckoffBatchStatus.Posted;
+        await unitOfWork.CheckoffBatches.UpdateAsync(batch, cancellationToken);
+        await unitOfWork.CompleteAsync(cancellationToken);
     }
 }

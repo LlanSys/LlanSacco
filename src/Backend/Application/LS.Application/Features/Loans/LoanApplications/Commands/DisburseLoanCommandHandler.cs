@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.Application.Features.Loans.IntegrationEvents;
 using LS.Domain.Features.Loans.Contracts;
@@ -17,7 +18,7 @@ internal sealed partial class DisburseLoanCommandHandler(
     ILoansUnitOfWork unitOfWork,
     IEnumerable<IAmortizationStrategy> amortizationStrategies,
     ICurrentActorProvider actorProvider,
-    IPublisher publisher,
+    IContextEventPublisher<ILoansUnitOfWork> publisher,
     ILogger<DisburseLoanCommandHandler> logger)
     : IRequestHandler<DisburseLoanCommand, AppResponse<bool>>
 {
@@ -34,17 +35,17 @@ internal sealed partial class DisburseLoanCommandHandler(
             return AppResponses.Failure<bool>($"Cannot disburse loan in status {loan.Status}. Must be Approved.");
         }
 
-        loan.Status = LoanStatus.Disbursed;
-        loan.DisbursementDate = DateTimeOffset.UtcNow;
-        loan.UpdatedBy = actorProvider.ActorId.ToString();
-        loan.UpdatedAt = DateTimeOffset.UtcNow;
-
         // Generate schedules
         var strategy = amortizationStrategies.FirstOrDefault(s => s.SupportedMethod == loan.InterestMethod);
         if (strategy == null)
         {
             return AppResponses.Failure<bool>($"No amortization strategy found for interest method {loan.InterestMethod}.");
         }
+
+        loan.Status = LoanStatus.Disbursed;
+        loan.DisbursementDate = DateTimeOffset.UtcNow;
+        loan.UpdatedBy = actorProvider.ActorId.ToString();
+        loan.UpdatedAt = DateTimeOffset.UtcNow;
 
         var schedules = strategy.GenerateSchedule(loan);
         foreach (var schedule in schedules)
@@ -65,9 +66,9 @@ internal sealed partial class DisburseLoanCommandHandler(
             BranchId: request.BranchId,
             CostCenterId: request.CostCenterId,
             PaymentChannelGlAccountId: request.PaymentChannelGlAccountId
-        );
+        ) { EventId = loan.Id, OccurredAt = loan.DisbursementDate.Value };
 
-        await publisher.Publish(disbursedEvent, cancellationToken).ConfigureAwait(false);
+        await publisher.PublishAsync(disbursedEvent, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         LogLoanDisbursed(logger, loan.Id, loan.ApplicationNumber);

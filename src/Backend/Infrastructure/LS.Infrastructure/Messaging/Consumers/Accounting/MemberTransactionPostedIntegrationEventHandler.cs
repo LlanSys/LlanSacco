@@ -1,3 +1,4 @@
+using LS.Infrastructure.Contracts.Implementations.Common;
 using LS.Domain.Features.Accounting.Contracts;
 using LS.Application.Features.Accounting.Contracts.Interfaces;
 using LS.SharedKernel.Features.Accounting.Dtos;
@@ -13,8 +14,8 @@ namespace LS.Infrastructure.Messaging.Consumers.Accounting;
 public class MemberTransactionPostedIntegrationEventHandler(
     IAccountingUnitOfWork unitOfWork,
     ILedgerService ledgerService,
-    ILogger<MemberTransactionPostedIntegrationEventHandler> logger)
-    : AccountingEventHandlerBase<MemberTransactionPostedIntegrationEvent>(unitOfWork, ledgerService, logger)
+    ILogger<MemberTransactionPostedIntegrationEventHandler> logger, BackgroundExecutionContext executionContext)
+    : AccountingEventHandlerBase<MemberTransactionPostedIntegrationEvent>(unitOfWork, ledgerService, logger, executionContext)
 {
     protected override string GetTransactionTypeCode(MemberTransactionPostedIntegrationEvent evt) => evt.TransactionType.ToString();
     protected override string GetReferenceNumber(MemberTransactionPostedIntegrationEvent evt) => evt.Reference;

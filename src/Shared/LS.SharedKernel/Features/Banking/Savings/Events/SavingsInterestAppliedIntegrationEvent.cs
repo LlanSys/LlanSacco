@@ -9,4 +9,9 @@ public record SavingsInterestAppliedIntegrationEvent(
     Guid SavingsAccountId,
     Guid SavingsProductId,
     decimal Amount
-) : INotification;
+) : INotification
+{
+    public Guid TenantId { get; init; }
+    public Guid TransactionId { get; init; }
+    public DateTimeOffset OccurredAt { get; init; }
+}

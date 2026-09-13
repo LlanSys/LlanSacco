@@ -9,12 +9,13 @@ namespace LS.Infrastructure.Contracts.Implementations.Common;
 
 internal sealed class CurrentTenantProvider(
     IHttpContextAccessor httpContextAccessor,
-    IOptions<OrgSettings> options) : ICurrentTenantProvider
+    IOptions<OrgSettings> options, BackgroundExecutionContext backgroundContext) : ICurrentTenantProvider
 {
     public Guid TenantId
     {
         get
         {
+            if (backgroundContext.TenantId is Guid backgroundTenantId) return backgroundTenantId;
             var settings = options.Value;
             var user = httpContextAccessor.HttpContext?.User;
 

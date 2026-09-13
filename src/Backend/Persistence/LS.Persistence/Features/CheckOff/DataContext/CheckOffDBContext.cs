@@ -1,3 +1,4 @@
+using MassTransit;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Features.CheckOff.Entities;
@@ -55,6 +56,7 @@ public class CheckOffDBContext : DbContext, ITenantFilteredDBContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.AddTransactionalOutboxEntities(entity => entity.ToTable(entity.Metadata.GetDefaultTableName()!, "checkoff"));
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(CheckOffDBContext).Assembly,
             t => t.Namespace?.Contains("Features.CheckOff.Configurations") == true);

@@ -28,9 +28,28 @@ public class LedgerService(IAccountingUnitOfWork uow, ICurrentTenantProvider ten
     {
         var tenantId = _tenantProvider.TenantId;
 
+        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        ArgumentNullException.ThrowIfNull(entries);
+        var lines = entries.ToList();
+        var existing = await _uow.JournalRepository.FirstOrDefaultAsync(q => q
+            .Where(j => j.TenantId == tenantId && j.ReferenceNumber == referenceNumber)
+            .Select(j => new Journal
+            {
+                Id = j.Id, CreatedBy = j.CreatedBy, ReferenceNumber = j.ReferenceNumber, Description = j.Description,
+                Status = j.Status, TransactionDate = j.TransactionDate, Lines = j.Lines.ToList()
+            }), cancellationToken);
+        if (existing is not null)
+        {
+            var expected = lines.Select(e => (e.AccountId, e.BranchId, e.CostCenterId, e.Debit, e.Credit)).Order().ToArray();
+            var actual = existing.Lines.Select(e => (e.AccountId, e.BranchId, e.CostCenterId, e.Debit, e.Credit)).Order().ToArray();
+            if (existing.Status != JournalStatus.Posted || existing.TransactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond != transactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond || !actual.SequenceEqual(expected))
+                throw new InvalidOperationException("The journal reference is already associated with different posting details.");
+            return existing.Id;
+        }
+
         // Ensure double-entry validity
-        var totalDebit = entries.Sum(e => e.Debit);
-        var totalCredit = entries.Sum(e => e.Credit);
+        var totalDebit = lines.Sum(e => e.Debit);
+        var totalCredit = lines.Sum(e => e.Credit);
 
         if (totalDebit != totalCredit)
         {
@@ -44,7 +63,7 @@ public class LedgerService(IAccountingUnitOfWork uow, ICurrentTenantProvider ten
 
         var journal = Journal.Create(tenantId, referenceNumber, description, transactionDate, createdBy);
 
-        foreach (var entry in entries)
+        foreach (var entry in lines)
         {
             if (entry.Debit < 0 || entry.Credit < 0)
             {

@@ -8,6 +8,7 @@ public interface ILoansUnitOfWork : ITransactionalUnitOfWork
 {
     ILoanProductRepository LoanProductRepository { get; }
     ILoanApplicationRepository LoanApplicationRepository { get; }
+    ILoanRepaymentRepository LoanRepaymentRepository { get; }
     IRepository<Entities.LoanGuarantor> LoanGuarantorRepository { get; }
     IRepository<Entities.LoanRepaymentSchedule> LoanRepaymentScheduleRepository { get; }
     

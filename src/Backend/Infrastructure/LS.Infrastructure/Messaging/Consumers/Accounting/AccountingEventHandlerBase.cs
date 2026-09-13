@@ -1,3 +1,4 @@
+using LS.Infrastructure.Contracts.Implementations.Common;
 using LS.Domain.Features.Accounting.Contracts;
 using LS.Application.Features.Accounting.Contracts.Interfaces;
 using LS.SharedKernel.Features.Accounting.Dtos;
@@ -17,20 +18,23 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
     protected readonly IAccountingUnitOfWork _unitOfWork;
     protected readonly ILedgerService _ledgerService;
     protected readonly ILogger _logger;
+    private readonly BackgroundExecutionContext _executionContext;
 
     protected AccountingEventHandlerBase(
         IAccountingUnitOfWork unitOfWork,
         ILedgerService ledgerService,
-        ILogger logger)
+        ILogger logger, BackgroundExecutionContext executionContext)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _logger = logger;
+        _executionContext = executionContext;
     }
 
     public async Task Consume(ConsumeContext<TEvent> context)
     {
         var evt = context.Message;
+        _executionContext.Initialize(GetTenantId(evt), ICurrentActorProvider.SystemActor);
         
         try
         {
@@ -50,7 +54,7 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
                 description: GetDescription(evt),
                 transactionDate: evt.OccurredAt,
                 entries: entries,
-                createdBy: "System-IntegrationEvent",
+                createdBy: ICurrentActorProvider.SystemActor,
                 cancellationToken: context.CancellationToken
             ).ConfigureAwait(false);
             
@@ -70,7 +74,7 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
                 ErrorMessage = ex.Message,
                 Status = "Failed",
                 OccurredAt = DateTimeOffset.UtcNow,
-                CreatedBy = "System-IntegrationEvent"
+                CreatedBy = ICurrentActorProvider.SystemActor
             };
             
             await _unitOfWork.AccountingIntegrationErrorRepository.CreateAsync(error, context.CancellationToken).ConfigureAwait(false);

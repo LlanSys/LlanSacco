@@ -106,7 +106,7 @@ namespace LS.Persistence.Migrations.LoansPostgreSqlDB
                 table: "CollectionCases",
                 column: "LoanApplicationId",
                 unique: true,
-                filter: "\"Status\" = true AND IsDeleted = false");
+                filter: "\"Status\" = 'Open'");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CollectionPromises_CollectionCaseId",

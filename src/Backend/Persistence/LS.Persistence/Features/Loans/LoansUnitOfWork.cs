@@ -12,6 +12,7 @@ public class LoansUnitOfWork(
     LoansDBContext context,
     ILoanProductRepository loanProductRepository,
     ILoanApplicationRepository loanApplicationRepository,
+    ILoanRepaymentRepository loanRepaymentRepository,
     IRepository<LS.Domain.Features.Loans.Entities.LoanGuarantor> loanGuarantorRepository,
     IRepository<LS.Domain.Features.Loans.Entities.LoanRepaymentSchedule> loanRepaymentScheduleRepository,
     IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionCase> collectionCases,
@@ -23,6 +24,7 @@ public class LoansUnitOfWork(
 {
     public ILoanProductRepository LoanProductRepository { get; } = loanProductRepository;
     public ILoanApplicationRepository LoanApplicationRepository { get; } = loanApplicationRepository;
+    public ILoanRepaymentRepository LoanRepaymentRepository { get; } = loanRepaymentRepository;
     public IRepository<LS.Domain.Features.Loans.Entities.LoanGuarantor> LoanGuarantorRepository { get; } = loanGuarantorRepository;
     public IRepository<LS.Domain.Features.Loans.Entities.LoanRepaymentSchedule> LoanRepaymentScheduleRepository { get; } = loanRepaymentScheduleRepository;
     

@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System.Collections.ObjectModel;
 using LS.Application.Features.Banking.Logging;
 using LS.Domain.Features.Banking.Contracts;
@@ -12,7 +13,7 @@ namespace LS.Application.Features.Banking.Savings.Jobs;
 public class CalculateSavingsInterestJob(
     IBankingUnitOfWork unitOfWork,
     ILogger<CalculateSavingsInterestJob> logger,
-    MediatR.IPublisher publisher,
+    IContextEventPublisher<IBankingUnitOfWork> publisher,
     ICurrentTenantProvider tenantProvider,
     TimeProvider? timeProvider = null)
 {
@@ -43,7 +44,7 @@ public class CalculateSavingsInterestJob(
                     var transaction = SavingsTransaction.Create(account.Id, SavingsTransactionType.Interest, interest,
                         $"Daily interest for {accrualDate:yyyy-MM-dd}", $"INT:{account.Id:N}:{accrualDate:yyyyMMdd}", ICurrentActorProvider.SystemActor);
                     await unitOfWork.SavingsTransactions.CreateAsync(transaction, cancellationToken);
-                    await publisher.Publish(new SavingsInterestAppliedIntegrationEvent(account.MemberId, account.Id, product.Id, interest), cancellationToken);
+                    await publisher.PublishAsync(new SavingsInterestAppliedIntegrationEvent(account.MemberId, account.Id, product.Id, interest) { TenantId = tenantId, TransactionId = transaction.Id, OccurredAt = transaction.CreatedAt }, cancellationToken);
                 }
                 await unitOfWork.SavingsAccounts.UpdateRangeAsync(new Collection<SavingsAccount>(accounts), cancellationToken);
                 return accounts.Count;

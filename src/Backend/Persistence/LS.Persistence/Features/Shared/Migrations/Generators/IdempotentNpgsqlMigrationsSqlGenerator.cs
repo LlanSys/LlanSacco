@@ -5,46 +5,28 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.Internal;
 
 namespace LS.Persistence.Features.Shared.Migrations.Generators;
 
-public class IdempotentNpgsqlMigrationsSqlGenerator(
-    MigrationsSqlGeneratorDependencies dependencies,
-    INpgsqlSingletonOptions npgsqlSingletonOptions) : Npgsql.EntityFrameworkCore.PostgreSQL.Migrations.NpgsqlMigrationsSqlGenerator(dependencies, npgsqlSingletonOptions)
+#pragma warning disable EF1001
+public class IdempotentNpgsqlMigrationsSqlGenerator(MigrationsSqlGeneratorDependencies dependencies,
+    INpgsqlSingletonOptions npgsqlSingletonOptions)
+    : Npgsql.EntityFrameworkCore.PostgreSQL.Migrations.NpgsqlMigrationsSqlGenerator(dependencies, npgsqlSingletonOptions)
 {
-
-#pragma warning disable EF1001 // Internal EF Core API usage.
-
-    protected override void Generate(
-        CreateIndexOperation operation,
-        IModel? model,
-        MigrationCommandListBuilder builder,
-        bool terminate = true)
+    protected override void Generate(CreateIndexOperation operation, IModel? model,
+        MigrationCommandListBuilder builder, bool terminate = true)
     {
-        builder.Append($"CREATE INDEX IF NOT EXISTS ");
-        
-        var indexName = Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Name);
-        builder.Append(indexName).Append(" ON ");
-        
-        if (operation.Schema != null)
+        // Preserve provider-generated uniqueness, predicates, included columns and index options.
+        var generated = new MigrationCommandListBuilder(Dependencies);
+        base.Generate(operation, model, generated, true);
+        foreach (var command in generated.GetCommandList())
         {
-            builder.Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Schema)).Append(".");
-        }
-        
-        builder.Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Table)).Append(" (");
-        
-        for (int i = 0; i < operation.Columns.Length; i++)
-        {
-            builder.Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(operation.Columns[i]));
-            if (i < operation.Columns.Length - 1)
-            {
-                builder.Append(", ");
-            }
-        }
-        
-        builder.Append(")");
-        
-        if (terminate)
-        {
-            builder.AppendLine(";");
+            var sql = command.CommandText;
+            var indexKeyword = sql.IndexOf("INDEX", StringComparison.Ordinal);
+            if (indexKeyword < 0) throw new InvalidOperationException("Expected a PostgreSQL index statement.");
+            var insertion = indexKeyword + "INDEX".Length;
+            if (sql.AsSpan(insertion).StartsWith(" CONCURRENTLY", StringComparison.Ordinal))
+                insertion += " CONCURRENTLY".Length;
+            builder.Append(sql.Insert(insertion, " IF NOT EXISTS"));
+            if (terminate) builder.EndCommand(command.TransactionSuppressed);
         }
     }
-#pragma warning restore EF1001 // Internal EF Core API usage.
 }
+#pragma warning restore EF1001

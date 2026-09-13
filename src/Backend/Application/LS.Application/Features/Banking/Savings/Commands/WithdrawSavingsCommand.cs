@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using FluentValidation;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.Savings.Entities;
@@ -31,12 +32,15 @@ internal class WithdrawSavingsCommandValidator : AbstractValidator<WithdrawSavin
 internal class WithdrawSavingsCommandHandler(
     IBankingUnitOfWork unitOfWork,
     ICurrentActorProvider actorProvider,
-    IPublisher publisher) 
+    IContextEventPublisher<IBankingUnitOfWork> publisher, ICurrentTenantProvider tenantProvider)
     : IRequestHandler<WithdrawSavingsCommand, AppResponse<SavingsAccountResponse>>
 {
     public async Task<AppResponse<SavingsAccountResponse>> Handle(WithdrawSavingsCommand command, CancellationToken cancellationToken)
     {
         var request = command.Request;
+        var tenantId = tenantProvider.TenantId;
+        if (tenantId == Guid.Empty) return AppResponses.Failure<SavingsAccountResponse>(AppError.Forbidden("A tenant is required."));
+        if (request.Amount <= 0) return AppResponses.Failure<SavingsAccountResponse>("Withdrawal amount must be positive.");
 
         // Note on concurrency: we will use EF Core's optimistic concurrency (RowVersion) to prevent race conditions during updates.
         
@@ -150,14 +154,14 @@ internal class WithdrawSavingsCommandHandler(
         }
 
         // Publish event for Accounting
-        await publisher.Publish(new SavingsWithdrawnIntegrationEvent(
+        await publisher.PublishAsync(new SavingsWithdrawnIntegrationEvent(
             request.MemberId,
             account.Id,
             product.Id,
             request.Amount,
             request.ExternalReferenceId ?? string.Empty,
             product.WithdrawalFee
-        ), cancellationToken);
+        ) { TenantId = tenantId, TransactionId = withdrawalTransaction.Id, OccurredAt = withdrawalTransaction.CreatedAt }, cancellationToken);
 
         // Let EF handle optimistic concurrency on SaveChangesAsync. If RowVersion changed, it will throw DbUpdateConcurrencyException
         await unitOfWork.CompleteAsync(cancellationToken);

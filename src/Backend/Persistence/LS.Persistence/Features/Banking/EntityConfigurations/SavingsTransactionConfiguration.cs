@@ -18,6 +18,6 @@ public class SavingsTransactionConfiguration : IEntityTypeConfiguration<SavingsT
         builder.Property(x => x.ExternalReferenceId).HasMaxLength(100);
         
         builder.HasIndex(x => x.SavingsAccountId);
-        builder.HasIndex(x => x.ExternalReferenceId); // useful for checking if a webhook already processed
+        builder.HasIndex(x => new { x.TenantId, x.Type, x.ExternalReferenceId }).IsUnique().HasFilter("[ExternalReferenceId] IS NOT NULL"); // useful for checking if a webhook already processed
     }
 }

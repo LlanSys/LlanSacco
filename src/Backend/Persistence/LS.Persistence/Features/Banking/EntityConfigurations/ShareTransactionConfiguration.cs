@@ -11,6 +11,7 @@ internal sealed class ShareTransactionConfiguration : IEntityTypeConfiguration<S
         builder.HasKey(x => x.Id);
         
         builder.HasIndex(x => x.ShareAccountId);
+        builder.HasIndex(x => new { x.TenantId, x.TransactionType, x.ReferenceNumber }).IsUnique().HasFilter("[ReferenceNumber] IS NOT NULL");
         builder.HasIndex(x => x.CounterpartyAccountId);
 
         builder.Property(x => x.TransactionType)

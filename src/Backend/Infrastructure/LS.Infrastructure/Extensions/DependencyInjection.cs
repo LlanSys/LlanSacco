@@ -165,6 +165,9 @@ public static class DependencyInjection
 
         services.AddHttpClient<IApiService, ApiService>();
         services.AddHttpClient<LS.Application.Features.ControlPlane.Tenants.Contracts.IStampProvisioner, LS.Infrastructure.Features.ControlPlane.Provisioning.GitHubActionsStampProvisioner>();
+        services.AddScoped<BackgroundExecutionContext>();
+        services.AddScoped<IBackgroundRequestSender, BackgroundRequestSender>();
+        services.AddScoped<LS.Application.Features.CheckOff.Jobs.ChildCheckoffChunkJob>();
         services.AddScoped<ICurrentTenantProvider, CurrentTenantProvider>();
         services.AddScoped<ITenantConnectionResolver, TenantConnectionResolver>();
         services.AddScoped<ITenantModuleResolver, TenantModuleResolver>();

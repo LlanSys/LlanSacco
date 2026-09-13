@@ -11,5 +11,10 @@ public record SavingsWithdrawnIntegrationEvent(
     decimal Amount,
     string ExternalReferenceId,
     decimal WithdrawalFee
-) : INotification;
+) : INotification
+{
+    public Guid TenantId { get; init; }
+    public Guid TransactionId { get; init; }
+    public DateTimeOffset OccurredAt { get; init; }
+}
 

@@ -123,7 +123,6 @@ internal sealed class VerifyEmailOtp(
         {
             await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
             await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-            await iamUnitOfWork.CompleteAsync(ct).ConfigureAwait(false);
             return true;
         }, cancellationToken: ct).ConfigureAwait(false);
 

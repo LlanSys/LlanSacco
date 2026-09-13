@@ -12,7 +12,7 @@ internal sealed class IamAppUserProfileRepository(IamDBContext context) : Reposi
 {
     public async Task<AppUserProfile> CreateOrUpdateAsync(string userId, AppUserProfile profile, CancellationToken cancellationToken)
     {
-        var existing = await GetByUserIdAsync(userId).ConfigureAwait(false);
+        var existing = await FirstOrDefaultAsync(x => x.AppUserId == userId && !x.IsDeleted, cancellationToken).ConfigureAwait(false);
 
         if (existing == null)
         {

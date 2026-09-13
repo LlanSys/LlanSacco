@@ -173,6 +173,110 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             => publisher.Publish(message, cancellationToken);
     }
 
+    private sealed class RejectRoleAssignment : IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>
+    {
+        private int _calls;
+        public Task<IdentityResult> ValidateAsync(UserManager<LS.Domain.Features.IAM.Users.Entities.AppUser> manager,
+            LS.Domain.Features.IAM.Users.Entities.AppUser user)
+            => Task.FromResult(++_calls == 1 ? IdentityResult.Success
+                : IdentityResult.Failed(new IdentityError { Code = "InjectedRoleRejection", Description = "Injected role rejection." }));
+    }
+
+    private sealed class CreationProfileFault(string mode, CancellationTokenSource cancellation) : SaveChangesInterceptor
+    {
+        public int Attempts { get; private set; }
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<LS.Domain.Features.IAM.Users.Entities.AppUserProfile>()
+                .Any(e => e.State == EntityState.Added))
+            {
+                Attempts++;
+                if (mode == "failure") throw new InvalidOperationException("Injected profile save failure.");
+                if (mode == "retry" && Attempts == 1) throw new DbUpdateConcurrencyException("Injected profile conflict.");
+                if (mode == "cancel")
+                {
+                    cancellation.Cancel();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("failure")]
+    [InlineData("retry")]
+    [InlineData("cancel")]
+    [InlineData("role-rejection")]
+    public async Task User_creation_roles_and_profile_are_atomic(string mode)
+    {
+        var tenant = new Tenant();
+        using var cancellation = new CancellationTokenSource();
+        var fault = new CreationProfileFault(mode, cancellation);
+        var options = new DbContextOptionsBuilder<LS.Persistence.Features.IAM.DataContext.IamDBContext>(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>()).AddInterceptors(fault).Options;
+        await using var db = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        services.AddSingleton<ICurrentTenantProvider>(tenant);
+        services.AddSingleton<ICurrentActorProvider>(new Actor());
+        services.AddSingleton(Substitute.For<IHrUnitOfWork>());
+        services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
+            .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
+            .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>();
+        foreach (var contract in typeof(LS.Domain.Features.IAM.Contracts.IIamUnitOfWork).GetProperties()
+            .Select(p => p.PropertyType).Where(t => !t.IsGenericType))
+        {
+            var implementation = typeof(LS.Persistence.Features.IAM.IamUnitOfWork).Assembly.GetTypes()
+                .Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
+        services.AddScoped<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork, LS.Persistence.Features.IAM.IamUnitOfWork>();
+        services.AddSingleton(Substitute.For<IPublisher>());
+        if (mode == "role-rejection")
+            services.AddSingleton<IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>, RejectRoleAssignment>();
+        await using var provider = services.BuildServiceProvider();
+        var role = new LS.Domain.Features.IAM.Users.Entities.AppRole { Id = Guid.CreateVersion7().ToString(), Name = "CreationTest" };
+        Assert.True((await provider.GetRequiredService<RoleManager<LS.Domain.Features.IAM.Users.Entities.AppRole>>().CreateAsync(role)).Succeeded);
+        var handlerType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType(
+            "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.CreateAppUser")!;
+        var handler = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.CreateAppUserCommand,
+            AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.AppUserResponse>>)ActivatorUtilities.CreateInstance(provider, handlerType);
+        var command = new LS.Application.Features.IAM.Users.Commands.CreateAppUserCommand(
+            new LS.SharedKernel.Features.IAM.Users.Dtos.CreateAppUserRequest("creation-test", "creation@example.test",
+                "Creation-Test-Password1!", "Test", "User", "+254700000000", null, "Other", null, null, ["CreationTest"]), new Actor().ActorId);
+        if (mode == "failure")
+            await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
+        else if (mode == "cancel")
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
+        else
+            Assert.Equal(mode != "role-rejection", (await handler.Handle(command, cancellation.Token)).IsSuccess);
+        Assert.Equal(mode == "retry" ? 2 : mode == "role-rejection" ? 0 : 1, fault.Attempts);
+        // A later save on the same scope must not leak rolled-back entities.
+        if (mode is "failure" or "cancel" or "role-rejection")
+            Assert.Empty(db.ChangeTracker.Entries());
+        await db.SaveChangesAsync();
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
+        var saved = await verify.Users.SingleOrDefaultAsync(u => u.UserName == "creation-test");
+        if (mode is "failure" or "cancel" or "role-rejection")
+        {
+            Assert.Null(saved);
+            Assert.Empty(await verify.AppUserProfiles.ToListAsync());
+            Assert.Equal(0, await verify.UserRoles.CountAsync(r => r.RoleId == role.Id));
+        }
+        else
+        {
+            Assert.NotNull(saved);
+            Assert.Equal(tenant.TenantId, saved.TenantId);
+            Assert.Equal(new Actor().ActorId, saved.CreatedBy);
+            Assert.Equal(saved.Id, (await verify.AppUserProfiles.SingleAsync()).AppUserId);
+            Assert.Equal(1, await verify.UserRoles.CountAsync(r => r.UserId == saved.Id && r.RoleId == role.Id));
+        }
+    }
     private sealed class RejectResetMetadata : IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>
     {
         public Task<IdentityResult> ValidateAsync(UserManager<LS.Domain.Features.IAM.Users.Entities.AppUser> manager,

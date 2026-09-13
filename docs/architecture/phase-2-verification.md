@@ -121,3 +121,17 @@ The FOSA audit found that negative/over-precision cash amounts, unsupported tran
 Verification: API build passed; 84 architecture checks passed without debt-register expansion; the full integration suite passed 89 tests with one existing external RabbitMQ test skipped. The provider tests above execute locally against disposable PostgreSQL and SQL Server databases. Outbox transport evidence remains the previously documented in-memory transport coverage.
 
 Phase 2 remains open. The remaining audit includes CreateAppUser's separate user creation and role/profile transaction with compensating deletion, login/session issuance boundaries, and an extra CompleteAsync inside VerifyEmailOtp's retry callback. Generic/Shared domain-event commit semantics, tenant/database selection for recurring jobs and dedicated-database outbox delivery, and combined CheckOff recovery/competing deliveries still require implementation and proof. The accounting index-upgrade item is now complete. Keep PR #3 draft and deployment/publishing disabled.
+
+## Atomic IAM user creation - 2026-09-14
+
+CreateAppUser now opens the IAM transaction before Identity creates the user. Role assignment and profile upsert run in that transaction, and an explicit shouldCommit predicate rolls back rejected Identity results. The callback repeats validation and constructs a fresh user/profile on retry. Compensating deletion was removed: failures leave no committed partial identity to delete. Creation and profile auditing use the current stable actor and resolved tenant rather than System/Guid.Empty placeholders. Profile upsert uses inherited FirstOrDefaultAsync with cancellation before explicitly staging changes.
+
+Ten provider cases passed, covering success, profile-save failure after Identity saves, a retried profile concurrency failure, cancellation and Identity role-assignment rejection. Fresh contexts verify user/profile/role atomicity, and failed attempts leave no tracked state that a later save could commit. A successful retry persists exactly one user, one profile and one role assignment. These tests use the real Identity UserManager, RoleManager, repositories and IAM Unit of Work on PostgreSQL and SQL Server.
+
+VerifyEmailOtp no longer calls CompleteAsync inside its retry callback; the helper owns the commit. API build, 84 architecture tests and 43 unit tests passed. No architecture-debt entries were added or expanded. No migrations were needed for this slice.
+
+All GitHub checks for the preceding d5d0370 checkpoint passed, including Required / Remediation and Secrets; image publishing was skipped. This evidence applies to that commit, not automatically to this follow-up.
+
+Phase 2 remains open. Login/session issuance boundaries, member-link validation, FOSA recovery, generic/Shared domain-event commit semantics, tenant-aware recurring and dedicated-database outbox delivery, and combined CheckOff recovery/competing deliveries remain. User-creation notification dispatch still belongs to the open domain-event work; raising its existing event after persistence does not certify durable delivery. PR #3 stays draft, with no merge or deployment.
+
+Final regression run for this slice: 99 integration tests passed, with the one existing external RabbitMQ test skipped. API build, 84 architecture tests, 43 unit tests and staged whitespace checks also passed.

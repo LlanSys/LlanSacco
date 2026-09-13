@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed: 2026-09-13, including the password-reset, accounting-index and FOSA follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
+Status reviewed: 2026-09-14, including the atomic IAM user-creation follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -115,7 +115,8 @@ Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved 
 - [x] Claim refresh tokens atomically inside rotation transactions and re-read expired tokens during retries; provider tests prove one competing winner, tenant isolation and rollback recovery (06b9edf).
 - [x] Make password reset and refresh-token revocation atomic, including Identity failure results, retries and cancellation. The explicit commit predicate preserves intentional diagnostic writes by default; both provider tests verify rollback after embedded saves.
 - [x] Reject invalid FOSA cash amounts and denomination counts before mutation; use the stable actor identifier. Provider tests verify unchanged rejected state, cash/vault balance conservation and stale-update rejection.
-- [ ] Finish the wider IAM and cross-context mutation audit, including user creation/role/profile boundaries, login/session issuance and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
+- [x] Commit IAM user creation, role assignment and profile creation together, using the current tenant/actor and an explicit commit predicate. Provider tests verify role-result rejection, profile-save failure, retry and cancellation without compensating deletion. Remove the redundant save in the email-OTP retry callback.
+- [ ] Finish the wider IAM and cross-context mutation audit, including login/session issuance, member-link validation and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
 - [ ] Settle and test generic/Shared domain-event commit semantics. Financial outboxes do not settle every domain-event helper.
 - [x] Add separate provider migrations to rebuild the three accounting unique indexes. Upgrade tests reproduce existing non-unique indexes, prove successful repair and confirm duplicate journals cause rollback without data loss. No deployed database was migrated.
 

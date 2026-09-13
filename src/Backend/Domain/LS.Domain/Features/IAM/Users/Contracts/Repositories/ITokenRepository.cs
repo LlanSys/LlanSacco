@@ -11,7 +11,7 @@ public interface ITokenRepository : IRepository<RefreshToken>
     Task<RefreshToken?> GetTokenAsync(string token);
     Task<RefreshToken?> GetRefreshTokenAsync(string token);
     Task<RefreshToken?> GetRefreshTokenAsync(string token, string userId);
-    Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(string userId);
+    Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(string userId, CancellationToken cancellationToken = default);
     Task<RefreshToken?> GetByTokenAndUserAsync(string token, string userId);
     Task<List<RefreshToken>> GetUserTokensAsync(string userId, int limit = 10);
     Task<List<RefreshToken>> GetExpiredTokensAsync(int daysOld = 30);
@@ -22,7 +22,7 @@ public interface ITokenRepository : IRepository<RefreshToken>
     Task<bool> IsTokenActiveAsync(string token);
     Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason);
     Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason, string? revokedByIp = null);
-    Task RevokeTokensAsync(List<RefreshToken> tokens, string reason, string? revokedByIp = null);
+    Task RevokeTokensAsync(List<RefreshToken> tokens, string reason, string? revokedByIp = null, CancellationToken cancellationToken = default);
     Task RevokeAllUserTokensAsync(string userId, string reason, string? revokedByIp = null);
     Task CleanupExpiredTokensAsync(string? userId = null);
     Task PerformMaintenanceAsync();

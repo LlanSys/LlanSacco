@@ -26,6 +26,10 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork) : IReq
 {
     public async Task<AppResponse<bool>> Handle(VaultTransferCommand request, CancellationToken cancellationToken)
     {
+        if (request.Breakdown is not { Note1000Count: >= 0, Note500Count: >= 0, Note200Count: >= 0,
+            Note100Count: >= 0, Note50Count: >= 0, Coin20Count: >= 0, Coin10Count: >= 0,
+            Coin5Count: >= 0, Coin1Count: >= 0 } || request.Breakdown.TotalValue <= 0)
+            return AppResponses.Failure<bool>(AppError.BusinessRule("Provide non-negative denomination counts with a positive total value."));
         var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
         if (till is null)
         {

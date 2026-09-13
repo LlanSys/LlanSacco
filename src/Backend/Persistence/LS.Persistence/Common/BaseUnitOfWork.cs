@@ -66,7 +66,7 @@ public abstract class BaseUnitOfWork<TContext>(
         }
     }
     public async Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation,
-        int maxRetries = 3, int baseDelayMs = 50, CancellationToken cancellationToken = default)
+        int maxRetries = 3, int baseDelayMs = 50, CancellationToken cancellationToken = default, Func<TResult, bool>? shouldCommit = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxRetries, 1);
@@ -84,6 +84,12 @@ public abstract class BaseUnitOfWork<TContext>(
                     try
                     {
                         var result = await operation().ConfigureAwait(false);
+                        if (shouldCommit is not null && !shouldCommit(result))
+                        {
+                            await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                            Context.ChangeTracker.Clear();
+                            return result;
+                        }
                         await Context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                         return result;

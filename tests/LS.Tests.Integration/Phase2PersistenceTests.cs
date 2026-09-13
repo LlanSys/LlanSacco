@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using NSubstitute;
 using LS.SharedKernel.Dtos.Common;
 using LS.Application.Contracts.Interfaces.Common;
@@ -170,6 +173,114 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             => publisher.Publish(message, cancellationToken);
     }
 
+    private sealed class RejectResetMetadata : IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>
+    {
+        public Task<IdentityResult> ValidateAsync(UserManager<LS.Domain.Features.IAM.Users.Entities.AppUser> manager,
+            LS.Domain.Features.IAM.Users.Entities.AppUser user)
+            => Task.FromResult(user.PasswordLastChanged is null ? IdentityResult.Success
+                : IdentityResult.Failed(new IdentityError { Code = "InjectedMetadataRejection", Description = "Injected metadata rejection." }));
+    }
+    private sealed class ResetRevocationFault(string mode, CancellationTokenSource cancellation) : SaveChangesInterceptor
+    {
+        public int Attempts { get; private set; }
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<LS.Domain.Features.IAM.Users.Entities.RefreshToken>()
+                .Any(e => e.State == EntityState.Modified && e.Entity.RevokedAt != null))
+            {
+                Attempts++;
+                if (mode == "failure") throw new InvalidOperationException("Injected token revocation failure.");
+                if (mode == "retry" && Attempts == 1) throw new DbUpdateConcurrencyException("Injected revocation conflict.");
+                if (mode == "cancel")
+                {
+                    cancellation.Cancel();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("failure")]
+    [InlineData("retry")]
+    [InlineData("cancel")]
+    [InlineData("identity-rejection")]
+    public async Task Password_reset_and_token_revocation_share_one_transaction(string mode)
+    {
+        var tenant = new Tenant();
+        using var cancellation = new CancellationTokenSource();
+        var fault = new ResetRevocationFault(mode, cancellation);
+        var options = new DbContextOptionsBuilder<LS.Persistence.Features.IAM.DataContext.IamDBContext>(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>()).AddInterceptors(fault).Options;
+        await using var db = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
+        services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
+            .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
+            .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>()
+            .AddDefaultTokenProviders();
+        foreach (var contract in typeof(LS.Domain.Features.IAM.Contracts.IIamUnitOfWork).GetProperties()
+            .Select(p => p.PropertyType).Where(t => !t.IsGenericType))
+        {
+            var implementation = typeof(LS.Persistence.Features.IAM.IamUnitOfWork).Assembly.GetTypes()
+                .Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
+        services.AddScoped<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork, LS.Persistence.Features.IAM.IamUnitOfWork>();
+        if (mode == "identity-rejection")
+            services.AddSingleton<IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>, RejectResetMetadata>();
+        services.AddSingleton(Substitute.For<IPublisher>());
+        services.AddSingleton(Substitute.For<ICacheService>());
+        services.AddHttpContextAccessor();
+        await using var provider = services.BuildServiceProvider();
+        var manager = provider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<LS.Domain.Features.IAM.Users.Entities.AppUser>>();
+        var user = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "reset-test", "Test", "User",
+            "reset@example.test", "+254700000000", new Actor().ActorId);
+        Assert.True((await manager.CreateAsync(user, "Original-Test-Password1!")).Succeeded);
+        var originalHash = user.PasswordHash;
+        var originalStamp = user.SecurityStamp;
+        var originalChanged = user.PasswordLastChanged;
+        var resetToken = await manager.GeneratePasswordResetTokenAsync(user);
+        var refresh = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(user.Id, "reset-test-refresh",
+            DateTimeOffset.UtcNow.AddHours(1), user.Id);
+        db.Add(refresh);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var handlerType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType(
+            "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ResetPassword")!;
+        var handler = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.ResetPasswordCommand, AppResponse<bool>>)
+            ActivatorUtilities.CreateInstance(provider, handlerType);
+        var command = new LS.Application.Features.IAM.Users.Commands.ResetPasswordCommand(
+            new LS.SharedKernel.Features.IAM.Users.Dtos.ResetPasswordRequest(user.Email!, null,
+                "Replacement-Test-Password2!", "Replacement-Test-Password2!", resetToken));
+        if (mode == "cancel")
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
+        else
+            Assert.Equal(mode is not ("failure" or "identity-rejection"), (await handler.Handle(command, cancellation.Token)).IsSuccess);
+        Assert.Equal(mode == "retry" ? 2 : mode == "identity-rejection" ? 0 : 1, fault.Attempts);
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
+        var savedUser = await verify.Users.SingleAsync(u => u.Id == user.Id);
+        var savedToken = await verify.RefreshTokens.SingleAsync(t => t.Id == refresh.Id);
+        if (mode is "failure" or "cancel" or "identity-rejection")
+        {
+            Assert.Equal(originalHash, savedUser.PasswordHash);
+            Assert.Equal(originalStamp, savedUser.SecurityStamp);
+            Assert.Equal(originalChanged, savedUser.PasswordLastChanged);
+            Assert.Null(savedToken.RevokedAt);
+        }
+        else
+        {
+            Assert.NotEqual(originalHash, savedUser.PasswordHash);
+            Assert.NotEqual(originalStamp, savedUser.SecurityStamp);
+            Assert.NotNull(savedToken.RevokedAt);
+        }
+    }
     private sealed class CheckoffPaymentSender : IBackgroundRequestSender
     {
         public bool Reject { get; set; } = true;
@@ -327,6 +438,120 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.Equal(1, await verify.Journals.CountAsync(j => j.ReferenceNumber == "replay"));
     }
 
+    [Fact]
+    public async Task Fosa_rejects_invalid_cash_and_preserves_balances_across_competing_updates()
+    {
+        var tenant = new Tenant();
+        var options = Options<BankingDBContext>();
+        var account = LS.Domain.Features.Banking.FOSA.Entities.FosaAccount.Create(Guid.CreateVersion7(), "FOSA-TEST", new Actor().ActorId);
+        account.Balance = 1000;
+        var till = LS.Domain.Features.Banking.FOSA.Entities.TellerTill.Create("Test till", 10000, new Actor().ActorId);
+        till.Status = LS.Domain.Features.Banking.FOSA.Enums.TillStatus.Open;
+        till.CurrentBalance = 1000;
+        var vault = LS.Domain.Features.Banking.FOSA.Entities.Vault.Create("Test vault", new Actor().ActorId);
+        await using (var setup = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(account, till, vault);
+            await setup.SaveChangesAsync();
+        }
+        await using var stale = new BankingDBContext(options, tenant, new Actor());
+        var staleAccount = await stale.FosaAccounts.SingleAsync(a => a.Id == account.Id);
+        var staleTill = await stale.TellerTills.SingleAsync(t => t.Id == till.Id);
+        await using (var db = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await using var services = Services(db, tenant);
+            var sender = services.GetRequiredService<ISender>();
+            foreach (var amount in new[] { -10m, 0m, 0.001m })
+                Assert.False((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand(
+                    till.Id, account.Id, LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType.CashWithdrawal, amount, "invalid"))).IsSuccess);
+            Assert.False((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand(
+                till.Id, account.Id, (LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType)99, 10, "invalid"))).IsSuccess);
+            Assert.False((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand(till.Id, vault.Id,
+                new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(1, -1, 0, 0, 0, 0, 0, 0, 0), "invalid"))).IsSuccess);
+            await services.GetRequiredService<IBankingUnitOfWork>().CompleteAsync();
+        }
+        await using (var verifyRejected = new BankingDBContext(options, tenant, new Actor()))
+        {
+            Assert.Equal(1000, (await verifyRejected.FosaAccounts.SingleAsync(a => a.Id == account.Id)).Balance);
+            Assert.Equal(1000, (await verifyRejected.TellerTills.SingleAsync(t => t.Id == till.Id)).CurrentBalance);
+            Assert.Empty(await verifyRejected.FosaTransactions.ToListAsync());
+        }
+        await using (var db = new BankingDBContext(options, tenant, new Actor()))
+        {
+            await using var services = Services(db, tenant);
+            var sender = services.GetRequiredService<ISender>();
+            Assert.True((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand(
+                till.Id, account.Id, LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType.CashWithdrawal, 100, "withdrawal"))).IsSuccess);
+            db.ChangeTracker.Clear();
+            Assert.True((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand(till.Id, vault.Id,
+                new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(0, 0, 1, 0, 0, 0, 0, 0, 0), "vault transfer"))).IsSuccess);
+        }
+        staleAccount.Balance -= 500;
+        staleTill.CurrentBalance -= 500;
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => stale.SaveChangesAsync());
+        await using var verify = new BankingDBContext(options, tenant, new Actor());
+        Assert.Equal(900, (await verify.FosaAccounts.SingleAsync(a => a.Id == account.Id)).Balance);
+        Assert.Equal(700, (await verify.TellerTills.SingleAsync(t => t.Id == till.Id)).CurrentBalance);
+        Assert.Equal(200, (await verify.Vaults.SingleAsync(v => v.Id == vault.Id)).CurrentBalance);
+        var transaction = await verify.FosaTransactions.SingleAsync();
+        Assert.Equal(100, transaction.Amount);
+        Assert.Equal(new Actor().ActorId, transaction.CreatedBy);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Accounting_index_upgrade_restores_uniqueness_or_preserves_conflicting_data(bool existingDuplicates)
+    {
+        var tenant = new Tenant();
+        AccountingDBContext CreateContext() => fixture is PostgreSqlDbFixture
+            ? new AccountingPostgreSqlDBContext(new DbContextOptionsBuilder<AccountingPostgreSqlDBContext>(Options<AccountingPostgreSqlDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentNpgsqlMigrationsSqlGenerator>().Options, tenant, new Actor())
+            : new AccountingSqlServerDBContext(new DbContextOptionsBuilder<AccountingSqlServerDBContext>(Options<AccountingSqlServerDBContext>())
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, LS.Persistence.Features.Shared.Migrations.Generators.IdempotentSqlServerMigrationsSqlGenerator>().Options, tenant, new Actor());
+        await using var db = CreateContext();
+        var migrator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
+        var previous = fixture is PostgreSqlDbFixture ? "20260909221215_AddAccountingDLQ" : "20260909221124_AddAccountingDLQ";
+        await migrator.MigrateAsync(previous);
+        var indexes = new[] { ("Accounts", "AccountCode"), ("Journals", "ReferenceNumber"), ("TransactionTypeGlMappings", "TransactionTypeCode") };
+        var generator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator>();
+        foreach (var (table, column) in indexes)
+        {
+            var name = $"IX_{table}_TenantId_{column}";
+            // Reproduce the actual legacy defect: the expected name exists, but UNIQUE is missing.
+            Microsoft.EntityFrameworkCore.Migrations.Operations.MigrationOperation[] operations =
+            [
+                new Microsoft.EntityFrameworkCore.Migrations.Operations.DropIndexOperation { Name = name, Schema = "accounting", Table = table },
+                new Microsoft.EntityFrameworkCore.Migrations.Operations.CreateIndexOperation { Name = name, Schema = "accounting", Table = table, Columns = ["TenantId", column], IsUnique = false }
+            ];
+            foreach (var sql in generator.Generate(operations))
+                await db.Database.ExecuteSqlRawAsync(sql.CommandText);
+        }
+        db.Journals.Add(Journal.Create(tenant.TenantId, "upgrade-reference", "Preserve this journal", DateTimeOffset.UtcNow, new Actor().ActorId));
+        if (existingDuplicates)
+            db.Journals.Add(Journal.Create(tenant.TenantId, "upgrade-reference", "Preserve this conflict too", DateTimeOffset.UtcNow, new Actor().ActorId));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        if (existingDuplicates)
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() => migrator.MigrateAsync());
+            Assert.DoesNotContain(await db.Database.GetAppliedMigrationsAsync(), m => m.EndsWith("_RepairAccountingUniqueIndexes", StringComparison.Ordinal));
+            Assert.Equal(2, await db.Journals.CountAsync(j => j.ReferenceNumber == "upgrade-reference"));
+        }
+        else
+        {
+            await migrator.MigrateAsync();
+            Assert.False(db.Database.HasPendingModelChanges());
+            Assert.Equal(1, await db.Journals.CountAsync(j => j.ReferenceNumber == "upgrade-reference"));
+            db.Journals.Add(Journal.Create(tenant.TenantId, "upgrade-reference", "Must be rejected", DateTimeOffset.UtcNow, new Actor().ActorId));
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        }
+        await using var verify = CreateContext();
+        var uniqueCount = fixture is PostgreSqlDbFixture
+            ? await verify.Database.SqlQueryRaw<int>("SELECT count(*)::int AS \"Value\" FROM pg_indexes WHERE schemaname = 'accounting' AND indexname IN ('IX_Accounts_TenantId_AccountCode', 'IX_Journals_TenantId_ReferenceNumber', 'IX_TransactionTypeGlMappings_TenantId_TransactionTypeCode') AND indexdef LIKE 'CREATE UNIQUE INDEX%'").SingleAsync()
+            : await verify.Database.SqlQueryRaw<int>("SELECT count(*) AS [Value] FROM sys.indexes WHERE is_unique = 1 AND OBJECT_SCHEMA_NAME(object_id) = 'accounting' AND name IN ('IX_Accounts_TenantId_AccountCode', 'IX_Journals_TenantId_ReferenceNumber', 'IX_TransactionTypeGlMappings_TenantId_TransactionTypeCode')").SingleAsync();
+        Assert.Equal(existingDuplicates ? 0 : 3, uniqueCount);
+    }
     [Fact]
     public async Task Loans_migration_chain_matches_the_current_runtime_model()
     {
@@ -754,6 +979,28 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.Equal(2, (await fresh.PayrollPeriods.SingleAsync()).Month);
     }
 
+    [Fact]
+    public async Task Explicit_commit_predicate_rolls_back_already_saved_writes_on_expected_rejection()
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        await using var context = new HrDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        await using var services = Services(context, tenant);
+        var uow = services.GetRequiredService<IHrUnitOfWork>();
+        var result = await uow.ExecuteInTransactionWithRetryAsync(async () =>
+        {
+            await uow.PayrollPeriodRepository.CreateAsync(PayrollPeriod.Create(2025, 1, new Actor().ActorId));
+            // Reproduce an embedded persistence API (such as Identity) saving before returning failure.
+            await context.SaveChangesAsync();
+            return AppResponses.Failure<bool>(AppError.BusinessRule("Expected rejection after an embedded save."));
+        }, shouldCommit: response => response.IsSuccess);
+        Assert.False(result.IsSuccess);
+        Assert.Empty(context.ChangeTracker.Entries());
+        await uow.CompleteAsync();
+        await using var fresh = new HrDBContext(options, tenant, new Actor());
+        Assert.Empty(await fresh.PayrollPeriods.ToListAsync());
+    }
     [Fact]
     public async Task Rejected_result_can_still_commit_intentional_diagnostics()
     {

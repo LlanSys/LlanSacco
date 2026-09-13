@@ -9,7 +9,7 @@ namespace LS.Domain.Shared.Contracts;
 public interface ITransactionalUnitOfWork
 {
     Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> operation, CancellationToken cancellationToken);
-    Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation, int maxRetries = 3, int baseDelayMs = 50, CancellationToken cancellationToken = default);
+    Task<TResult> ExecuteInTransactionWithRetryAsync<TResult>(Func<Task<TResult>> operation, int maxRetries = 3, int baseDelayMs = 50, CancellationToken cancellationToken = default, Func<TResult, bool>? shouldCommit = null);
     Task<int> CompleteAsync(CancellationToken ct = default);
     IReadOnlyList<IDomainEvent> GetPendingDomainEvents();
     void ClearDomainEvents();

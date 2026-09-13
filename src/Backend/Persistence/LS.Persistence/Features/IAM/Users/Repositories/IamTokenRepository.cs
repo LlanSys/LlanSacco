@@ -17,7 +17,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         await _iamContext.RefreshTokens.AddAsync(refreshToken).ConfigureAwait(false);
     }
 
-    public async Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(string userId)
+    public async Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(string userId, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
         return await FindByCondition(token =>
@@ -25,7 +25,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
             !token.RevokedAt.HasValue &&
             now < token.ExpiresAt &&
             !token.UsedAt.HasValue)
-            .ToListAsync().ConfigureAwait(false);
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<RefreshToken?> GetByTokenAndUserAsync(string token, string userId)
@@ -75,7 +75,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public async Task RevokeTokensAsync(List<RefreshToken> tokens, string reason, string? revokedByIp = null)
+    public async Task RevokeTokensAsync(List<RefreshToken> tokens, string reason, string? revokedByIp = null, CancellationToken cancellationToken = default)
     {
         if (!tokens.Any()) return;
         revokedByIp ??= "Unknown";
@@ -83,7 +83,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         foreach (var token in tokens)
         {
             token.Revoke(reason, revokedByIp);
-            await UpdateAsync(token).ConfigureAwait(false);
+            await UpdateAsync(token, cancellationToken).ConfigureAwait(false);
         }
     }
 

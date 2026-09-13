@@ -3,6 +3,7 @@ using System;
 using LS.Persistence.Features.Accounting.DataContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LS.Persistence.Migrations.AccountingPostgreSqlDB
 {
     [DbContext(typeof(AccountingPostgreSqlDBContext))]
-    partial class AccountingPostgreSqlDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260913122844_RepairAccountingUniqueIndexes")]
+    partial class RepairAccountingUniqueIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

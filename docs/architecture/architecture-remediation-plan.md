@@ -1,14 +1,14 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status: Phase 0 complete; draft import and failing baseline recorded in ../development/phase-0-baseline.md. Phases 1-7 pending.
+Status reviewed: 2026-09-13, including the password-reset, accounting-index and FOSA follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
 
 Restore the documented modular monolith, Clean Architecture, feature ownership, generic repository/Unit of Work, AppResponse, validation, and MediatR pipeline conventions. Establish a protected PR workflow with executable architecture checks. Preserve existing features and user changes; correct runtime defects before treating naming cleanup as complete.
 
-AGENTS.md remains canonical. The user's September 10 instructions explicitly refine the contract: feature-specific repository interfaces and Repository property suffixes; separate validator files; operation-named files containing the command and handler by default. Phase 1 must reconcile these rules with existing docs/tests. BaseTemplate is a reference, not authority over these instructions: its current checkout also contains exceptions and inherited weaknesses.
+AGENTS.md remains canonical. The user's September 10 instructions explicitly refine the contract: feature-specific repository interfaces and Repository property suffixes; separate validator files; operation-named files containing the command and handler by default. Phase 1 reconciled these rules with the canonical docs and regression tests; existing implementation debt remains assigned to the later phases. BaseTemplate is a reference, not authority over these instructions: its current checkout also contains exceptions and inherited weaknesses.
 
 ## 2. Verified Starting Point
 
@@ -57,33 +57,71 @@ The operation-file arrangement is a narrow exception to public-type/filename equ
 
 ### Phase 0 - Safe Git Bootstrap And Baseline
 
-1. Recheck remote contents, local hidden metadata, ignore rules, and any recoverable original history. Preserve local files; never force-push an unrelated baseline.
-2. Inventory workflows before the first push: inherited main-branch deployment/publishing must not execute against old infrastructure. Make deployment opt-in or require an explicitly enabled protected environment until LlanSacco configuration is verified.
-3. Exclude bin/obj, local environments, credentials, generated packages, and temporary artifacts. Scan the intended first commit for secrets without printing secret values.
-4. If the remote is empty, initialize a minimal governance baseline on main, then import application sources through an import/existing-application branch and PR. If it has content, integrate from the remote history without overwriting it. Record the unavoidable initial empty-repository bootstrap exception.
-5. Run API/UI builds and unit, architecture, and integration checks to record the actual baseline, including environment failures. Do not label an unexecuted test as passing.
-6. Resolve server-protection eligibility, then verify settings by API readback. If unavailable, mark governance incomplete explicitly; keep the repository private.
+**Complete: bootstrap and baseline capture.** Evidence: [Phase 0 baseline](../development/phase-0-baseline.md), import commit 1086b12 and PR #1. The recorded build failures are historical baseline evidence, not unfinished bootstrap tasks.
+
+- [x] **0.1** Recheck remote contents, local hidden metadata, ignore rules, and any recoverable original history. Preserve local files; never force-push an unrelated baseline.
+- [x] **0.2** Inventory workflows before the first push: inherited main-branch deployment/publishing must not execute against old infrastructure. Make deployment opt-in or require an explicitly enabled protected environment until LlanSacco configuration is verified.
+- [x] **0.3** Exclude bin/obj, local environments, credentials, generated packages, and temporary artifacts. Scan the intended first commit for secrets without printing secret values.
+- [x] **0.4** If the remote is empty, initialize a minimal governance baseline on main, then import application sources through an import/existing-application branch and PR. If it has content, integrate from the remote history without overwriting it. Record the unavoidable initial empty-repository bootstrap exception.
+- [x] **0.5** Run API/UI builds and unit, architecture, and integration checks to record the actual baseline, including environment failures. Do not label an unexecuted test as passing.
+- [x] **0.6** Resolve server-protection eligibility, then verify settings by API readback. If unavailable, mark governance incomplete explicitly; keep the repository private.
 
 Gate: recoverable baseline, clean intended commit contents, no accidental deployment, actual CI results, and a recorded server-protection status. Known legacy failures must be explicit before source import; never hide them with continue-on-error.
 
+Gate met. For 0.4, the remote already had a minimal main commit; the import preserved that history instead of applying the empty-repository branch of the plan. For 0.6, the repository was already public when inspected; visibility was not changed. The active ruleset and required check were read back. No independent human approval, merge or deployment is implied by this completion.
+
 ### Phase 1 - Canonical Standards And Regression Controls
 
-1. Update AGENTS.md, persistence-standards.md, feature-folder-convention.md, PLAN.md, and PLAN_EXECUTION_STRATEGY.md together. Correct repository identity, LS namespace, current context registry, stale template/downstream language, and commit ownership rules. Preserve DataProtection application identity.
-2. Encode the operation-file exception, separate validators, repository naming/types, outcome factories, and cache decision policy.
-3. Add Roslyn/semantic or reflection guardrails as appropriate. Avoid regex-only structural tests and vacuous suffix checks.
-4. Produce an exhaustive violations register with rule ID, symbol, file, owning phase, and verification. For incremental remediation, use an exact reviewed legacy baseline with no-new-violations enforcement; each subsequent PR removes entries. No wildcard exclusions, silent baseline regeneration, or blanket skipped tests. Any initially failing baseline exception must be visible in the bootstrap PR.
+**Complete: standards and regression controls.** Evidence: [Phase 1 verification](phase-1-verification.md), implementation f8a1561 and its follow-up commits. Completion means the rules and enforcement exist; it does not mean the legacy findings have all been fixed.
+
+- [x] **1.1** Update AGENTS.md, persistence-standards.md, feature-folder-convention.md, PLAN.md, and PLAN_EXECUTION_STRATEGY.md together. Correct repository identity, LS namespace, current context registry, stale template/downstream language, and commit ownership rules. Preserve DataProtection application identity.
+- [x] **1.2** Encode the operation-file exception, separate validators, repository naming/types, outcome factories, and cache decision policy.
+- [x] **1.3** Add Roslyn/semantic or reflection guardrails as appropriate. Avoid regex-only structural tests and vacuous suffix checks.
+- [x] **1.4** Produce an exhaustive violations register with rule ID, symbol, file, owning phase, and verification. For incremental remediation, use an exact reviewed legacy baseline with no-new-violations enforcement; each subsequent PR removes entries. No wildcard exclusions, silent baseline regeneration, or blanket skipped tests. Any initially failing baseline exception must be visible in the bootstrap PR.
 
 Gate: new deviations fail CI, diagnostics identify symbols/files, and tests explicitly allow only the agreed command/handler pairing. Final closure requires removing resolved legacy allowances.
 
+Gate met: 84 architecture tests, negative controls and exact debt-growth/stale-entry checks passed. The initial register contained 582 findings across 18 rules; Phase 2 removed three resolved payroll entries without expanding the register. The old Blazor blocker in the Phase 1 report was subsequently fixed in 4b43a47. GEMINI.md was committed in e68ac27 with canonical AGENTS.md references. Validator extraction, request cache coverage and repository normalization remain later-phase implementation work.
+
 ### Phase 2 - Persistence And Financial Correctness
 
-1. Stage check-off batch/row mutations correctly and prove committed state using a fresh DBContext.
-2. Replace per-row employment lookups with a filtered batch query and deterministic in-memory mapping. Define duplicate payroll-number handling and validate it.
-3. Make job dispatch durable relative to commit, preferably through the established outbox/dispatcher mechanism. Prove rollback does not release work, retries do not double-post, and recovery covers commit-to-dispatch failures.
-4. Fix payroll effective configuration selection using a database-side effective-date predicate and deterministic ordering. Push period/status filters into queries, batch related data, and review payroll deletion/re-run semantics rather than preserving destructive behavior blindly.
-5. Audit every mutation through generic no-tracking methods, transaction entry point, and background job for the same defects. Review transaction failure results, cancellation, domain-event dispatch, retries, and cross-context writes. Do not wrap all requests in a new transaction behavior indiscriminately.
+**In progress.** Evidence: [Phase 2 verification](phase-2-verification.md), including the password-reset, accounting-index and FOSA follow-up. Items 2.1, 2.2 and 2.4 are complete. Items 2.3 and 2.5 have substantial completed work, but their full scope and gate remain open.
+
+- [x] **2.1** Stage check-off batch/row mutations correctly and prove committed state using a fresh DBContext.
+- [x] **2.2** Replace per-row employment lookups with a filtered batch query and deterministic in-memory mapping. Define duplicate payroll-number handling and validate it.
+- [ ] **2.3** Make job dispatch durable relative to commit, preferably through the established outbox/dispatcher mechanism. Prove rollback does not release work, retries do not double-post, and recovery covers commit-to-dispatch failures.
+- [x] **2.4** Fix payroll effective configuration selection using a database-side effective-date predicate and deterministic ordering. Push period/status filters into queries, batch related data, and review payroll deletion/re-run semantics rather than preserving destructive behavior blindly.
+- [ ] **2.5** Audit every mutation through generic no-tracking methods, transaction entry point, and background job for the same defects. Review transaction failure results, cancellation, domain-event dispatch, retries, and cross-context writes. Do not wrap all requests in a new transaction behavior indiscriminately.
+
+Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved CheckOff diagnostics, bounded employment lookups and deterministic rejection of duplicate/ambiguous payroll numbers. Payroll tests prove effective-date cutoff, batched inputs, atomic persistence, preservation of earlier payslips and rejection of competing/rerun processing. Main corrections began in 50bdc46/6476ac8; later provider and retry coverage is recorded in the phase report.
+
+**2.3 - Dispatch and recovery detail**
+
+- [x] Implement provider-aware, context-owned Banking, CheckOff and Loans outboxes; keep Posting state and the CheckOff dispatch event under the same commit owner (4b43a47).
+- [x] Correct workers to consume Validated rows, check downstream results, process shares and mark the batch Posted only after successful row processing; provider tests prove rejected rows remain retryable (4b43a47).
+- [x] Use stable payment references and verify matching/conflicting savings, share, loan and journal replays on both providers (4b43a47).
+- [x] Prove EF outbox rollback, successive commits in one scope and delivery by a new host after the writer is disposed (4b43a47). This uses in-memory transport; it does not certify RabbitMQ connectivity.
+- [ ] Prove combined CheckOff dispatch-to-payment recovery across contexts, including competing deliveries. Worker-state and receiver-replay tests currently cover these parts separately.
+- [ ] Complete tenant/database selection for recurring interest jobs and outbox delivery in dedicated tenant databases.
+
+**2.5 - Mutation and transaction audit detail**
+
+- [x] Stage detached savings balances, eliminate the separate first-deposit save and reject withdrawal penalties before staging mutations; verify saved/unchanged state with fresh provider contexts (0ad2d29).
+- [x] Propagate retry cancellation, clean up failed attempts, dispose transactions before backoff and remove redundant saves from existing retry callbacks (d9c4005). Intentional failure-result writes remain supported and tested.
+- [x] Persist daily interest markers and use atomic, bounded accrual/maturity batches with provider concurrency and rerun tests (d9c4005).
+- [x] Correct CheckOff provider DI, establish explicit background tenant/actor scope and preserve that scope in tenant connection routing; verify isolation (d9c4005, 4b43a47).
+- [x] Stage loan repayments with the named ILoanRepaymentRepository; fix new share-account creation and self-transfer balance inflation; verify provider replay and balance conservation (4b43a47).
+- [x] Repair index-generator semantics and collection-case predicates; apply full Banking and Loans migration chains in fresh databases for both providers (4b43a47). No deployed database was migrated.
+- [x] Claim refresh tokens atomically inside rotation transactions and re-read expired tokens during retries; provider tests prove one competing winner, tenant isolation and rollback recovery (06b9edf).
+- [x] Make password reset and refresh-token revocation atomic, including Identity failure results, retries and cancellation. The explicit commit predicate preserves intentional diagnostic writes by default; both provider tests verify rollback after embedded saves.
+- [x] Reject invalid FOSA cash amounts and denomination counts before mutation; use the stable actor identifier. Provider tests verify unchanged rejected state, cash/vault balance conservation and stale-update rejection.
+- [ ] Finish the wider IAM and cross-context mutation audit, including user creation/role/profile boundaries, login/session issuance and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
+- [ ] Settle and test generic/Shared domain-event commit semantics. Financial outboxes do not settle every domain-event helper.
+- [x] Add separate provider migrations to rebuild the three accounting unique indexes. Upgrade tests reproduce existing non-unique indexes, prove successful repair and confirm duplicate journals cause rollback without data loss. No deployed database was migrated.
 
 Gate: focused unit plus PostgreSQL and SQL Server integration tests prove saved state, rollback, idempotency, future-configuration exclusion, and bounded query counts. If an environment is unavailable, retain an explicit verification gap.
+
+**Gate remains open** because the unchecked recovery/audit items above remain. Verified checkpoint 4b43a47 passed API/Blazor builds, 84 architecture tests, 43 unit tests and 69 integration tests; the external RabbitMQ test was skipped. Its GitHub Required / Remediation check also passed. Follow-up 06b9edf passed API, 43 unit and 84 architecture checks plus two additional provider claim tests. This records exact test evidence rather than assuming one combined 71-test run. The later follow-up passed 89 integration tests with the same one RabbitMQ skip, including actual accounting upgrades and Identity failure-result rollback. PR #3 remains draft; no merge or deployment is implied.
 
 ### Phase 3 - Repository And Unit Of Work Alignment
 
@@ -171,12 +209,14 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 ## 7. Execution Tracking
 
 - [x] Phase 0: Git bootstrap and baseline (PR #1; failing source baseline captured, merge gate verified)
-- [x] Phase 1: Standards and regression controls (84 architecture tests, 41 unit tests; see phase-1-verification.md for debt and remaining gate blockers)
-- [ ] Phase 2: Persistence/financial correctness
+- [x] Phase 1: Standards and regression controls (all four items complete; see [Phase 1 evidence](phase-1-verification.md). Legacy remediation remains assigned to later phases.)
+- [ ] Phase 2: Persistence/financial correctness (2.1, 2.2 and 2.4 complete; 2.3 and 2.5 partially complete. See the detailed checked/unchecked items above.)
 - [ ] Phase 3: Repository/UoW alignment
 - [ ] Phase 4: AppResponse alignment
 - [ ] Phase 5: Behaviours and caching
 - [ ] Phase 6: Validators and slice layout
 - [ ] Phase 7: Full closure
+
+Checked items mean implemented and supported by the cited evidence; they do not mean merged or deployed. Unchecked items with completed substeps remain open until their remaining scope is verified. Phases 3-7 have not been marked complete merely because Phase 2 made isolated improvements in those areas.
 
 Use context-sized PRs with their own tests; do not combine the entire cleanup into one merge. Phase 2 takes priority over broad mechanical renames. Update this checklist with actual commits/PRs and test evidence, not estimates of completion.

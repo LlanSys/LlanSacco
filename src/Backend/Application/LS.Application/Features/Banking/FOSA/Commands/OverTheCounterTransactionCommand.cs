@@ -1,3 +1,4 @@
+using LS.Domain.Shared.Contracts.Common;
 using FluentValidation;
 using LS.Domain.Features.Banking.Contracts;
 using LS.Domain.Features.Banking.FOSA.Entities;
@@ -28,10 +29,14 @@ internal class OverTheCounterTransactionCommandValidator : AbstractValidator<Ove
     }
 }
 
-internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOfWork) : IRequestHandler<OverTheCounterTransactionCommand, AppResponse<bool>>
+internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOfWork, ICurrentActorProvider actorProvider) : IRequestHandler<OverTheCounterTransactionCommand, AppResponse<bool>>
 {
     public async Task<AppResponse<bool>> Handle(OverTheCounterTransactionCommand request, CancellationToken cancellationToken)
     {
+        if (request.Amount <= 0 || decimal.Round(request.Amount, 2) != request.Amount
+            || request.TransactionType is not (OtcTransactionType.CashDeposit or OtcTransactionType.CashWithdrawal)
+            || string.IsNullOrWhiteSpace(request.Reference))
+            return AppResponses.Failure<bool>(AppError.BusinessRule("Provide a positive cash amount with at most two decimal places, a supported transaction type and a reference."));
         var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
         if (till is null || till.Status != TillStatus.Open)
         {
@@ -77,7 +82,7 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
             request.TransactionType,
             request.Amount,
             request.Reference,
-            till.AssignedTellerUserId?.ToString() ?? "System"
+            actorProvider.ActorId
         );
 
         await unitOfWork.FosaTransactions.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);

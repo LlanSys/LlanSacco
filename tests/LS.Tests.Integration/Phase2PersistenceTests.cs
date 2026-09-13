@@ -185,6 +185,41 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     }
 
     [Fact]
+    public async Task Refresh_token_claim_is_atomic_tenant_scoped_and_rolled_back_with_its_transaction()
+    {
+        var tenant = new Tenant();
+        var options = Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>();
+        var user = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "rotation-test", "Test", "User", "rotation@example.test", "+254700000000", new Actor().ActorId);
+        var token = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(user.Id, "phase2-test-refresh", DateTimeOffset.UtcNow.AddHours(1), user.Id);
+        LS.Domain.Features.IAM.Users.Contracts.Repositories.ITokenRepository Repository(LS.Persistence.Features.IAM.DataContext.IamDBContext db)
+            => (LS.Domain.Features.IAM.Users.Contracts.Repositories.ITokenRepository)Activator.CreateInstance(
+                typeof(LS.Persistence.Features.IAM.DataContext.IamDBContext).Assembly.GetType("LS.Persistence.Features.IAM.Users.Repositories.IamTokenRepository")!, db)!;
+        await using (var setup = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(user, token);
+            await setup.SaveChangesAsync();
+        }
+        await using (var otherTenant = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, new Tenant(), new Actor()))
+            Assert.False(await Repository(otherTenant).TryUseRefreshTokenAsync(token.Token, user.Id));
+        await using (var rolledBack = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor()))
+        {
+            await using var transaction = await rolledBack.Database.BeginTransactionAsync();
+            Assert.True(await Repository(rolledBack).TryUseRefreshTokenAsync(token.Token, user.Id));
+            await transaction.RollbackAsync();
+        }
+        await using var first = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await using var second = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        var results = await Task.WhenAll(Repository(first).TryUseRefreshTokenAsync(token.Token, user.Id),
+            Repository(second).TryUseRefreshTokenAsync(token.Token, user.Id));
+        Assert.Single(results, success => success);
+        Assert.Single(results, success => !success);
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        var persisted = await verify.RefreshTokens.SingleAsync(t => t.Id == token.Id);
+        Assert.NotNull(persisted.UsedAt);
+        Assert.Equal(user.Id, persisted.UpdatedBy);
+    }
+    [Fact]
     public async Task Share_transfer_creates_destination_and_rejects_self_transfer_without_changing_balance()
     {
         var tenant = new Tenant();

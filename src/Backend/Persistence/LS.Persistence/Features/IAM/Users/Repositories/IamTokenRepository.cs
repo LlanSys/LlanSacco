@@ -126,6 +126,20 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
             .AnyAsync().ConfigureAwait(false);
     }
 
+    public async Task<bool> TryUseRefreshTokenAsync(string token, string userId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var eligible = _iamContext.RefreshTokens.Where(t => t.Token == token && t.AppUserId == userId
+            && t.UsedAt == null && t.RevokedAt == null && t.ExpiresAt > now && !t.IsDeleted);
+        // The predicate and state change must be one database operation, including on a retried transaction.
+        var affected = _iamContext.Database.IsNpgsql()
+            ? await eligible.ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now)
+                .SetProperty(t => t.UpdatedAt, now).SetProperty(t => t.UpdatedBy, userId)
+                .SetProperty(t => t.RowVersion, Guid.CreateVersion7().ToByteArray()), cancellationToken)
+            : await eligible.ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now)
+                .SetProperty(t => t.UpdatedAt, now).SetProperty(t => t.UpdatedBy, userId), cancellationToken);
+        return affected == 1;
+    }
     public async Task MarkTokenAsUsedAsync(RefreshToken refreshToken)
     {
         refreshToken.MarkAsUsed();

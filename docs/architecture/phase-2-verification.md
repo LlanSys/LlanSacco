@@ -97,3 +97,11 @@ Remaining Phase 2 closure work:
 Phase 2 remains open. Deployment and publishing gates remain disabled, and the PR remains a draft.
 
 Local verification for this checkpoint: 69 integration tests passed with the one existing external RabbitMQ test skipped; 43 unit tests passed. The journal replay precision regression passed separately on both providers. API and Blazor builds passed, all 84 architecture checks passed, and staged whitespace/secret scans passed. The architecture debt register was not expanded.
+
+## Refresh-token retry correction - 2026-09-13
+
+Refresh rotation now claims the unused, unrevoked, unexpired token with one conditional database update inside the existing transaction. A competing request that loses the claim cannot insert or return a replacement token. PostgreSQL also advances the bytea concurrency marker; SQL Server retains generated rowversion. Expired-token revocation re-reads within each retry rather than retaining an entity from a failed attempt.
+
+Two additional provider tests passed: concurrent claim has exactly one winner, another tenant cannot claim the token, and rollback restores eligibility. API build, 43 unit tests and 84 architecture checks passed after the correction. The wider IAM audit remains open, notably password-reset changes committed before token revocation and the surrounding identity-manager boundaries.
+
+GitHub verification for the preceding checkpoint 4b43a47: all checks passed, including Required / Remediation, Baseline / Blazor and Baseline / Integration. The container publishing job was skipped as intended. This does not mark Phase 2 complete or authorize merging/deployment.

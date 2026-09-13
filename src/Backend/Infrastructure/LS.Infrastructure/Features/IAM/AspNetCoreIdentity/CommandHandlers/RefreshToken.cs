@@ -92,7 +92,9 @@ internal sealed class RefreshToken(
                 SecurityLogDefinitions.LogSecurityEvent(logger, "ExpiredRefreshToken", userId, "Expired refresh token used");
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
-                    await iamUnitOfWork.TokenRepository.RevokeRefreshTokenAsync(storedRefreshToken, "Token expired").ConfigureAwait(false);
+                    var expiredToken = await iamUnitOfWork.TokenRepository.GetRefreshTokenAsync(request.RefreshToken, userId).ConfigureAwait(false);
+                    if (expiredToken is not null && expiredToken.ExpiresAt <= DateTimeOffset.UtcNow)
+                        await iamUnitOfWork.TokenRepository.RevokeRefreshTokenAsync(expiredToken, "Token expired").ConfigureAwait(false);
                     return true;
                 }, cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -161,13 +163,17 @@ internal sealed class RefreshToken(
                 storedRefreshToken.TokenFamily);
             var refreshTokenExpiresAt = newRefreshTokenEntity.ExpiresAt;
 
-            await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
+            var rotated = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                await iamUnitOfWork.TokenRepository.MarkTokenAsUsedAsync(storedRefreshToken).ConfigureAwait(false);
+                if (!await iamUnitOfWork.TokenRepository.TryUseRefreshTokenAsync(request.RefreshToken, userId, cancellationToken).ConfigureAwait(false))
+                    return false;
                 await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(newRefreshTokenEntity).ConfigureAwait(false);
                 await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(userId).ConfigureAwait(false);
                 return true;
             }, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!rotated)
+                return AppResponses.Failure<RefreshTokenResponse>("The refresh token is no longer available. Please sign in again.");
 
             user.MarkUpdated(user.Id);
             await userManager.UpdateAsync(user).ConfigureAwait(false);

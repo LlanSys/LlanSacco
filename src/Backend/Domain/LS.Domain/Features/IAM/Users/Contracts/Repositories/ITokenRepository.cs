@@ -18,6 +18,7 @@ public interface ITokenRepository : IRepository<RefreshToken>
     Task UpdateRefreshTokenAsync(RefreshToken refreshToken);
     Task AddRefreshTokenAsync(RefreshToken refreshToken);
     Task MarkTokenAsUsedAsync(RefreshToken refreshToken);
+    Task<bool> TryUseRefreshTokenAsync(string token, string userId, CancellationToken cancellationToken = default);
     Task<bool> IsTokenActiveAsync(string token);
     Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason);
     Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason, string? revokedByIp = null);

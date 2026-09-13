@@ -1,0 +1,181 @@
+@page "/loans/apply"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+
+<PageTitle>Apply for Loan</PageTitle>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/loans/applications" Class="mb-4">Back to Applications</MudButton>
+
+<MudText Typo="Typo.h6" Class="mb-4">Apply for Loan</MudText>
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="LoanProductId" Label="Loan Product" Required="true" >
+                @foreach (var product in _products)
+                {
+                    <MudSelectItem Value="@product.Id">@product.ProductName (@product.InterestRate%)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="MemberIdString" Label="Member ID" Required="true"  HelperText="GUID of the applicant" />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="PrincipalAmount" Label="Principal Amount" Required="true"  />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="TermInMonths" Label="Term (Months)" Required="true"  />
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.subtitle1" Class="mt-6 mb-2">Guarantors</MudText>
+    @foreach (var guarantor in Guarantors)
+    {
+        <MudGrid>
+            <MudItem xs="12" md="5">
+                <MudTextField @bind-Value="guarantor.MemberIdString" Label="Guarantor Member ID"  />
+            </MudItem>
+            <MudItem xs="12" md="5">
+                <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="guarantor.Amount" Label="Guaranteed Amount"  />
+            </MudItem>
+            <MudItem xs="12" md="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => Guarantors.Remove(guarantor))">Remove</MudButton>
+            </MudItem>
+        </MudGrid>
+    }
+    
+    <MudButton Variant="Variant.Outlined" Class="mt-2" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddGuarantor">Add Guarantor</MudButton>
+
+    <div class="mt-6">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="Submit" Disabled="@IsSubmitting">
+            @if (IsSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+                <MudText Class="ms-2">Submitting...</MudText>
+            }
+            else
+            {
+                <MudText>Submit Application</MudText>
+            }
+        </MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    private List<LoanProductResponse> _products = new();
+    
+    private Guid? LoanProductId { get; set; }
+    private string MemberIdString { get; set; } = string.Empty;
+    private decimal PrincipalAmount { get; set; }
+    private int TermInMonths { get; set; }
+    private List<GuarantorViewModel> Guarantors { get; set; } = new();
+    
+    private bool IsSubmitting { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        var response = await LoanService.GetLoanProductsAsync();
+        if (response.IsSuccess && response.Data != null)
+        {
+            _products = response.Data.Where(p => p.IsActive).ToList();
+        }
+        else
+        {
+            Snackbar.Add(response.Error?.Message ?? "Failed to load loan products.", Severity.Error);
+        }
+    }
+
+    private void AddGuarantor()
+    {
+        Guarantors.Add(new GuarantorViewModel());
+    }
+
+    private async Task Submit()
+    {
+        if (!LoanProductId.HasValue || string.IsNullOrWhiteSpace(MemberIdString) || PrincipalAmount <= 0 || TermInMonths <= 0)
+        {
+            Snackbar.Add("Please fill all required fields correctly.", Severity.Warning);
+            return;
+        }
+
+        if (!Guid.TryParse(MemberIdString, out var memberId))
+        {
+            Snackbar.Add("Invalid Member ID format.", Severity.Warning);
+            return;
+        }
+
+        var guarantorInputs = new List<LoanGuarantorInputDto>();
+        foreach (var g in Guarantors)
+        {
+            if (Guid.TryParse(g.MemberIdString, out var gId) && g.Amount > 0)
+            {
+                guarantorInputs.Add(new LoanGuarantorInputDto
+                {
+                    GuarantorMemberId = gId,
+                    GuaranteedAmount = g.Amount
+                });
+            }
+            else
+            {
+                Snackbar.Add("One or more guarantor fields are invalid.", Severity.Warning);
+                return;
+            }
+        }
+
+        IsSubmitting = true;
+        try
+        {
+            var request = new ApplyForLoanRequest
+            {
+                LoanProductId = LoanProductId.Value,
+                MemberId = memberId,
+                PrincipalAmount = PrincipalAmount,
+                TermInMonths = TermInMonths,
+                Guarantors = guarantorInputs
+            };
+
+            var response = await LoanService.ApplyForLoanAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Loan application submitted successfully.", Severity.Success);
+                NavigationManager.NavigateTo("/loans/applications");
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to submit application.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    public class GuarantorViewModel
+    {
+        public string MemberIdString { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+    }
+}
+
+
+
+
+
+
+

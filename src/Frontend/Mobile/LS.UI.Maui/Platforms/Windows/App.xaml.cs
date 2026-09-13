@@ -1,0 +1,21 @@
+using Microsoft.UI.Xaml;
+
+// To learn more about WinUI, the WinUI project structure,
+// and more about our project templates, see: http://aka.ms/winui-project-info.
+
+namespace LS.UI.Maui.WinUI;
+
+/// <summary>
+/// Provides application-specific behavior to supplement the default Application class.
+/// </summary>
+#pragma warning disable CA1515
+public partial class MauiWinUIApp : MauiWinUIApplication
+{
+    public MauiWinUIApp()
+    {
+        InitializeComponent();
+    }
+
+    protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+}
+

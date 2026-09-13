@@ -1,0 +1,130 @@
+@page "/membership"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+
+<PageTitle>Membership Dashboard | LlanSacco</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-6">
+    <div>
+        <MudText Typo="Typo.h4" Class="fw-bold" Color="Color.Primary">Membership Dashboard</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Surface">Overview of membership statistics and key metrics.</MudText>
+    </div>
+    <div>
+        <MudButton Variant="Variant.Outlined" Href="/membership/list" Color="Color.Primary" StartIcon="@Icons.Material.Filled.People" Class="me-2">
+            View All Members
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Href="/membership/onboarding" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd">
+            Onboard Member
+        </MudButton>
+    </div>
+</div>
+
+@if (IsLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
+}
+else if (Stats == null)
+{
+    <MudAlert Severity="Severity.Error">Failed to load dashboard statistics.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-primary" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.h4" Class="fw-bold">@Stats.TotalMembers</MudText>
+                <MudText Typo="Typo.body1">Total Members</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-success" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.h4" Class="fw-bold">@Stats.ActiveMembers</MudText>
+                <MudText Typo="Typo.body1">Active Members</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-warning" Elevation="2" Style="border-radius: 12px; min-height: 140px; cursor: pointer;" @onclick="@(() => Navigation.NavigateTo("/membership/pending-approvals"))">
+                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.h4" Class="fw-bold">@Stats.PendingApprovals</MudText>
+                <MudText Typo="Typo.body1">Pending Approvals</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-info" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.h4" Class="fw-bold">@Stats.NewMembersThisMonth</MudText>
+                <MudText Typo="Typo.body1">New This Month</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    
+    <MudGrid Class="mt-4">
+        <MudItem xs="12">
+            <MudCard Elevation="2" Style="border-radius: 12px;">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Quick Actions</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <div class="d-flex flex-wrap gap-4">
+                        <MudButton Variant="Variant.Outlined" Href="/membership/onboarding" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                            Register Member
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Href="/membership/pending-approvals" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Rule">
+                            Review Approvals
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Href="/membership/list" Color="Color.Info" StartIcon="@Icons.Material.Filled.List">
+                            Member Directory
+                        </MudButton>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private MembershipDashboardStatsResponse? Stats { get; set; }
+    private bool IsLoading { get; set; } = true;
+
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await MembershipService.GetDashboardStatsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Stats = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load dashboard statistics.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading dashboard statistics: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

@@ -1,0 +1,103 @@
+@using LS.SharedKernel.Features.Banking.Shares.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@inject ISharesService SharesService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudSelect T="Guid" Label="Share Product" @bind-Value="_model.ShareProductId" Required="true" RequiredError="Product is required">
+                @foreach (var product in _products)
+                {
+                    <MudSelectItem Value="@product.Id">@product.Name (@product.PricePerShare.ToString("C") per share)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField @bind-Value="_model.Amount" Label="Amount to Purchase (Total Value)" Format="N2" Min="0.01M" Required="true" RequiredError="Amount is required" Class="mt-4" />
+            <MudTextField @bind-Value="_model.Notes" Label="Notes" Lines="2" Class="mt-4" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_success || _isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>Purchase</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Guid MemberId { get; set; }
+
+    private MudForm _form = null!;
+    private bool _success;
+    private bool _isSubmitting;
+    private bool _isLoadingProducts = true;
+    private readonly PurchaseModel _model = new();
+    private List<ShareProductResponse> _products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await SharesService.GetShareProductsAsync();
+        if (result.IsSuccess && result.Data != null)
+        {
+            _products = result.Data.ToList();
+            if (_products.Any())
+            {
+                _model.ShareProductId = _products.First().Id;
+            }
+        }
+        else
+        {
+            Snackbar.Add("Failed to load share products", Severity.Error);
+        }
+        _isLoadingProducts = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new PurchaseSharesRequest(MemberId, _model.ShareProductId, _model.Amount, _model.Notes);
+            var result = await SharesService.PurchaseSharesAsync(request);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Shares purchased successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Data));
+            }
+            else
+            {
+                Snackbar.Add(result.Error?.Message ?? "Failed to purchase shares", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class PurchaseModel
+    {
+        public Guid ShareProductId { get; set; }
+        public decimal Amount { get; set; }
+        public string? Notes { get; set; }
+    }
+}

@@ -1,0 +1,22 @@
+.nav-scrollable::-webkit-scrollbar {
+    width: 0.4rem;
+}
+
+.nav-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+}
+
+::deep .mud-nav-link, ::deep .mud-nav-group > .mud-nav-link {
+    color: rgba(255, 255, 255, 0.82) !important;
+}
+
+::deep .mud-nav-link:hover, ::deep .mud-nav-group > .mud-nav-link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+}
+
+::deep .mud-nav-link.active {
+    background: rgba(255, 255, 255, 0.13) !important;
+    color: #fff !important;
+}

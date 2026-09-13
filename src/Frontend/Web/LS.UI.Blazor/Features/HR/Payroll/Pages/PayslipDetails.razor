@@ -1,0 +1,96 @@
+@page "/hr/payroll/{Id:guid}"
+@using LS.UI.Rcl.Features.HR.Payroll.Contracts.Interfaces
+@using LS.SharedKernel.Features.HR.Payroll.Dtos
+@inject IPayrollService PayrollService
+@inject ISnackbar Snackbar
+
+<PageTitle>Payslips | LlanSacco</PageTitle>
+
+<RequireAuthenticated>
+    <section class="dashboard-page">
+        <div class="dashboard-hero compact-hero">
+            <div>
+                <MudBreadcrumbs Items="_breadcrumbs" Class="pa-0 mb-2"></MudBreadcrumbs>
+                <h1 style="font-size: 1.5rem;">Payslips Viewer</h1>
+                <p style="font-size: 0.85rem;">View individual employee payslips for this period.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/hr/payroll"
+                           StartIcon="@Icons.Material.Filled.ArrowBack">
+                    Back to Periods
+                </MudButton>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudPaper Elevation="0" Outlined="true" Class="mt-4 pa-4">
+                <MudTable Items="@_payslips" Dense="true" Hover="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Employee Name</MudTh>
+                        <MudTh Style="text-align: right;">Basic Salary</MudTh>
+                        <MudTh Style="text-align: right;">Allowances</MudTh>
+                        <MudTh Style="text-align: right;">Gross Pay</MudTh>
+                        <MudTh Style="text-align: right;">Deductions</MudTh>
+                        <MudTh Style="text-align: right;">Net Pay</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Employee Name">@context.EmployeeName</MudTd>
+                        <MudTd DataLabel="Basic Salary" Style="text-align: right;">@context.BasicSalary.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Allowances" Style="text-align: right;">@context.TotalAllowances.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Gross Pay" Style="text-align: right;">@context.GrossPay.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Deductions" Style="text-align: right;">@context.TotalDeductions.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Net Pay" Style="text-align: right; font-weight: 600;">@context.NetPay.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary">Download PDF</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2">No payslips found for this period.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        }
+    </section>
+</RequireAuthenticated>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private bool _isLoading = true;
+    private List<PayslipResponse> _payslips = new();
+    
+    private List<BreadcrumbItem> _breadcrumbs = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("HR & Payroll", href: null, disabled: true),
+        new BreadcrumbItem("Payroll Management", href: "/hr/payroll"),
+        new BreadcrumbItem("Payslips", href: null, disabled: true)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        var response = await PayrollService.GetPayslipsAsync(Id);
+        if (response.IsSuccess && response.Data != null)
+        {
+            _payslips = response.Data.ToList();
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Failed to load payslips.", Severity.Error);
+        }
+        _isLoading = false;
+    }
+}
+
+
+
+
+
+

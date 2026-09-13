@@ -1,0 +1,132 @@
+@page "/accounting/dlq"
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IFinanceService FinanceService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+
+<PageTitle>Integration Errors (DLQ)</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Integration Errors (DLQ)</MudText>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/accounting" Class="mb-4">Back to Accounting</MudButton>
+
+<MudTable Items="Errors" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@IsLoading" Dense="true" Elevation="1">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Failed Integration Events</MudText>
+        <MudSpacer Variant="Variant.Outlined" />
+        <MudSelect T="string" Label="Status Filter" Value="@selectedStatus" ValueChanged="OnStatusChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mr-4" Style="max-width: 200px;">
+            <MudSelectItem Value="@((string)null)">All</MudSelectItem>
+            <MudSelectItem Value="@("Failed")">Failed</MudSelectItem>
+            <MudSelectItem Value="@("Retrying")">Retrying</MudSelectItem>
+            <MudSelectItem Value="@("Resolved")">Resolved</MudSelectItem>
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadErrors" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Date</MudTh>
+        <MudTh>Event Type</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Error Message</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Date">@context.OccurredAt.ToString("g")</MudTd>
+        <MudTd DataLabel="Event Type">@context.EventType</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip Variant="Variant.Outlined" T="string" Color="@GetStatusColor(context.Status)">
+                @context.Status
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Error Message">@context.ErrorMessage</MudTd>
+        <MudTd DataLabel="Actions">
+            @if (context.Status == "Failed")
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => RetryEvent(context.Id))" Disabled="isRetrying">Retry</MudButton>
+            }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private bool IsLoading { get; set; }
+    private IEnumerable<AccountingIntegrationErrorDto>? Errors;
+    private string? selectedStatus = "Failed";
+    private bool isRetrying = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadErrors();
+    }
+
+    private async Task OnStatusChanged(string status)
+    {
+        selectedStatus = status;
+        await LoadErrors();
+    }
+
+    private async Task LoadErrors()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await FinanceService.GetIntegrationErrorsAsync(selectedStatus);
+            if (response.IsSuccess && response.Data != null)
+            {
+                Errors = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load integration errors", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task RetryEvent(Guid errorId)
+    {
+        isRetrying = true;
+        try
+        {
+            var response = await FinanceService.RetryIntegrationEventAsync(errorId);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Retry command sent successfully.", Severity.Success);
+                await LoadErrors();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to retry event", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isRetrying = false;
+        }
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Failed" => Color.Error,
+            "Resolved" => Color.Success,
+            "Retrying" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}

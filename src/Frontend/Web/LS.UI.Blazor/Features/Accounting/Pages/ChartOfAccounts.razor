@@ -1,0 +1,90 @@
+@page "/accounting/chart-of-accounts"
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IFinanceService FinanceService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+
+<PageTitle>Chart of Accounts</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Chart of Accounts</MudText>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/accounting" Class="mb-4">Back to Accounting</MudButton>
+
+@if (Accounts != null)
+{
+    <MudTable Items="Accounts" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@IsLoading" Dense="true" Elevation="1">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Accounts List</MudText>
+            <MudSpacer Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Description</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.AccountCode</MudTd>
+            <MudTd DataLabel="Name">@context.AccountName</MudTd>
+            <MudTd DataLabel="Type">@context.AccountType</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip Variant="Variant.Outlined" T="string" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Description">@context.Description</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+else if (IsLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+
+@code {
+    private bool IsLoading { get; set; }
+    private IReadOnlyList<AccountResponse>? Accounts;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    private async Task LoadAccounts()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await FinanceService.GetAccountsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Accounts = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load accounts", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+
+
+
+
+
+

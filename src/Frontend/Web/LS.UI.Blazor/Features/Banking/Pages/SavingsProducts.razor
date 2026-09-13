@@ -1,0 +1,93 @@
+@page "/banking/savings-products"
+@using LS.SharedKernel.Features.Banking.Savings.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Banking.Components
+@inject ISavingsService SavingsService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+
+<PageTitle>Savings Products - Control Plane</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h5">Savings Products</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">New Product</MudButton>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_products" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Interest Rate (%)</MudTh>
+            <MudTh>Minimum Balance</MudTh>
+            <MudTh>Status</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.Code</MudTd>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Interest Rate">@context.InterestRate.ToString("N2")</MudTd>
+            <MudTd DataLabel="Minimum Balance">@context.MinimumBalance.ToString("N2")</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.IsActive)
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Active</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Inactive</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<SavingsProductResponse> _products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        
+        var result = await SavingsService.GetSavingsProductsAsync(includeInactive: true);
+        if (result.IsSuccess && result.Data != null)
+        {
+            _products = result.Data.ToList();
+        }
+        else
+        {
+            Snackbar.Add(result.Error?.Message ?? "Failed to load savings products", Severity.Error);
+        }
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateSavingsProductDialog>("Create Savings Product", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadProductsAsync();
+        }
+    }
+}

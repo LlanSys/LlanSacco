@@ -1,0 +1,26 @@
+[extend]
+useDefault = true
+
+# Exact non-secret source expressions reviewed during the initial import.
+[[allowlists]]
+description = "Documented JWT placeholder"
+condition = "AND"
+paths = ['''^docs/development/environment-configuration-checklist\.md$''']
+regexTarget = "line"
+regexes = ['''strong-secret>''']
+
+[[allowlists]]
+description = "Public Azure built-in Key Vault Secrets User role identifier"
+condition = "AND"
+paths = ['''^ops/azure/(modules/keyvault\.bicep|main\.json)$''']
+regexTarget = "line"
+regexes = ['''keyVaultSecretsUserRoleId.*4633458b-17de-408a-b874-0445c86b69e6''']
+
+[[allowlists]]
+description = "Public Azurite emulator key in local-only setup"
+condition = "AND"
+paths = ['''^scripts/setup-local-platform\.ps1$''']
+regexTarget = "line"
+regexes = ['''ProfileImageStorage:Azurite:ConnectionString.*AccountName=lsdevstorage;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127\.0\.0\.1:10010/lsdevstorage''']
+
+

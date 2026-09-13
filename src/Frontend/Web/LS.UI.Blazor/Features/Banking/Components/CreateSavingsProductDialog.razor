@@ -1,0 +1,104 @@
+@using LS.SharedKernel.Features.Banking.Savings.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@inject ISavingsService SavingsService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudTextField @bind-Value="_model.Name" Label="Product Name" Required="true" RequiredError="Product Name is required!" />
+            <MudTextField @bind-Value="_model.Code" Label="Product Code" Required="true" RequiredError="Product Code is required!" />
+            <MudTextField @bind-Value="_model.Description" Label="Description" Lines="3" />
+            <MudNumericField @bind-Value="_model.InterestRate" Label="Interest Rate (%)" Format="N2" Min="0.0M" Max="100.0M" Required="true" />
+            <MudNumericField @bind-Value="_model.MinimumBalance" Label="Minimum Balance" Format="N2" Min="0.0M" Required="true" />
+            <MudSwitch @bind-Value="_model.AllowsWithdrawals" Label="Allows Withdrawals" Color="Color.Primary" />
+            
+            @if (_model.AllowsWithdrawals)
+            {
+                <MudNumericField @bind-Value="_model.WithdrawalFee" Label="Withdrawal Fee" Format="N2" Min="0.0M" Required="true" />
+                <MudNumericField @bind-Value="_model.DailyWithdrawalLimit" Label="Daily Withdrawal Limit" Format="N2" Min="0.0M" />
+                <MudNumericField @bind-Value="_model.MonthlyWithdrawalLimit" Label="Monthly Withdrawal Limit" Format="N2" Min="0.0M" />
+            }
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_success || _isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Saving...</MudText>
+            }
+            else
+            {
+                <MudText>Save</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private bool _success;
+    private bool _isSubmitting;
+    private readonly CreateSavingsProductModel _model = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new CreateSavingsProductRequest(
+                _model.Name, 
+                _model.Code, 
+                _model.Description, 
+                _model.InterestRate, 
+                _model.MinimumBalance,
+                _model.AllowsWithdrawals,
+                _model.AllowsWithdrawals ? _model.WithdrawalFee : 0,
+                _model.AllowsWithdrawals ? _model.DailyWithdrawalLimit : null,
+                _model.AllowsWithdrawals ? _model.MonthlyWithdrawalLimit : null
+            );
+            var result = await SavingsService.CreateSavingsProductAsync(request);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Savings product created successfully", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Data));
+            }
+            else
+            {
+                Snackbar.Add(result.Error?.Message ?? "Failed to create savings product", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private class CreateSavingsProductModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal InterestRate { get; set; } = 0.0M;
+        public decimal MinimumBalance { get; set; } = 0.0M;
+        public bool AllowsWithdrawals { get; set; } = true;
+        public decimal WithdrawalFee { get; set; } = 0.0M;
+        public decimal? DailyWithdrawalLimit { get; set; }
+        public decimal? MonthlyWithdrawalLimit { get; set; }
+    }
+}

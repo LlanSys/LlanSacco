@@ -1,0 +1,39 @@
+<div class="table-footer">
+    <span>@FooterText</span>
+    <div class="pagination-actions">
+        <MudIconButton Icon="@Icons.Material.Filled.FirstPage" Disabled="@(IsFirstPage || IsLoading)" OnClick="OnFirstPage" />
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Disabled="@(IsFirstPage || IsLoading)" OnClick="OnPreviousPage" />
+        <MudChip T="string" Color="Color.Primary">Page @CurrentPage</MudChip>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Disabled="@(IsLastPage || IsLoading)" OnClick="OnNextPage" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int TotalRecords { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public bool IsLoading { get; set; }
+    
+    [Parameter] public EventCallback OnFirstPage { get; set; }
+    [Parameter] public EventCallback OnPreviousPage { get; set; }
+    [Parameter] public EventCallback OnNextPage { get; set; }
+
+    private bool IsFirstPage => CurrentPage <= 1;
+    private bool IsLastPage => TotalRecords == 0 || CurrentPage >= Math.Ceiling((double)TotalRecords / PageSize);
+
+    private int CurrentPageStart => TotalRecords == 0 ? 0 : ((CurrentPage - 1) * PageSize) + 1;
+    private int CurrentPageEnd => Math.Min(CurrentPageStart + PageSize - 1, TotalRecords);
+
+    private string FooterText
+    {
+        get
+        {
+            if (TotalRecords == 0) return "Showing 0 records";
+            if (CurrentPageStart == CurrentPageEnd) return $"Showing {CurrentPageStart} of {TotalRecords} records";
+            return $"Showing {CurrentPageStart}-{CurrentPageEnd} of {TotalRecords} records";
+        }
+    }
+}
+
+
+

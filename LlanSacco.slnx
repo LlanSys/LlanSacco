@@ -1,0 +1,60 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Global.json" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Backend/">
+    <Project Path="src/Backend/Api/LS.Api/LS.Api.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Backend/Application/LS.Application/LS.Application.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Backend/Domain/LS.Domain/LS.Domain.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Backend/Infrastructure/LS.Infrastructure/LS.Infrastructure.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/src/Frontend/">
+    <Project Path="src/Frontend/Mobile/LS.UI.Maui/LS.UI.Maui.csproj" Id="f3ec1ec9-b940-4621-be50-59c07a007130">
+      <Platform Solution="*|x64" Project="x64" />
+      <Deploy Solution="*|x64" />
+    </Project>
+    <Project Path="src/Frontend/Shared/LS.UI.Rcl/LS.UI.Rcl.csproj" Id="32a3c1a0-9ef0-4187-b4df-2082c2f14338">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Frontend/Web/LS.UI.Blazor/LS.UI.Blazor.csproj" Id="00663238-a0f3-4c06-bd1e-b0bf695cfbfc">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/LS.SharedKernel.Validation/LS.SharedKernel.Validation.csproj" Id="08b042a8-2325-4e41-a642-74934c83a421">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/Shared/LS.SharedKernel/LS.SharedKernel.csproj" Id="b64c5e5b-24f7-425a-bc18-5211e0f47141">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LS.Tests.Architecture/LS.Tests.Architecture.csproj" Id="afbfcfb9-8957-4dd9-aa96-2c10799e8e61">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="tests/LS.Tests.Integration/LS.Tests.Integration.csproj" Id="bad2c475-9b7c-4e03-9ae4-3d63ebf9c412">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="tests/LS.Tests.Unit/LS.Tests.Unit.csproj" Id="a30b295a-0844-4960-a11c-438974c76c54">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

@@ -4,7 +4,7 @@ namespace LS.Persistence.Common.DesignTime;
 
 internal static class DesignTimeConfigurationFactory
 {
-    private const string ApiUserSecretsId = "09cd72b4-b751-42c7-93cf-3a068da7958e";
+    private const string ApiUserSecretsId = "a2c535b2-27f0-4cc1-92ab-35254c55da19";
 
     public static IConfigurationRoot Create()
     {

@@ -127,7 +127,8 @@ dotnet user-secrets remove 'EmailSettings:EnableSsl' --project $apiProject *> $n
 dotnet user-secrets remove 'EmailSettings:UseAuthentication' --project $apiProject *> $null
 dotnet user-secrets remove 'SmtpSettings:Password' --project $apiProject *> $null
 dotnet user-secrets set 'ProfileImageStorage:Provider' 'Azurite' --project $apiProject
-dotnet user-secrets set 'ProfileImageStorage:Azurite:ConnectionString' 'DefaultEndpointsProtocol=http;AccountName=lsdevstorage;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10010/lsdevstorage;QueueEndpoint=http://127.0.0.1:10011/lsdevstorage;TableEndpoint=http://127.0.0.1:10012/lsdevstorage;' --project $apiProject
+$storageConnection = "DefaultEndpointsProtocol=http;AccountName=$($environment.AZURITE_ACCOUNT_NAME);AccountKey=$($environment.AZURITE_ACCOUNT_KEY);BlobEndpoint=http://127.0.0.1:10010/$($environment.AZURITE_ACCOUNT_NAME);QueueEndpoint=http://127.0.0.1:10011/$($environment.AZURITE_ACCOUNT_NAME);TableEndpoint=http://127.0.0.1:10012/$($environment.AZURITE_ACCOUNT_NAME);"
+dotnet user-secrets set 'ProfileImageStorage:Azurite:ConnectionString' $storageConnection --project $apiProject
 dotnet user-secrets set 'ProfileImageStorage:Azurite:ContainerName' 'profile-images' --project $apiProject
 
 $profiles = @()
@@ -149,6 +150,8 @@ if (-not $SkipPull) {
     }
 }
 
+& (Join-Path $PSScriptRoot 'check-local-endpoints.ps1') -ComposeFiles $composeFile
+
 & docker @composeArguments up -d --wait
 if ($LASTEXITCODE -ne 0) {
     throw "Docker Compose startup failed with exit code $LASTEXITCODE."
@@ -160,6 +163,6 @@ Write-Host '  RabbitMQ:  amqp://localhost:5673'
 Write-Host '  Management: http://localhost:15673'
 Write-Host "  Redis:      localhost:$($environment.REDIS_HOST_PORT)"
 Write-Host '  Mailpit:    http://localhost:8026'
-if ($IncludeSeq) { Write-Host '  Seq:        http://localhost:5342' }
+if ($IncludeSeq) { Write-Host '  Seq:        http://localhost:5343' }
 Write-Host '  Azurite:    http://localhost:10010'
 if ($IncludeSqlServer) { Write-Host '  SQL Server: localhost,14334' }

@@ -53,10 +53,10 @@ It is a repository script, not a globally installed PowerShell command. You may 
 Optional profiles:
 
 ```powershell
-# Add Seq when port 5341 is not already used by a local Seq installation.
+# Add Seq when port 5343 is not already used by a local Seq installation.
 ./scripts/setup-local-platform.ps1 -IncludeSeq
 
-# Add SQL Server on localhost,14333 and update the API connection-string secret.
+# Add SQL Server on localhost,14334 and update the API connection-string secret.
 ./scripts/setup-local-platform.ps1 -IncludeSqlServer
 
 # Start every local dependency.
@@ -122,14 +122,14 @@ The full app deployment is for deployability confidence and local smoke tests. F
 
 | Service | Endpoint | Purpose |
 | --- | --- | --- |
-| RabbitMQ | `localhost:5672` | AMQP transport |
-| RabbitMQ Management | `http://localhost:15672` | Exchanges, queues, consumers, and message rates |
+| RabbitMQ | `localhost:5673` | AMQP transport |
+| RabbitMQ Management | `http://localhost:15673` | Exchanges, queues, consumers, and message rates |
 | Redis | `localhost:6380` | HybridCache distributed layer; avoids common existing port `6379` |
-| Mailpit | `http://localhost:8025` | Captured email UI |
-| Mailpit SMTP | `localhost:1025` | Local-only capture relay used by `EmailSettings:Provider=LocalMailpit` |
-| Seq | `http://localhost:5341` | Structured logs, optional profile |
-| Azurite Blob | `http://localhost:10000` | Storage emulator, optional profile |
-| SQL Server | `localhost,14333` | Containerized database, optional profile |
+| Mailpit | `http://localhost:8026` | Captured email UI |
+| Mailpit SMTP | `localhost:1026` | Local-only capture relay used by `EmailSettings:Provider=LocalMailpit` |
+| Seq | `http://localhost:5343` | Structured logs, optional profile |
+| Azurite Blob | `http://localhost:10010` | Storage emulator, optional profile |
+| SQL Server | `localhost,14334` | Containerized database, optional profile |
 | Containerized API | `http://localhost:8080` | Optional local deployment profile |
 | Containerized Blazor | `http://localhost:8081` | Optional local deployment profile |
 

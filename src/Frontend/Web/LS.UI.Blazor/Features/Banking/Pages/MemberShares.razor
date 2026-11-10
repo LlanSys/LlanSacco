@@ -1,0 +1,113 @@
+@using LS.SharedKernel.Features.Banking.Shares.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Banking.Components
+@inject ISharesService SharesService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<div class="d-flex justify-space-between mb-4 mt-2">
+    <MudText Typo="Typo.subtitle1">Share Accounts</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ShoppingCart" OnClick="OpenPurchaseDialog">
+        Purchase Shares
+    </MudButton>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_accounts" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Dense="true" Class="mb-4">
+        <HeaderContent>
+            <MudTh>Product</MudTh>
+            <MudTh>Shares</MudTh>
+            <MudTh>Total Value</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Opened At</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Product">@context.ProductName</MudTd>
+            <MudTd DataLabel="Shares">@context.TotalShares</MudTd>
+            <MudTd DataLabel="Total Value">@context.TotalValue.ToString("N2")</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.IsActive)
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success" Size="Size.Small">Active</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error" Size="Size.Small">Inactive</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Opened At">@context.OpenedAt.ToString("g")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenTransferDialog(context))">Transfer</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public Guid MemberId { get; set; }
+
+    private bool _isLoading = true;
+    private List<ShareAccountResponse> _accounts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccountsAsync();
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+        
+        var result = await SharesService.GetMemberShareAccountsAsync(MemberId);
+        if (result.IsSuccess && result.Data != null)
+        {
+            _accounts = result.Data.ToList();
+        }
+        else
+        {
+            Snackbar.Add(result.Error?.Message ?? "Failed to load share accounts", Severity.Error);
+        }
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenPurchaseDialog()
+    {
+        var parameters = new DialogParameters { { "MemberId", MemberId } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PurchaseSharesDialog>("Purchase Shares", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadAccountsAsync();
+        }
+    }
+
+    private async Task OpenTransferDialog(ShareAccountResponse account)
+    {
+        var parameters = new DialogParameters 
+        { 
+            { "FromMemberId", MemberId },
+            { "ShareProductId", account.ShareProductId },
+            { "ProductName", account.ProductName },
+            { "AvailableShares", account.TotalShares }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<TransferSharesDialog>("Transfer Shares", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadAccountsAsync();
+        }
+    }
+}

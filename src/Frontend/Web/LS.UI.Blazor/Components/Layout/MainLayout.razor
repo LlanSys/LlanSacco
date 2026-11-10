@@ -1,0 +1,79 @@
+@inherits LayoutComponentBase
+@inject IAuthSession AuthSession
+@inject IAuditService AuditService
+@using LS.UI.Blazor.Features.ControlPlane.Auditing.Contracts
+@using LS.SharedKernel.Dtos.Common
+
+<MudProviderHost />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Style="background: rgba(255, 250, 241, 0.86); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(23, 33, 27, 0.1); color: #17211b;">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <span class="top-kicker ml-2">LlanSacco</span>
+        <MudSpacer />
+        <div class="topbar-meta"></div>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="1" Variant="@DrawerVariant.Responsive" Style="background: radial-gradient(circle at 20% 0%, rgba(79, 70, 229, 0.15), transparent 16rem), linear-gradient(180deg, #0f172a 0%, #1e293b 55%, #020617 100%); color: #fff;">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        @if (_isImpersonating && _impersonationTarget != null)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Square="true" Class="px-4 py-2 m-0" Style="border-radius: 0;">
+                <strong>Impersonation Active:</strong> You are currently impersonating tenant <strong>@_impersonationTarget</strong>. Actions are logged.
+            </MudAlert>
+        }
+
+        <article class="content px-4">
+            <RequireAuthenticated>
+                @Body
+            </RequireAuthenticated>
+        </article>
+    </MudMainContent>
+</MudLayout>
+
+<SessionLifecycle />
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+</div>
+
+@code {
+    private bool _isImpersonating;
+    private string? _impersonationTarget;
+    private bool _drawerOpen = true;
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthSession.InitializeAsync();
+            if (AuthSession.IsAuthenticated && AuthSession.HasPermission("controlplane.manage"))
+            {
+                var response = await AuditService.GetImpersonationRecordsAsync(activeOnly: true);
+                if (response.IsSuccess && response.Data != null)
+                {
+                    var currentUserId = AuthSession.CurrentUser?.AppUserId;
+                    var activeSession = response.Data.FirstOrDefault(x => x.ActorId == currentUserId);
+                    if (activeSession != null)
+                    {
+                        _isImpersonating = true;
+                        _impersonationTarget = activeSession.TargetTenantName;
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+

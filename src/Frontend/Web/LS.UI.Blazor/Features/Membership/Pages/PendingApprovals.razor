@@ -1,0 +1,206 @@
+@page "/membership/pending-approvals"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@using CurrieTechnologies.Razor.SweetAlert2
+@using LS.UI.Blazor.Features.IAM.Users.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject SweetAlertService Swal
+@inject IAuthSession AuthSession
+@attribute [Authorize]
+
+<PageTitle>Pending Member Approvals</PageTitle>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/membership" Class="mb-4">Back to Membership</MudButton>
+
+<MudText Typo="Typo.h6" Class="mb-4">
+    Pending Member Approvals
+    @if (PendingMembers != null)
+    {
+        <MudChip Variant="Variant.Outlined" T="string" Color="Color.Info" Class="ms-2">@PendingMembers.Count</MudChip>
+    }
+</MudText>
+
+@if (IsLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (PendingMembers == null || PendingMembers.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">No pending member applications.</MudAlert>
+}
+else
+{
+    <MudTable Items="PendingMembers" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="1">
+        <HeaderContent>
+            <MudTh>Member #</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Phone</MudTh>
+            <MudTh>ID Number</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Applied</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Member #">@context.MemberNumber</MudTd>
+            <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Phone">@context.PhoneNumber</MudTd>
+            <MudTd DataLabel="ID Number">@context.IdentificationNumber</MudTd>
+            <MudTd DataLabel="Type">@context.MembershipType</MudTd>
+            <MudTd DataLabel="Applied">@context.JoinedAt.ToString("dd MMM yyyy")</MudTd>
+            <MudTd DataLabel="Actions">
+                @if (AuthSession.HasPermission("membership.onboard.approve"))
+                {
+                    <MudButtonGroup Variant="Variant.Outlined" OverrideStyles="false">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                                   OnClick="@(() => ApproveAsync(context))" Disabled="@IsProcessing">
+                            Approve
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                   OnClick="@(() => OpenRejectDialog(context))" Disabled="@IsProcessing">
+                            Reject
+                        </MudButton>
+                    </MudButtonGroup>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Filled" T="string" Color="Color.Warning" Size="Size.Small">Pending Approval</MudChip>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<MemberResponse>? PendingMembers { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool IsProcessing { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPendingMembers();
+    }
+
+    private async Task LoadPendingMembers()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await MembershipService.GetPendingMembersAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                PendingMembers = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load pending members.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading members: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ApproveAsync(MemberResponse member)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Approve Member?",
+            Text = $"Are you sure you want to approve {member.FirstName} {member.LastName}?",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, Approve",
+            ConfirmButtonColor = "#112250"
+        });
+
+        if (!result.IsConfirmed) return;
+
+        IsProcessing = true;
+        try
+        {
+            var request = new ApproveMemberRequest(member.Id, "Approved via UI");
+            var response = await MembershipService.ApproveMemberAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add($"Member {member.FirstName} {member.LastName} approved.", Severity.Success);
+                await LoadPendingMembers();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to approve member.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task OpenRejectDialog(MemberResponse member)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = $"Reject {member.FirstName} {member.LastName}?",
+            Input = SweetAlertInputType.Text,
+            InputLabel = "Reason for Rejection",
+            InputPlaceholder = "Enter reason...",
+            ShowCancelButton = true,
+            ConfirmButtonText = "Reject",
+            ConfirmButtonColor = "#d32f2f"
+        });
+
+        if (result.IsConfirmed && string.IsNullOrWhiteSpace(result.Value))
+        {
+            Snackbar.Add("You need to enter a reason for rejection.", Severity.Warning);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            await ConfirmReject(member, result.Value);
+        }
+    }
+
+    private async Task ConfirmReject(MemberResponse member, string reason)
+    {
+        IsProcessing = true;
+        try
+        {
+            var request = new RejectMemberRequest(member.Id, reason);
+            var response = await MembershipService.RejectMemberAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add($"Member {member.FirstName} {member.LastName} rejected.", Severity.Warning);
+                await LoadPendingMembers();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to reject member.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+}
+
+
+
+
+

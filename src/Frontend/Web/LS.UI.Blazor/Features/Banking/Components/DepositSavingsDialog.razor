@@ -1,0 +1,81 @@
+@using LS.SharedKernel.Features.Banking.Savings.Dtos
+@using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
+@inject ISavingsService SavingsService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_success">
+            <MudSelect T="Guid" Label="Select Savings Account" @bind-Value="_selectedProductId" Required="true" RequiredError="You must select an account">
+                @foreach (var account in Accounts)
+                {
+                    <MudSelectItem Value="@account.SavingsProductId">@account.ProductName - Bal: @account.Balance.ToString("N2")</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField @bind-Value="_amount" Label="Amount" Format="N2" Min="1.0M" Required="true" RequiredError="Amount must be greater than 0" />
+            <MudTextField @bind-Value="_notes" Label="Notes" Lines="2" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_success || _isSubmitting)">
+            @if (_isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <MudText Class="ms-2">Processing...</MudText>
+            }
+            else
+            {
+                <MudText>Deposit</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public Guid MemberId { get; set; }
+    [Parameter] public List<SavingsAccountResponse> Accounts { get; set; } = new();
+
+    private MudForm _form = null!;
+    private bool _success;
+    private bool _isSubmitting;
+
+    private Guid _selectedProductId;
+    private decimal _amount;
+    private string _notes = string.Empty;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _isSubmitting = true;
+        try
+        {
+            var request = new DepositSavingsRequest(MemberId, _selectedProductId, _amount, _notes, null);
+            var result = await SavingsService.DepositSavingsAsync(request);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Deposit successful", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(result.Data));
+            }
+            else
+            {
+                Snackbar.Add(result.Error?.Message ?? "Failed to deposit", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

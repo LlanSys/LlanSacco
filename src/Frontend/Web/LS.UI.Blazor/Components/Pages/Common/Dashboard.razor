@@ -1,0 +1,88 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@inject IAuthSession AuthSession
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard | LlanSacco</PageTitle>
+
+<section class="dashboard-page">
+    <div class="dashboard-hero compact-hero">
+        <div>
+            <h1>Welcome back, @DisplayName.</h1>
+        </div>
+    </div>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-6 border" Style="border-radius: 10px;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Members</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Group" Color="Color.Primary" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 700;">—</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">Active members</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-6 border" Style="border-radius: 10px;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Savings</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Savings" Color="Color.Primary" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 700;">—</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">Aggregate deposits</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-6 border" Style="border-radius: 10px;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Active Loans</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 700;">—</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">Outstanding portfolio</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-6 border" Style="border-radius: 10px;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Pending Approvals</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" />
+                </div>
+                <MudText Typo="Typo.h5" Style="font-weight: 700;">—</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">Items awaiting review</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</section>
+
+@code {
+    private string DisplayName
+    {
+        get
+        {
+            var fullName = $"{AuthSession.CurrentUser?.FirstName} {AuthSession.CurrentUser?.LastName}".Trim();
+            return string.IsNullOrWhiteSpace(fullName) ? AuthSession.CurrentUser?.Email ?? "there" : fullName;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await AuthSession.InitializeAsync();
+        if (!AuthSession.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/iam/sign-in");
+            return;
+        }
+
+        StateHasChanged();
+    }
+}

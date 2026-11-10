@@ -1,0 +1,93 @@
+
+
+<MudDialog>
+    <DialogContent>
+        <MudForm Margin="Margin.Dense" Variant="Variant.Outlined" @ref="_form" @bind-IsValid="@_success">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.ProductCode" Label="Product Code" Required="true"  />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.ProductName" Label="Product Name" Required="true"  />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3"  />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.InterestRate" Label="Interest Rate (%)" Required="true"  />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.InterestMethod" Label="Interest Method" Required="true" >
+                        @foreach (string method in Enum.GetValues(typeof(string)))
+                        {
+                            <MudSelectItem Value="@method">@method.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.MaxTermInMonths" Label="Max Term (Months)" Required="true"  />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.MaxAmount" Label="Max Amount" Required="true"  />
+                </MudItem>
+                @if (IsEditMode)
+                {
+                    <MudItem xs="12">
+                        <MudSwitch Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.IsActive" Label="Is Active" Color="Color.Primary" />
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" OnClick="Cancel" >Cancel</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="Submit" Disabled="@(!_success)">@(_isEditMode ? "Save" : "Create")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public LoanProductModel Model { get; set; } = new();
+    [Parameter] public bool IsEditMode { get; set; }
+
+    private bool _success;
+    private MudForm _form = default!;
+    private bool _isEditMode => IsEditMode;
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (_form.IsValid)
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    public class LoanProductModel
+    {
+        public Guid Id { get; set; }
+        public string ProductCode { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal InterestRate { get; set; }
+        public string? InterestMethod { get; set; }
+        public int MaxTermInMonths { get; set; }
+        public decimal MaxAmount { get; set; }
+        public bool IsActive { get; set; }
+    }
+}
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,169 @@
+@page "/checkoff/batches/{BatchId:guid}"
+@using LS.SharedKernel.Features.CheckOff.Dtos
+@using LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces
+@inject ICheckOffService CheckOffService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Batch Details | LlanSacco</PageTitle>
+
+<MudToolBar DisablePadding="true" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" OnClick="@(() => NavigationManager.NavigateTo("/checkoff/batches"))" />
+    <MudText Typo="Typo.h5" Class="ms-3">Batch Details</MudText>
+    <MudSpacer />
+    @if (Batch != null)
+    {
+        @if (Batch.Status == "Pending")
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="ValidateBatch" Disabled="isProcessing">
+                Validate Batch
+            </MudButton>
+        }
+        else if (Batch.Status == "Validated")
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PostBatch" Disabled="isProcessing">
+                Post to Ledger
+            </MudButton>
+        }
+        else if (Batch.Status == "Posting")
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="LoadBatch" Disabled="isProcessing" StartIcon="@Icons.Material.Filled.Refresh">
+                Refresh Status
+            </MudButton>
+        }
+    }
+</MudToolBar>
+
+@if (IsLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (Batch != null)
+{
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="1">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Batch Info</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText><b>Reference:</b> @Batch.BatchReference</MudText>
+                    <MudText><b>Employer:</b> @Batch.EmployerName</MudText>
+                    <MudText><b>Period:</b> @Batch.ProcessingPeriod.ToString("MMMM yyyy")</MudText>
+                    <MudText><b>Total Amount:</b> @Batch.TotalAmount.ToString("N2")</MudText>
+                    <MudText Class="mt-2">
+                        <b>Status:</b> 
+                        <MudChip T="string" Color="@GetStatusColor(Batch.Status)" Size="Size.Small">@Batch.Status</MudChip>
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudTable Items="@Rows" Hover="true" Breakpoint="Breakpoint.Sm" Striped="true" Elevation="1">
+                <HeaderContent>
+                    <MudTh>Emp No.</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Savings</MudTh>
+                    <MudTh>Shares</MudTh>
+                    <MudTh>Loans</MudTh>
+                    <MudTh>Status</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Emp No.">@context.EmployeePayrollNumber</MudTd>
+                    <MudTd DataLabel="Name">@context.MemberName</MudTd>
+                    <MudTd DataLabel="Savings">@context.AmountForSavings.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Shares">@context.AmountForShares.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Loans">@context.AmountForLoans.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@GetRowStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid BatchId { get; set; }
+
+    private CheckoffBatchResponse? Batch;
+    private List<CheckoffStagingRowResponse> Rows = new();
+    private bool IsLoading = true;
+    private bool isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBatch();
+    }
+
+    private async Task LoadBatch()
+    {
+        IsLoading = true;
+        var response = await CheckOffService.GetBatchDetailsAsync(BatchId);
+        if (response.IsSuccess && response.Data != null)
+        {
+            Batch = response.Data.Batch;
+            Rows = response.Data.Rows;
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Failed to load batch.", Severity.Error);
+        }
+        IsLoading = false;
+    }
+
+    private async Task ValidateBatch()
+    {
+        isProcessing = true;
+        var response = await CheckOffService.ValidateBatchAsync(BatchId);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Batch validated successfully.", Severity.Success);
+            await LoadBatch();
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Validation failed.", Severity.Error);
+        }
+        isProcessing = false;
+    }
+
+    private async Task PostBatch()
+    {
+        isProcessing = true;
+        var response = await CheckOffService.PostBatchAsync(BatchId);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Batch posting started in the background.", Severity.Success);
+            await LoadBatch();
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Posting failed.", Severity.Error);
+        }
+        isProcessing = false;
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Warning,
+        "Validated" => Color.Info,
+        "Posting" => Color.Secondary,
+        "Processed" => Color.Success,
+        "Failed" => Color.Error,
+        _ => Color.Default
+    };
+
+    private Color GetRowStatusColor(string status) => status switch
+    {
+        "Staged" => Color.Default,
+        "Valid" => Color.Success,
+        "Invalid" => Color.Error,
+        "Processed" => Color.Success,
+        "Failed" => Color.Error,
+        _ => Color.Default
+    };
+}

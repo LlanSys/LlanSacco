@@ -1,0 +1,193 @@
+@page "/hr/payroll/settings"
+@using LS.UI.Rcl.Features.HR.Payroll.Contracts.Interfaces
+@using LS.SharedKernel.Features.HR.Payroll.Dtos
+@using CurrieTechnologies.Razor.SweetAlert2
+@inject IPayrollService PayrollService
+@inject ISnackbar Snackbar
+@inject SweetAlertService Swal
+
+<PageTitle>Payroll Settings | LlanSacco</PageTitle>
+
+<RequireAuthenticated>
+    <section class="dashboard-page">
+        <div class="dashboard-hero compact-hero">
+            <div>
+                <span class="eyebrow">HR & Payroll</span>
+                <h1 style="font-size: 1.5rem;">Statutory Settings</h1>
+                <p style="font-size: 0.85rem;">Configure tax bands, NSSF limits, SHIF rates, and housing levy.</p>
+            </div>
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSettingsAsync"
+                           StartIcon="@Icons.Material.Filled.Save">
+                    Save Configuration
+                </MudButton>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                        <MudText Typo="Typo.h6" Class="mb-4" Style="font-size: 1rem; font-weight: 600;">General Deductions</MudText>
+                        <MudTextField @bind-Value="_config.PersonalReliefAmount" Label="Personal Relief Amount" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfTier1Limit" Label="NSSF Tier 1 Limit" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfTier2Limit" Label="NSSF Tier 2 Limit" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfRate" Label="NSSF Rate (%)" Class="mb-2" />
+                        <MudTextField @bind-Value="_config.ShifRate" Label="SHIF Rate (%)" Class="mb-2" />
+                        <MudTextField @bind-Value="_config.HousingLevyRate" Label="Housing Levy Rate (%)" Class="mb-2" />
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Typo="Typo.h6" Style="font-size: 1rem; font-weight: 600;">PAYE Tax Bands</MudText>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddBand">Add Band</MudButton>
+                        </div>
+                        
+                        <MudTable Items="@_config.PayeTaxBands" Dense="true" Hover="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Lower Limit</MudTh>
+                                <MudTh>Upper Limit</MudTh>
+                                <MudTh>Rate (%)</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Lower Limit">
+                                    <MudTextField @bind-Value="context.LowerLimit" />
+                                </MudTd>
+                                <MudTd DataLabel="Upper Limit">
+                                    <MudTextField @bind-Value="context.UpperLimit" />
+                                </MudTd>
+                                <MudTd DataLabel="Rate">
+                                    <MudTextField @bind-Value="context.Rate" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveBand(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </section>
+</RequireAuthenticated>
+
+@code {
+    private bool _isLoading = true;
+    private ConfigModel _config = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConfigurationAsync();
+    }
+
+    private async Task LoadConfigurationAsync()
+    {
+        _isLoading = true;
+        var response = await PayrollService.GetConfigurationAsync();
+        if (response.IsSuccess && response.Data != null)
+        {
+            _config = new ConfigModel
+            {
+                PersonalReliefAmount = response.Data.PersonalReliefAmount,
+                NssfTier1Limit = response.Data.NssfTier1Limit,
+                NssfTier2Limit = response.Data.NssfTier2Limit,
+                NssfRate = response.Data.NssfRate,
+                ShifRate = response.Data.ShifRate,
+                HousingLevyRate = response.Data.HousingLevyRate,
+                PayeTaxBands = response.Data.PayeTaxBands.Select(b => new BandModel 
+                {
+                    LowerLimit = b.LowerLimit,
+                    UpperLimit = b.UpperLimit,
+                    Rate = b.Rate
+                }).ToList()
+            };
+        }
+        else
+        {
+            Snackbar.Add("Failed to load statutory configuration. Using default defaults.", Severity.Warning);
+        }
+        _isLoading = false;
+    }
+
+    private void AddBand()
+    {
+        _config.PayeTaxBands.Add(new BandModel());
+    }
+
+    private void RemoveBand(BandModel band)
+    {
+        _config.PayeTaxBands.Remove(band);
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Save Configuration?",
+            Text = "Are you sure you want to update the statutory payroll configuration? This will affect all future payroll calculations.",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, save it",
+            CancelButtonText = "No, cancel",
+            ConfirmButtonColor = "var(--mud-palette-primary)",
+            CancelButtonColor = "var(--mud-palette-surface)"
+        });
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            var command = new UpdatePayrollConfigurationRequest(
+                _config.NssfTier1Limit,
+                _config.NssfTier2Limit,
+                _config.NssfRate,
+                _config.ShifRate,
+                _config.HousingLevyRate,
+                _config.PersonalReliefAmount,
+                _config.PayeTaxBands.Select(b => new PayeTaxBandResponse(Guid.Empty, b.LowerLimit, b.UpperLimit, b.Rate)).ToList()
+            );
+
+            var response = await PayrollService.UpdateConfigurationAsync(command);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Payroll configuration updated successfully.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Failed to update configuration.", Severity.Error);
+            }
+        }
+    }
+
+    public class ConfigModel
+    {
+        public decimal PersonalReliefAmount { get; set; } = 2400;
+        public decimal NssfTier1Limit { get; set; } = 7000;
+        public decimal NssfTier2Limit { get; set; } = 36000;
+        public decimal NssfRate { get; set; } = 6;
+        public decimal ShifRate { get; set; } = 2.75m;
+        public decimal HousingLevyRate { get; set; } = 1.5m;
+        public List<BandModel> PayeTaxBands { get; set; } = new();
+    }
+
+    public class BandModel
+    {
+        public decimal LowerLimit { get; set; }
+        public decimal? UpperLimit { get; set; }
+        public decimal Rate { get; set; }
+    }
+}
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,190 @@
+@page "/loans/products"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Loans.Components
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+
+<PageTitle>Loan Products - Control Plane</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h5">Loan Products</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">New Product</MudButton>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_products" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+        <HeaderContent>
+            <MudTh>Code</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Interest Rate</MudTh>
+            <MudTh>Method</MudTh>
+            <MudTh>Max Term</MudTh>
+            <MudTh>Max Amount</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.ProductCode</MudTd>
+            <MudTd DataLabel="Name">@context.ProductName</MudTd>
+            <MudTd DataLabel="Interest Rate">@context.InterestRate%</MudTd>
+            <MudTd DataLabel="Method">@context.InterestMethod</MudTd>
+            <MudTd DataLabel="Max Term">@context.MaxTermInMonths mo</MudTd>
+            <MudTd DataLabel="Max Amount">@context.MaxAmount.ToString("N2")</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.IsActive)
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Active</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Inactive</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))">Edit</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<LoanProductResponse> _products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        _isLoading = true;
+        try
+        {
+            var response = await LoanService.GetLoanProductsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                _products = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load products.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters
+        {
+            { "IsEditMode", false },
+            { "Model", new LoanProductDialog.LoanProductModel() }
+        };
+
+        var dialog = await DialogService.ShowAsync<LoanProductDialog>("Create Loan Product", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is LoanProductDialog.LoanProductModel model)
+        {
+            var request = new CreateLoanProductRequest
+            {
+                ProductCode = model.ProductCode,
+                ProductName = model.ProductName,
+                Description = model.Description,
+                InterestRate = model.InterestRate,
+                InterestMethod = model.InterestMethod,
+                MaxTermInMonths = model.MaxTermInMonths,
+                MaxAmount = model.MaxAmount
+            };
+
+            var response = await LoanService.CreateLoanProductAsync(request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Product created successfully", Severity.Success);
+                await LoadProducts();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to create product", Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenEditDialog(LoanProductResponse product)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters
+        {
+            { "IsEditMode", true },
+            { "Model", new LoanProductDialog.LoanProductModel
+                {
+                    Id = product.Id,
+                    ProductCode = product.ProductCode,
+                    ProductName = product.ProductName,
+                    Description = product.Description,
+                    InterestRate = product.InterestRate,
+                    InterestMethod = product.InterestMethod,
+                    MaxTermInMonths = product.MaxTermInMonths,
+                    MaxAmount = product.MaxAmount,
+                    IsActive = product.IsActive
+                }
+            }
+        };
+
+        var dialog = await DialogService.ShowAsync<LoanProductDialog>("Edit Loan Product", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled && result.Data is LoanProductDialog.LoanProductModel model)
+        {
+            var request = new UpdateLoanProductRequest
+            {
+                Id = model.Id,
+                ProductName = model.ProductName,
+                Description = model.Description,
+                InterestRate = model.InterestRate,
+                InterestMethod = model.InterestMethod,
+                MaxTermInMonths = model.MaxTermInMonths,
+                MaxAmount = model.MaxAmount,
+                IsActive = model.IsActive
+            };
+
+            var response = await LoanService.UpdateLoanProductAsync(model.Id, request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Product updated successfully", Severity.Success);
+                await LoadProducts();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to update product", Severity.Error);
+            }
+        }
+    }
+}
+
+
+
+
+
+

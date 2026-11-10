@@ -74,9 +74,9 @@ internal sealed class Login(
                 return AppResponses.Failure<LoginResponse>("Please confirm your email before logging in.");
             }
 
-            // Use the username overload to avoid introducing a second tracked AppUser instance
+            // Check credentials without issuing a cookie before persistence commits.
             var signInResult = await signInManager
-                .PasswordSignInAsync(loginRequest.UserName, loginRequest.Password, loginRequest.RememberMe, true)
+                .CheckPasswordSignInAsync(user, loginRequest.Password, true)
                 .ConfigureAwait(false);
 
             if (signInResult.IsLockedOut)
@@ -164,112 +164,121 @@ internal sealed class Login(
                     tempClaims.ToClaimResponses()));
             }
 
-            var sessionId = Guid.CreateVersion7();
-            var sessionCreationResult = await serviceManager.SessionService.CreateSessionAsync(
-                user.Id,
-                sessionId,
-                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
-                httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
-                loginRequest.DeviceFingerprint ?? "unknown",
-                cancellationToken).ConfigureAwait(false);
-
-            if (!sessionCreationResult.IsSuccess)
+            var authenticatedUserId = user.Id;
+            var authenticatedStamp = user.SecurityStamp;
+            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
-                return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
-            }
+                user = await userManager.FindByIdAsync(authenticatedUserId).ConfigureAwait(false);
+                if (user is null || !user.IsActive || user.IsDeleted
+                    || !string.Equals(user.SecurityStamp, authenticatedStamp, StringComparison.Ordinal))
+                    return AppResponses.Failure<LoginResponse>(AppError.BusinessRule("Could not complete login. Please sign in again."));
+                var sessionId = Guid.CreateVersion7();
+                var sessionCreationResult = await serviceManager.SessionService.StageSessionAsync(
+                    user.Id,
+                    sessionId,
+                    httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
+                    httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
+                    loginRequest.DeviceFingerprint ?? "unknown",
+                    cancellationToken).ConfigureAwait(false);
 
-            var activeSessionId = sessionCreationResult.Data;
-            if (activeSessionId == Guid.Empty)
-            {
-                ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
-                return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
-            }
+                if (!sessionCreationResult.IsSuccess)
+                {
+                    ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
+                    return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
+                }
 
-            var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
-            if (!userClaims.Any())
-            {
-                ServiceLogDefinitions.LogFailedToGetUserClaims(logger, user.Id);
-                return AppResponses.Failure<LoginResponse>("Could not retrieve user claims");
-            }
+                var activeSessionId = sessionCreationResult.Data;
+                if (activeSessionId == Guid.Empty)
+                {
+                    ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
+                    return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
+                }
 
-            var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(tokenResponse))
-            {
-                ServiceLogDefinitions.LogFailedToGenerateAccessToken(logger, user.Id);
-                return AppResponses.Failure<LoginResponse>("Could not generate authentication token");
-            }
+                var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
+                if (!userClaims.Any())
+                {
+                    ServiceLogDefinitions.LogFailedToGetUserClaims(logger, user.Id);
+                    return AppResponses.Failure<LoginResponse>("Could not retrieve user claims");
+                }
 
-            var refreshToken = jwtService.CreateRefreshToken();
-            if (string.IsNullOrWhiteSpace(refreshToken))
-            {
-                ServiceLogDefinitions.LogFailedToGenerateRefreshToken(logger, user.Id);
-                return AppResponses.Failure<LoginResponse>("Could not generate refresh token");
-            }
+                var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(tokenResponse))
+                {
+                    ServiceLogDefinitions.LogFailedToGenerateAccessToken(logger, user.Id);
+                    return AppResponses.Failure<LoginResponse>("Could not generate authentication token");
+                }
 
-            var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
-                user.Id,
-                refreshToken,
-                DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
-                user.Id,
-                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
+                var refreshToken = jwtService.CreateRefreshToken();
+                if (string.IsNullOrWhiteSpace(refreshToken))
+                {
+                    ServiceLogDefinitions.LogFailedToGenerateRefreshToken(logger, user.Id);
+                    return AppResponses.Failure<LoginResponse>("Could not generate refresh token");
+                }
 
-            var jwtHandler = new JwtSecurityTokenHandler();
-            var jwt = jwtHandler.ReadJwtToken(tokenResponse);
-            var tokenExpiry = jwt.ValidTo;
+                var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
+                    user.Id,
+                    refreshToken,
+                    DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
+                    user.Id,
+                    httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
 
-            if (!jwtService.IsTokenValid(tokenResponse))
-            {
-                var tokenException = new SecurityTokenException("Token validation failed");
-                ServiceLogDefinitions.LogInvalidTokenWithException(logger, tokenException);
-                return AppResponses.Failure<LoginResponse>("Invalid authentication token");
-            }
+                var jwtHandler = new JwtSecurityTokenHandler();
+                var jwt = jwtHandler.ReadJwtToken(tokenResponse);
+                var tokenExpiry = jwt.ValidTo;
 
-            var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-            var userRoles = new Collection<string>(rolesResponse.ToList());
-            var mfaEnrollmentRequired = IsMfaEnrollmentRequired(twoFactorEnabled, rolesResponse);
-            // Reload the user via UserManager to ensure we operate on the EF-tracked instance
-            var trackedUser = await userManager.FindByIdAsync(user.Id).ConfigureAwait(false);
-            if (trackedUser == null)
-            {
-                ServiceLogDefinitions.LogLoginError(logger, user.UserName ?? string.Empty, new InvalidOperationException("User disappeared from store before update"));
-                return AppResponses.Failure<LoginResponse>("Could not complete login.");
-            }
+                if (!jwtService.IsTokenValid(tokenResponse))
+                {
+                    var tokenException = new SecurityTokenException("Token validation failed");
+                    ServiceLogDefinitions.LogInvalidTokenWithException(logger, tokenException);
+                    return AppResponses.Failure<LoginResponse>("Invalid authentication token");
+                }
 
-            trackedUser.RecordSuccessfulLogin();
-            var finalAppUserResponse = appUserResponse with { Roles = userRoles, LastLoginAt = trackedUser.LastLoginAt };
+                var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+                var userRoles = new Collection<string>(rolesResponse.ToList());
+                var mfaEnrollmentRequired = IsMfaEnrollmentRequired(twoFactorEnabled, rolesResponse);
+                // Reload the user via UserManager to ensure we operate on the EF-tracked instance
+                var trackedUser = await userManager.FindByIdAsync(user.Id).ConfigureAwait(false);
+                if (trackedUser == null)
+                {
+                    ServiceLogDefinitions.LogLoginError(logger, user.UserName ?? string.Empty, new InvalidOperationException("User disappeared from store before update"));
+                    return AppResponses.Failure<LoginResponse>("Could not complete login.");
+                }
 
-            var userUpdateResult = await userManager.UpdateAsync(trackedUser).ConfigureAwait(false);
-            if (!userUpdateResult.Succeeded)
-            {
-                var updateError = string.Join("; ", userUpdateResult.Errors.Select(e => e.Description));
-                ServiceLogDefinitions.LogLoginError(logger, user.UserName ?? string.Empty, new InvalidOperationException(updateError));
-                return AppResponses.Failure<LoginResponse>("Could not complete login.");
-            }
+                trackedUser.RecordSuccessfulLogin();
+                var finalAppUserResponse = appUserResponse with { Roles = userRoles, LastLoginAt = trackedUser.LastLoginAt };
+
+                var userUpdateResult = await userManager.UpdateAsync(trackedUser).ConfigureAwait(false);
+                if (!userUpdateResult.Succeeded)
+                {
+                    var updateError = string.Join("; ", userUpdateResult.Errors.Select(e => e.Description));
+                    ServiceLogDefinitions.LogLoginError(logger, user.UserName ?? string.Empty, new InvalidOperationException(updateError));
+                    return AppResponses.Failure<LoginResponse>("Could not complete login.");
+                }
 
 
-            await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
-                await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-                return true;
-            }, cancellationToken: cancellationToken).ConfigureAwait(false);
+                await iamUnitOfWork.TokenRepository.CreateAsync(refreshTokenEntity, cancellationToken).ConfigureAwait(false);
+                await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id, cancellationToken).ConfigureAwait(false);
 
-            return AppResponses.Success("Login successful", new LoginResponse(
-                user.Id,
-                user.FirstName ?? string.Empty,
-                user.LastName ?? string.Empty,
-                user.Email ?? string.Empty,
-                false,
-                false,
-                true,
-                tokenResponse,
-                refreshToken,
-                activeSessionId.ToString(),
-                tokenExpiry,
-                finalAppUserResponse,
-                userClaims.ToClaimResponses(),
-                mfaEnrollmentRequired));
+
+                return AppResponses.Success("Login successful", new LoginResponse(
+                    user.Id,
+                    user.FirstName ?? string.Empty,
+                    user.LastName ?? string.Empty,
+                    user.Email ?? string.Empty,
+                    false,
+                    false,
+                    true,
+                    tokenResponse,
+                    refreshToken,
+                    activeSessionId.ToString(),
+                    tokenExpiry,
+                    finalAppUserResponse,
+                    userClaims.ToClaimResponses(),
+                    mfaEnrollmentRequired));
+            }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+            if (result.IsSuccess)
+                await signInManager.SignInWithClaimsAsync(user!, loginRequest.RememberMe, [new Claim("amr", "pwd")]).ConfigureAwait(false);
+            return result;
         }
         catch (InvalidOperationException ex) when (ex.Message != null && (ex.Message.Contains("already being tracked") || ex.Message.Contains("cannot be tracked")))
         {

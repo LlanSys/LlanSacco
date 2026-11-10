@@ -104,6 +104,8 @@ Preferred flow:
 
 This keeps command handlers predictable and prevents partial commits inside a larger workflow.
 
+Password login owns one IAM transaction covering staged device-session changes, login metadata and refresh-token persistence. ISessionService.StageSessionAsync stages changes only; its caller must own the transaction and commit. Standalone CreateSessionAsync wraps session staging/replacement in its own transaction. Cookie issuance follows the successful transaction and stays outside retries.
+
 ---
 
 ## 5. Query And Search Pattern

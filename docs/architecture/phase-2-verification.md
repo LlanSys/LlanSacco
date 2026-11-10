@@ -135,3 +135,19 @@ All GitHub checks for the preceding d5d0370 checkpoint passed, including Require
 Phase 2 remains open. Login/session issuance boundaries, member-link validation, FOSA recovery, generic/Shared domain-event commit semantics, tenant-aware recurring and dedicated-database outbox delivery, and combined CheckOff recovery/competing deliveries remain. User-creation notification dispatch still belongs to the open domain-event work; raising its existing event after persistence does not certify durable delivery. PR #3 stays draft, with no merge or deployment.
 
 Final regression run for this slice: 99 integration tests passed, with the one existing external RabbitMQ test skipped. API build, 84 architecture tests, 43 unit tests and staged whitespace checks also passed.
+
+## Password login and session transactions - resumed 2026-11-10
+
+Password login now checks credentials without issuing a cookie first. A single IAM retry transaction stages device-session replacement, generates/validates the response tokens, updates login metadata and persists the refresh token. Rejected results roll back through the explicit shouldCommit predicate. Each retry reloads the user and checks the authenticated security stamp. Password-check lockout bookkeeping remains outside issuance retries. The successful result issues the authentication cookie after commit, preserving Identity's amr=pwd claim with SignInWithClaimsAsync.
+
+ISessionService.StageSessionAsync explicitly stages device-session changes for an existing transaction owner. The standalone device-session overload continues to own its transaction. The non-device overload now commits revocation and replacement together instead of committing revocation before inserting the replacement. Password login uses inherited token CreateAsync and passes cancellation through expired-token cleanup.
+
+Provider tests cover password-login success, token-save failure, concurrency retry, cancellation, JWT rejection, MFA challenge and wrong password. They verify persisted sessions/tokens/login metadata and cookie issuance after transaction disposal, including the password-authentication claim. Standalone replacement tests prove that a rejected replacement preserves the previous active session.
+
+Historical pre-interruption verification passed 117 integration tests with the existing external RabbitMQ test skipped, 43 unit tests, API build and 84 architecture tests. The final cookie-claim adjustment subsequently passed all 14 password-login provider cases and the API/architecture checks. These historical logs are not presented as a fresh full-suite run on the resumed workspace.
+
+On resumption, HEAD was 43c4737 with additional uncommitted dependency, migration and UI changes. The combined workspace build fails NU1605 package downgrades, including MassTransit 9.2.4 versus API 9.2.1 and Azure.Storage.Blobs 12.30.1 versus API 12.29.2. Those edits are preserved. The login/session patch is verified separately in E:/Projects/LlanSacco-phase2-login against the committed dependency baseline; current results are recorded below.
+
+Phase 2 remains open for email-OTP/TOTP completion, SSO, passkey and logout transaction boundaries, member-link validation, wider FOSA recovery, domain-event commit semantics, tenant-aware recurring/dedicated-database outbox delivery and combined CheckOff recovery/concurrent delivery. HTTP cookie/response delivery and a browser authentication walkthrough are not certified by database atomicity tests. No migration or deployment is performed by this slice.
+
+Resumed verification on the isolated committed baseline passed: API build, 84 architecture checks and all 18 focused provider tests (14 password-login and four standalone-session cases). No provider test was skipped. The combined dependency-edit workspace remains blocked by the NU1605 errors above; no current full-suite or browser certification is claimed.

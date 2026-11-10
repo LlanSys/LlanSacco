@@ -147,7 +147,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public async Task CleanupExpiredTokensAsync(string? userId = null)
+    public async Task CleanupExpiredTokensAsync(string? userId = null, CancellationToken cancellationToken = default)
     {
         var cutoffDate = DateTimeOffset.UtcNow.AddDays(-30);
         var now = DateTimeOffset.UtcNow;
@@ -163,7 +163,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
             query = query.Where(t => t.AppUserId == userId);
         }
 
-        var expiredTokens = await query.ToListAsync().ConfigureAwait(false);
+        var expiredTokens = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
 
         if (expiredTokens.Any())
         {

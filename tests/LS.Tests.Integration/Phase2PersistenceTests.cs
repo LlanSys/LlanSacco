@@ -173,6 +173,155 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             => publisher.Publish(message, cancellationToken);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Standalone_session_replacement_preserves_old_session_on_failure(bool rejectReplacement)
+    {
+        var tenant = new Tenant();
+        var options = Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>();
+        await using var db = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var user = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "session-test", "Test", "User", "session@example.test", "+254700000000", new Actor().ActorId);
+        var oldSession = LS.Domain.Features.IAM.Users.Entities.AppUserSession.Create(Guid.CreateVersion7(), user.Id, "127.0.0.1", "test", DateTimeOffset.UtcNow.AddHours(1), user.Id);
+        db.AddRange(user, oldSession);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        services.AddSingleton(Substitute.For<IPublisher>());
+        services.Configure<LS.Infrastructure.Configuration.SessionSettings>(s => s.MaxConcurrentSessions = 1);
+        foreach (var contract in typeof(LS.Domain.Features.IAM.Contracts.IIamUnitOfWork).GetProperties().Select(p => p.PropertyType).Where(t => !t.IsGenericType))
+        {
+            var implementation = typeof(LS.Persistence.Features.IAM.IamUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
+        services.AddScoped<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork, LS.Persistence.Features.IAM.IamUnitOfWork>();
+        await using var provider = services.BuildServiceProvider();
+        var implementationType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType(
+            "LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services.SessionService")!;
+        var service = (LS.Application.Features.IAM.Users.Contracts.Interfaces.ISessionService)ActivatorUtilities.CreateInstance(provider, implementationType);
+        var replacementId = rejectReplacement ? oldSession.Id : Guid.CreateVersion7();
+        if (rejectReplacement)
+            await Assert.ThrowsAnyAsync<Exception>(() => service.CreateSessionAsync(user.Id, replacementId, "127.0.0.1", "replacement"));
+        else
+            Assert.True((await service.CreateSessionAsync(user.Id, replacementId, "127.0.0.1", "replacement")).IsSuccess);
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        Assert.Equal(rejectReplacement, (await verify.AppUserSessions.SingleAsync(s => s.Id == oldSession.Id)).IsActive);
+        Assert.Equal(rejectReplacement ? 1 : 2, await verify.AppUserSessions.CountAsync(s => s.AppUserId == user.Id));
+        Assert.Equal(1, await verify.AppUserSessions.CountAsync(s => s.AppUserId == user.Id && s.IsActive));
+    }
+    private sealed record PersistenceLoginRequest(string PasswordValue)
+        : LS.SharedKernel.Features.IAM.Users.Dtos.LoginRequest("login-test", PasswordValue, false, null, "new-device");
+
+    private sealed class LoginTokenFault(string mode, CancellationTokenSource cancellation) : SaveChangesInterceptor
+    {
+        public int Attempts { get; private set; }
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<LS.Domain.Features.IAM.Users.Entities.RefreshToken>().Any(e => e.State == EntityState.Added))
+            {
+                Attempts++;
+                if (mode == "failure") throw new InvalidOperationException("Injected login-token save failure.");
+                if (mode == "retry" && Attempts == 1) throw new DbUpdateConcurrencyException("Injected login conflict.");
+                if (mode == "cancel") { cancellation.Cancel(); cancellationToken.ThrowIfCancellationRequested(); }
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("failure")]
+    [InlineData("retry")]
+    [InlineData("cancel")]
+    [InlineData("jwt-rejection")]
+    [InlineData("mfa")]
+    [InlineData("wrong-password")]
+    public async Task Password_login_commits_session_and_token_before_issuing_cookie(string mode)
+    {
+        var tenant = new Tenant();
+        using var cancellation = new CancellationTokenSource();
+        var fault = new LoginTokenFault(mode, cancellation);
+        var options = new DbContextOptionsBuilder<LS.Persistence.Features.IAM.DataContext.IamDBContext>(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>()).AddInterceptors(fault).Options;
+        await using var db = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
+        services.AddAuthentication();
+        services.AddHttpContextAccessor();
+        services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
+            .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
+            .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>().AddSignInManager();
+        foreach (var contract in typeof(LS.Domain.Features.IAM.Contracts.IIamUnitOfWork).GetProperties()
+            .Select(p => p.PropertyType).Where(t => !t.IsGenericType))
+        {
+            var implementation = typeof(LS.Persistence.Features.IAM.IamUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
+        services.AddScoped<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork, LS.Persistence.Features.IAM.IamUnitOfWork>();
+        services.AddSingleton(Substitute.For<IPublisher>());
+        services.Configure<LS.Infrastructure.Configuration.SessionSettings>(_ => { });
+        services.Configure<LS.Infrastructure.Configuration.JwtSettings>(_ => { });
+        services.Configure<LS.Infrastructure.Configuration.MfaSettings>(_ => { });
+        var sessionType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType(
+            "LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services.SessionService")!;
+        services.AddScoped<LS.Application.Features.IAM.Users.Contracts.Interfaces.ISessionService>(sp =>
+            (LS.Application.Features.IAM.Users.Contracts.Interfaces.ISessionService)ActivatorUtilities.CreateInstance(sp, sessionType));
+        var auth = Substitute.For<Microsoft.AspNetCore.Authentication.IAuthenticationService>();
+        auth.AuthenticateAsync(Arg.Any<Microsoft.AspNetCore.Http.HttpContext>(), Arg.Any<string>())
+            .Returns(Microsoft.AspNetCore.Authentication.AuthenticateResult.NoResult());
+        var cookies = 0;
+        auth.When(a => a.SignInAsync(Arg.Any<Microsoft.AspNetCore.Http.HttpContext>(), Arg.Any<string>(),
+            Arg.Any<System.Security.Claims.ClaimsPrincipal>(), Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>()))
+            .Do(call => { Assert.Null(db.Database.CurrentTransaction); Assert.True(call.Arg<System.Security.Claims.ClaimsPrincipal>().HasClaim("amr", "pwd")); cookies++; });
+        services.AddSingleton(auth);
+        var claims = Substitute.For<LS.Application.Features.IAM.Users.Contracts.Interfaces.IClaimsService>();
+        claims.GetUserClaimsAsync(Arg.Any<LS.Domain.Features.IAM.Users.Entities.AppUser>(), Arg.Any<Guid?>())
+            .Returns([new System.Security.Claims.Claim("test", "claim")]);
+        services.AddSingleton(claims);
+        var jwt = Substitute.For<LS.Application.Features.IAM.Users.Contracts.Interfaces.IJwtService>();
+        var accessToken = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(expires: DateTime.UtcNow.AddHours(1)));
+        jwt.CreateTokenAsync(Arg.Any<List<System.Security.Claims.Claim>>()).Returns(mode == "jwt-rejection" ? string.Empty : accessToken);
+        jwt.CreateTempTokenAsync(Arg.Any<List<System.Security.Claims.Claim>>(), Arg.Any<TimeSpan>()).Returns("temporary-mfa-token");
+        jwt.IsTokenValid(Arg.Any<string>()).Returns(true);
+        jwt.CreateRefreshToken().Returns("test-refresh-token");
+        services.AddSingleton(jwt);
+        var managerFacade = Substitute.For<IServiceManager>();
+        services.AddSingleton(managerFacade);
+        await using var provider = services.BuildServiceProvider();
+        managerFacade.SessionService.Returns(provider.GetRequiredService<LS.Application.Features.IAM.Users.Contracts.Interfaces.ISessionService>());
+        provider.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext =
+            new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = provider };
+        var manager = provider.GetRequiredService<UserManager<LS.Domain.Features.IAM.Users.Entities.AppUser>>();
+        var user = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "login-test", "Test", "User", "login@example.test", "+254700000000", new Actor().ActorId);
+        user.EmailConfirmed = true;
+        user.IsActive = true;
+        user.TwoFactorEnabled = mode == "mfa";
+        Assert.True((await manager.CreateAsync(user, "Login-Test-Password1!")).Succeeded);
+        var oldSession = LS.Domain.Features.IAM.Users.Entities.AppUserSession.Create(Guid.CreateVersion7(), user.Id, "127.0.0.1", "test", DateTimeOffset.UtcNow.AddHours(1), user.Id, "old-device");
+        db.Add(oldSession);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var handlerType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType("LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.Login")!;
+        var handler = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.LoginCommand, AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.LoginResponse>>)ActivatorUtilities.CreateInstance(provider, handlerType);
+        var command = new LS.Application.Features.IAM.Users.Commands.LoginCommand(new PersistenceLoginRequest(mode == "wrong-password" ? "Wrong-Password!" : "Login-Test-Password1!"));
+        if (mode == "failure") await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
+        else if (mode == "cancel") await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
+        else Assert.Equal(mode is "success" or "retry" or "mfa", (await handler.Handle(command, cancellation.Token)).IsSuccess);
+        var committed = mode is "success" or "retry";
+        Assert.Equal(committed ? 1 : 0, cookies);
+        Assert.Equal(mode == "retry" ? 2 : mode is "success" or "failure" or "cancel" ? 1 : 0, fault.Attempts);
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
+        Assert.Equal(!committed, (await verify.AppUserSessions.SingleAsync(s => s.Id == oldSession.Id)).IsActive);
+        Assert.Equal(committed ? 2 : 1, await verify.AppUserSessions.CountAsync(s => s.AppUserId == user.Id));
+        Assert.Equal(committed ? 1 : 0, await verify.RefreshTokens.CountAsync(t => t.AppUserId == user.Id));
+        Assert.Equal(committed, (await verify.Users.SingleAsync(u => u.Id == user.Id)).LastLoginAt.HasValue);
+    }
     private sealed class RejectRoleAssignment : IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>
     {
         private int _calls;

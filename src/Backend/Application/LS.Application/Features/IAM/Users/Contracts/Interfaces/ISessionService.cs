@@ -11,6 +11,8 @@ namespace LS.Application.Features.IAM.Users.Contracts.Interfaces;
 
 public interface ISessionService
 {
+    /// <summary>Stages device-session changes; the caller must own the transaction and commit.</summary>
+    Task<AppResponse<Guid>> StageSessionAsync(string userId, Guid sessionId, string ipAddress, string userAgent, string deviceFingerprint, CancellationToken cancellationToken = default);
     Task<AppResponse<bool>> CheckConcurrentSessionsAsync(string userId, CancellationToken cancellationToken = default);
     Task<AppResponse<bool>> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default);
     Task<AppResponse<Guid>> CreateSessionAsync(string userId, Guid sessionId, string ipAddress, string userAgent, CancellationToken cancellationToken = default);

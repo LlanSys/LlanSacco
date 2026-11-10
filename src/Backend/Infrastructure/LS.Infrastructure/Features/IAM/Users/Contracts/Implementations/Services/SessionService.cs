@@ -50,34 +50,20 @@ internal sealed class SessionService(
     {
         try
         {
-            // Check concurrent session limit
-            var concurrentCheck = await CheckConcurrentSessionsAsync(userId, cancellationToken).ConfigureAwait(false);
-            if (!concurrentCheck.IsSuccess)
+            return await _unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                // If at limit, end the oldest sessions
-                var endSessionsResponse = await RevokeAllUserSessionsAsync(userId, null, cancellationToken).ConfigureAwait(false);
-                if (!endSessionsResponse.IsSuccess)
+                var activeSessions = await _unitOfWork.SessionRepository.GetActiveSessionsByUserIdAsync(userId, cancellationToken).ConfigureAwait(false);
+                if (activeSessions.Count >= _sessionSettings.MaxConcurrentSessions)
                 {
-                    ServiceLogDefinitions.LogFailedToEndOldSessions(_logger, userId, endSessionsResponse.Message ?? string.Empty);
-
-                    return AppResponses.Failure<Guid>("Failed to end old sessions");
+                    foreach (var active in activeSessions)
+                        active.Revoke("Concurrent session limit reached.");
+                    await _unitOfWork.SessionRepository.UpdateRangeAsync(new Collection<AppUserSession>(activeSessions), cancellationToken).ConfigureAwait(false);
                 }
-
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            var session = AppUserSession.Create(
-                sessionId,
-                userId,
-                ipAddress,
-                userAgent,
-                now.AddMinutes(_sessionSettings.SessionTimeoutMinutes),
-                userId);
-
-            await _unitOfWork.SessionRepository.CreateAsync(session, cancellationToken).ConfigureAwait(false);
-            await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
-
-            return AppResponses.Success("Session created successfully", sessionId);
+                var session = AppUserSession.Create(sessionId, userId, ipAddress, userAgent,
+                    DateTimeOffset.UtcNow.AddMinutes(_sessionSettings.SessionTimeoutMinutes), userId);
+                await _unitOfWork.SessionRepository.CreateAsync(session, cancellationToken).ConfigureAwait(false);
+                return AppResponses.Success("Session created successfully", sessionId);
+            }, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -91,64 +77,67 @@ internal sealed class SessionService(
         const int maxRetries = 3;
         try
         {
-            return await _unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                // Query INSIDE transaction for consistency
-                var activeSessions = await _unitOfWork.SessionRepository.GetActiveSessionsByUserIdAsync(userId, cancellationToken).ConfigureAwait(false);
-
-                // Check if session for THIS device exists
-                var existingSessionForDevice = activeSessions.FirstOrDefault(s => s.DeviceFingerprint == deviceFingerprint);
-
-                // Get sessions to end (exclude current device session)
-                var sessionsToEnd = activeSessions.Where(s => s.DeviceFingerprint != deviceFingerprint).ToList();
-
-                // End other device sessions
-                if (sessionsToEnd.Any())
-                {
-                    foreach (var session in sessionsToEnd)
-                    {
-                        session.Revoke("New login from another device.");
-                    }
-
-                    await _unitOfWork.SessionRepository.UpdateRangeAsync(new Collection<AppUserSession>(sessionsToEnd), cancellationToken).ConfigureAwait(false);
-                }
-
-                var now = DateTimeOffset.UtcNow;
-
-                // Update existing session OR create new one (not both)
-                if (existingSessionForDevice is not null)
-                {
-                    existingSessionForDevice.RefreshAccess(
-                        now.AddMinutes(_sessionSettings.SessionTimeoutMinutes),
-                        ipAddress,
-                        userAgent);
-
-                    await _unitOfWork.SessionRepository.UpdateAsync(existingSessionForDevice, cancellationToken).ConfigureAwait(false);
-                    sessionId = existingSessionForDevice.Id;
-                }
-                else
-                {
-                    var newSession = AppUserSession.Create(
-                        sessionId,
-                        userId,
-                        ipAddress,
-                        userAgent,
-                        now.AddMinutes(_sessionSettings.SessionTimeoutMinutes),
-                        userId,
-                        deviceFingerprint);
-
-                    await _unitOfWork.SessionRepository.CreateAsync(newSession, cancellationToken).ConfigureAwait(false);
-                }
-
-                // Commit the transaction
-                return AppResponses.Success("Session created successfully", sessionId);
-            }, maxRetries, 50, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await _unitOfWork.ExecuteInTransactionWithRetryAsync(
+                () => StageSessionAsync(userId, sessionId, ipAddress, userAgent, deviceFingerprint, cancellationToken),
+                maxRetries, 50, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             ServiceLogDefinitions.LogSessionCreateError(_logger, userId, ex);
             throw;
         }
+    }
+
+    public async Task<AppResponse<Guid>> StageSessionAsync(string userId, Guid sessionId, string ipAddress, string userAgent, string deviceFingerprint, CancellationToken cancellationToken = default)
+    {
+        // The caller owns the transaction; always reload session state for this attempt.
+        var activeSessions = await _unitOfWork.SessionRepository.GetActiveSessionsByUserIdAsync(userId, cancellationToken).ConfigureAwait(false);
+
+        // Check if session for THIS device exists
+        var existingSessionForDevice = activeSessions.FirstOrDefault(s => s.DeviceFingerprint == deviceFingerprint);
+
+        // Get sessions to end (exclude current device session)
+        var sessionsToEnd = activeSessions.Where(s => s.DeviceFingerprint != deviceFingerprint).ToList();
+
+        // End other device sessions
+        if (sessionsToEnd.Any())
+        {
+            foreach (var session in sessionsToEnd)
+            {
+                session.Revoke("New login from another device.");
+            }
+
+            await _unitOfWork.SessionRepository.UpdateRangeAsync(new Collection<AppUserSession>(sessionsToEnd), cancellationToken).ConfigureAwait(false);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+
+        // Update existing session OR create new one (not both)
+        if (existingSessionForDevice is not null)
+        {
+            existingSessionForDevice.RefreshAccess(
+                now.AddMinutes(_sessionSettings.SessionTimeoutMinutes),
+                ipAddress,
+                userAgent);
+
+            await _unitOfWork.SessionRepository.UpdateAsync(existingSessionForDevice, cancellationToken).ConfigureAwait(false);
+            sessionId = existingSessionForDevice.Id;
+        }
+        else
+        {
+            var newSession = AppUserSession.Create(
+                sessionId,
+                userId,
+                ipAddress,
+                userAgent,
+                now.AddMinutes(_sessionSettings.SessionTimeoutMinutes),
+                userId,
+                deviceFingerprint);
+
+            await _unitOfWork.SessionRepository.CreateAsync(newSession, cancellationToken).ConfigureAwait(false);
+        }
+
+        return AppResponses.Success("Session created successfully", sessionId);
     }
 
     public async Task<AppResponse<bool>> RevokeSessionAsync(string sessionId, CancellationToken cancellationToken = default)

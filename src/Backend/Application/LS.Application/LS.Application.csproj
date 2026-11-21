@@ -8,12 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation">
-      <VersionOverride>12.1.1</VersionOverride>
-    </PackageReference>
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions">
-      <VersionOverride>12.1.1</VersionOverride>
-    </PackageReference>
+    <PackageReference Include="FluentValidation" Version="12.2.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
     <PackageReference Include="Hangfire.Core" Version="1.8.25" />
     <PackageReference Include="MediatR" Version="14.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />

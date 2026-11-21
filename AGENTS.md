@@ -124,6 +124,9 @@ This file is the canonical source of truth and working contract for AI coding to
 
 ## Workflow Rules
 
+- Set NuGet package versions in `Directory.Packages.props`. Keep package references versionless and restore through the repository's NuGet.org-only configuration.
+- Run `./scripts/Format-Code.ps1 -Include <changed path>` for C# and Razor formatting, or add `-Check` to verify the result. See [package management and formatting](docs/development/package-management-and-formatting.md) for the workflow.
+
 - Preserve user changes. Do not revert unrelated work.
 - Architecture debt is recorded exactly in `docs/architecture/architecture-debt.json`, with rule, file, symbol, evidence, and owning remediation phase. CI rejects new violations and stale entries. Never regenerate or expand the register to hide a regression; remove resolved entries in the fixing PR. See `docs/architecture/architecture-guardrails.md`.
 - Prefer small, focused commits with clear messages.

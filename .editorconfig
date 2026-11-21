@@ -140,3 +140,15 @@ dotnet_diagnostic.CA1711.severity = none
 [*.cs]
 dotnet_diagnostic.IDE0290.severity = warning
 
+# Source formatting diagnostics shared with StarterTemplate.
+dotnet_diagnostic.IDE2000.severity = suggestion
+dotnet_diagnostic.IDE2003.severity = suggestion
+dotnet_diagnostic.RCS0010.severity = suggestion
+dotnet_diagnostic.RCS0021.severity = suggestion
+dotnet_diagnostic.RCS0023.severity = suggestion
+dotnet_diagnostic.RCS0030.severity = suggestion
+dotnet_diagnostic.RCS0033.severity = suggestion
+dotnet_diagnostic.RCS0053.severity = suggestion
+dotnet_diagnostic.RCS0054.severity = suggestion
+dotnet_diagnostic.RCS0060.severity = suggestion
+dotnet_diagnostic.RCS0056.severity = suggestion

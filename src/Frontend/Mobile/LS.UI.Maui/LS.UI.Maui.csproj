@@ -12,8 +12,6 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 
-		<!--.NET 8+ : let the MAUI workload provide Controls/WebView, don't force NuGet versions -->
-		<SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
 
 		<ApplicationTitle>LS.UI.Maui</ApplicationTitle>
 		<ApplicationId>com.companyname.bt.ui.maui</ApplicationId>
@@ -47,16 +45,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Only add packages YOU need. MAUI Controls + WebView come from the workload -->
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Update="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.101" />
+	  <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Update="Microsoft.Maui.Controls" Version="10.0.101" />
+	  <PackageReference Include="Microsoft.Maui.Controls" />
 	</ItemGroup>
 
 </Project>

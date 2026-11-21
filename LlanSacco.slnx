@@ -5,7 +5,8 @@
   </Configurations>
   <Folder Name="/Solution Items/">
     <File Path="Directory.Build.props" />
-    <File Path="Global.json" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="nuget.config" />
   </Folder>
   <Folder Name="/src/" />
@@ -56,5 +57,8 @@
     <Project Path="tests/LS.Tests.Unit/LS.Tests.Unit.csproj" Id="a30b295a-0844-4960-a11c-438974c76c54">
       <Platform Solution="*|x64" Project="x64" />
     </Project>
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/LS.SourceFormatting/LS.SourceFormatting.csproj" />
   </Folder>
 </Solution>

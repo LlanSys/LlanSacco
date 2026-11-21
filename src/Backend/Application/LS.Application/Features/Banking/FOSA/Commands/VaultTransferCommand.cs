@@ -49,7 +49,7 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork, ICurre
                     ? AppResponses.Success("Vault transfer already processed.", true)
                     : AppResponses.Failure<bool>(AppError.BusinessRule("The vault transfer reference is already in use."));
 
-            var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
+            var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
             if (till is null)
             {
                 return AppResponses.Failure<bool>("Teller till not found.");
@@ -60,7 +60,7 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork, ICurre
                 return AppResponses.Failure<bool>("Teller till must be open to transfer to vault.");
             }
 
-            var vault = await unitOfWork.Vaults.FindByIdAsync(request.VaultId, cancellationToken).ConfigureAwait(false);
+            var vault = await unitOfWork.VaultRepository.FindByIdAsync(request.VaultId, cancellationToken).ConfigureAwait(false);
             if (vault is null)
             {
                 return AppResponses.Failure<bool>("Vault not found.");
@@ -89,8 +89,8 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork, ICurre
                 Remarks = remarks,
                 CreatedBy = actorProvider.ActorId
             }, cancellationToken).ConfigureAwait(false);
-            await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
-            await unitOfWork.Vaults.UpdateAsync(vault, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.TellerTillRepository.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.VaultRepository.UpdateAsync(vault, cancellationToken).ConfigureAwait(false);
 
             return AppResponses.Success<bool>("Vault transfer completed successfully.", true);
         }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);

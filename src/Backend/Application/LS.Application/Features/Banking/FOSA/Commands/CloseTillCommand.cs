@@ -25,7 +25,7 @@ internal class CloseTillCommandHandler(IBankingUnitOfWork unitOfWork) : IRequest
 {
     public async Task<AppResponse<Guid>> Handle(CloseTillCommand request, CancellationToken cancellationToken)
     {
-        var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
+        var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
         if (till is null)
         {
             return AppResponses.Failure<Guid>("Teller till not found.");
@@ -49,13 +49,13 @@ internal class CloseTillCommandHandler(IBankingUnitOfWork unitOfWork) : IRequest
             CreatedBy = till.AssignedTellerUserId?.ToString() ?? "System"
         };
 
-        await unitOfWork.TillBalancingRecords.CreateAsync(balancingRecord, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.TillBalancingRecordRepository.CreateAsync(balancingRecord, cancellationToken).ConfigureAwait(false);
 
         till.Status = TillStatus.Closed;
         till.AssignedTellerUserId = null;
         till.OpenedAt = null;
 
-        await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.TellerTillRepository.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         if (balancingRecord.Variance != 0)

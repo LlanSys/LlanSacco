@@ -1,7 +1,5 @@
 using LS.Domain.Features.Membership.Contracts;
 using LS.Domain.Features.Membership.Contracts.Repositories;
-using LS.Domain.Features.Membership.Entities;
-using LS.Domain.Shared.Contracts.Repositories;
 using LS.Persistence.Common;
 using LS.Persistence.Features.Membership.DataContext;
 using MediatR;
@@ -23,8 +21,8 @@ public class MembershipUnitOfWork(
 {
     public IMemberRepository MemberRepository { get; } = memberRepository;
     public IMemberAccountRepository MemberAccountRepository { get; } = memberAccountRepository;
-    public IRepository<MemberTransaction> MemberTransactions { get; } = memberTransactionRepository;
-    public IRepository<MemberGuarantor> MemberGuarantors { get; } = memberGuarantorRepository;
-    public IRepository<GuarantorRequest> GuarantorRequests { get; } = guarantorRequestRepository;
-    public IRepository<Beneficiary> Beneficiaries { get; } = beneficiaryRepository;
+    public IMemberTransactionRepository MemberTransactionRepository { get; } = memberTransactionRepository;
+    public IMemberGuarantorRepository MemberGuarantorRepository { get; } = memberGuarantorRepository;
+    public IGuarantorRequestRepository GuarantorRequestRepository { get; } = guarantorRequestRepository;
+    public IBeneficiaryRepository BeneficiaryRepository { get; } = beneficiaryRepository;
 }

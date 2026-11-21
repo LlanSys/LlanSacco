@@ -21,7 +21,7 @@ internal class CreateDepositProductCommandHandler(
     {
         var request = command.Request;
         
-        bool exists = await unitOfWork.DepositProducts.AnyAsync(x => x.Code == request.Code, cancellationToken);
+        bool exists = await unitOfWork.DepositProductRepository.AnyAsync(x => x.Code == request.Code, cancellationToken);
             
         if (exists)
         {
@@ -46,7 +46,7 @@ internal class CreateDepositProductCommandHandler(
             actorProvider.ActorId.ToString()
         );
 
-        await unitOfWork.DepositProducts.CreateAsync(product, cancellationToken);
+        await unitOfWork.DepositProductRepository.CreateAsync(product, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         var response = new DepositProductResponse(

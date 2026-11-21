@@ -37,14 +37,14 @@ public class CreateTenantCommandHandler(
         ArgumentNullException.ThrowIfNull(request.Request, nameof(request.Request));
 
         var req = request.Request;
-        var existingTenant = await _unitOfWork.Tenants.AnyAsync(t => t.Identifier == req.Identifier || t.HostName == req.HostName, cancellationToken).ConfigureAwait(false);
+        var existingTenant = await _unitOfWork.TenantRepository.AnyAsync(t => t.Identifier == req.Identifier || t.HostName == req.HostName, cancellationToken).ConfigureAwait(false);
 
         if (existingTenant)
         {
             return AppResponses.Failure<TenantResponse>("A tenant with this identifier or hostname already exists.");
         }
 
-        var stamp = await _unitOfWork.DeploymentStamps.FirstOrDefaultAsync(s => s.Id == req.DeploymentStampId, cancellationToken).ConfigureAwait(false);
+        var stamp = await _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(s => s.Id == req.DeploymentStampId, cancellationToken).ConfigureAwait(false);
 
         if (stamp == null)
         {
@@ -77,7 +77,7 @@ public class CreateTenantCommandHandler(
             CreatedBy = _actorProvider.ActorId,
         };
         
-        await _unitOfWork.Tenants.CreateAsync(tenant, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.TenantRepository.CreateAsync(tenant, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         ControlPlaneLogDefinitions.LogTenantCreated(_logger, tenant.Id, tenant.Identifier);

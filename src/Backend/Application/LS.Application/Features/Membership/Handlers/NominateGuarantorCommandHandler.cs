@@ -57,7 +57,7 @@ internal class NominateGuarantorCommandHandler(
             request.Request.AmountToGuarantee,
             createdBy);
 
-        await _unitOfWork.GuarantorRequests.CreateAsync(guarantorRequest, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.GuarantorRequestRepository.CreateAsync(guarantorRequest, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation("Guarantor request created for Member {MemberId} to nominate {NominatedId}", memberId, nominatedId);

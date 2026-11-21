@@ -37,7 +37,7 @@ internal sealed partial class CompleteTenantProvisioningCommandHandler(
     {
         LogCompletingProvisioning(request.TenantId);
 
-        var tenant = await _unitOfWork.Tenants.FindByIdAsync(request.TenantId, cancellationToken).ConfigureAwait(false);
+        var tenant = await _unitOfWork.TenantRepository.FindByIdAsync(request.TenantId, cancellationToken).ConfigureAwait(false);
         if (tenant == null || tenant.Status != TenantStatus.Provisioning)
         {
             LogTenantNotFoundOrNotProvisioning(request.TenantId);

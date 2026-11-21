@@ -26,7 +26,7 @@ internal sealed class StartImpersonationCommandHandler(
 {
     public async Task<AppResponse<ImpersonationRecordResponse>> Handle(StartImpersonationCommand request, CancellationToken cancellationToken)
     {
-        var tenant = await unitOfWork.Tenants.FindByIdAsync(request.TargetTenantId, cancellationToken).ConfigureAwait(false);
+        var tenant = await unitOfWork.TenantRepository.FindByIdAsync(request.TargetTenantId, cancellationToken).ConfigureAwait(false);
         if (tenant == null)
         {
             return AppResponses.Failure<ImpersonationRecordResponse>("Tenant not found");
@@ -47,7 +47,7 @@ internal sealed class StartImpersonationCommandHandler(
             CreatedBy = actorProvider.ActorId
         };
 
-        await unitOfWork.ImpersonationRecords.CreateAsync(record, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.ImpersonationRecordRepository.CreateAsync(record, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         LogDefinitions.LogImpersonationStarted(logger, actorProvider.ActorId, request.TargetTenantId, expiryTime, request.Reason);

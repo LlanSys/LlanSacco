@@ -24,7 +24,7 @@ internal class CreateShareProductCommandHandler(
             "System"
         );
 
-        await unitOfWork.ShareProducts.CreateAsync(product, cancellationToken);
+        await unitOfWork.ShareProductRepository.CreateAsync(product, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Created ShareProduct {ProductId}", product.Id);

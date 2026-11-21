@@ -1,6 +1,4 @@
-using LS.Domain.Features.HR.Employees.Contracts.Repositories;
 using LS.Domain.Features.IAM.Users.Contracts.Repositories;
-using LS.Domain.Shared.Contracts.Repositories;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Persistence.Common.Repositories;
 using LS.Persistence.Features.IAM.DataContext;
@@ -12,11 +10,6 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
 {
     private readonly IamDBContext _iamContext = context ?? throw new ArgumentNullException(nameof(context));
 
-    public async Task AddRefreshTokenAsync(RefreshToken refreshToken)
-    {
-        await _iamContext.RefreshTokens.AddAsync(refreshToken).ConfigureAwait(false);
-    }
-
     public async Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(string userId, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
@@ -26,30 +19,6 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
             now < token.ExpiresAt &&
             !token.UsedAt.HasValue)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    public async Task<RefreshToken?> GetByTokenAndUserAsync(string token, string userId)
-    {
-        return await _iamContext.Set<RefreshToken>()
-            .FirstOrDefaultAsync(t => t.Token == token && t.AppUserId == userId).ConfigureAwait(false);
-    }
-
-    public async Task<RefreshToken?> GetTokenAsync(string token)
-    {
-        return await FindByCondition(t => t.Token == token).AsNoTracking().FirstOrDefaultAsync().ConfigureAwait(false);
-    }
-
-    public async Task<RefreshToken?> GetRefreshTokenAsync(string token, string userId)
-    {
-        return await _iamContext.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == token && rt.AppUserId == userId).ConfigureAwait(false);
-    }
-
-    public async Task<RefreshToken?> GetRefreshTokenAsync(string token)
-    {
-        return await _iamContext.RefreshTokens
-            .Include(rt => rt.AppUser)
-            .FirstOrDefaultAsync(rt => rt.Token == token).ConfigureAwait(false);
     }
 
     public async Task<List<RefreshToken>> GetUserTokensAsync(string userId, int limit = 10)
@@ -69,12 +38,6 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
             .ToListAsync().ConfigureAwait(false);
     }
 
-    public async Task UpdateRefreshTokenAsync(RefreshToken refreshToken)
-    {
-        _iamContext.RefreshTokens.Update(refreshToken);
-        await Task.CompletedTask.ConfigureAwait(false);
-    }
-
     public async Task RevokeTokensAsync(List<RefreshToken> tokens, string reason, string? revokedByIp = null, CancellationToken cancellationToken = default)
     {
         if (!tokens.Any()) return;
@@ -90,7 +53,7 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
     public async Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason, string? revokedByIp = null)
     {
         refreshToken.Revoke(reason, revokedByIp);
-        await UpdateRefreshTokenAsync(refreshToken).ConfigureAwait(false);
+        await UpdateAsync(refreshToken).ConfigureAwait(false);
     }
 
     public async Task RevokeRefreshTokenAsync(RefreshToken refreshToken, string reason)
@@ -171,8 +134,4 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         }
     }
 
-    public async Task PerformMaintenanceAsync()
-    {
-        await CleanupExpiredTokensAsync().ConfigureAwait(false);
-    }
 }

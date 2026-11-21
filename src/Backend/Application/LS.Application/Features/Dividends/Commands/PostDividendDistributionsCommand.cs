@@ -16,7 +16,7 @@ internal class PostDividendDistributionsCommandHandler(
 {
     public async Task<AppResponse<bool>> Handle(PostDividendDistributionsCommand request, CancellationToken cancellationToken)
     {
-        var declaration = await uow.DividendDeclarations.FindByIdAsync(request.DeclarationId, cancellationToken);
+        var declaration = await uow.DividendDeclarationRepository.FindByIdAsync(request.DeclarationId, cancellationToken);
         
         if (declaration == null)
             return AppResponses.Failure<bool>("Declaration not found.");
@@ -26,7 +26,7 @@ internal class PostDividendDistributionsCommandHandler(
 
         declaration.StartProcessing();
         
-        await uow.DividendDeclarations.UpdateAsync(declaration, cancellationToken);
+        await uow.DividendDeclarationRepository.UpdateAsync(declaration, cancellationToken);
         await uow.CompleteAsync(cancellationToken);
 
         // TODO: Enqueue Hangfire background job to process actual distributions

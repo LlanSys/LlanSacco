@@ -27,7 +27,7 @@ internal class OpenFosaAccountCommandHandler(IBankingUnitOfWork unitOfWork) : IR
         
         var account = FosaAccount.Create(request.MemberId, accountNumber, "System"); // Or map CreatedBy from CurrentActor
         
-        await unitOfWork.FosaAccounts.CreateAsync(account, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.FosaAccountRepository.CreateAsync(account, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
         
         return AppResponses.Success<Guid>("FOSA Account opened successfully.", account.Id);

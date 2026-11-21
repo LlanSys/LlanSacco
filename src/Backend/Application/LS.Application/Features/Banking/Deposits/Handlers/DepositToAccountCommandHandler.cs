@@ -21,7 +21,7 @@ internal class DepositToAccountCommandHandler(
     {
         var request = command.Request;
 
-        var account = await unitOfWork.DepositAccounts.FindByIdAsync(command.AccountId, cancellationToken);
+        var account = await unitOfWork.DepositAccountRepository.FindByIdAsync(command.AccountId, cancellationToken);
         if (account == null)
         {
             return AppResponses.NotFound<DepositTransactionResponse>($"Deposit account with ID {command.AccountId} not found.");
@@ -45,8 +45,8 @@ internal class DepositToAccountCommandHandler(
             actorProvider.ActorId.ToString()
         );
 
-        await unitOfWork.DepositTransactions.CreateAsync(transaction, cancellationToken);
-        await unitOfWork.DepositAccounts.UpdateAsync(account, cancellationToken);
+        await unitOfWork.DepositTransactionRepository.CreateAsync(transaction, cancellationToken);
+        await unitOfWork.DepositAccountRepository.UpdateAsync(account, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         var response = new DepositTransactionResponse(

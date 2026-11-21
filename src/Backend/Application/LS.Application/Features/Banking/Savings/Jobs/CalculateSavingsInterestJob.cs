@@ -27,10 +27,10 @@ public class CalculateSavingsInterestJob(
         {
             var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                var products = await unitOfWork.SavingsProducts.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
+                var products = await unitOfWork.SavingsProductRepository.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
                 var productIds = products.Select(p => p.Id).ToArray();
                 var byId = products.ToDictionary(p => p.Id);
-                var accounts = await unitOfWork.SavingsAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
+                var accounts = await unitOfWork.SavingsAccountRepository.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
                         && productIds.Contains(a.SavingsProductId) && (a.LastInterestAccruedOn == null || a.LastInterestAccruedOn < accrualDate))
                     .OrderBy(a => a.Id).Take(200), cancellationToken);
                 foreach (var account in accounts)
@@ -43,10 +43,10 @@ public class CalculateSavingsInterestJob(
                     account.Balance += interest;
                     var transaction = SavingsTransaction.Create(account.Id, SavingsTransactionType.Interest, interest,
                         $"Daily interest for {accrualDate:yyyy-MM-dd}", $"INT:{account.Id:N}:{accrualDate:yyyyMMdd}", ICurrentActorProvider.SystemActor);
-                    await unitOfWork.SavingsTransactions.CreateAsync(transaction, cancellationToken);
+                    await unitOfWork.SavingsTransactionRepository.CreateAsync(transaction, cancellationToken);
                     await publisher.PublishAsync(new SavingsInterestAppliedIntegrationEvent(account.MemberId, account.Id, product.Id, interest) { TenantId = tenantId, TransactionId = transaction.Id, OccurredAt = transaction.CreatedAt }, cancellationToken);
                 }
-                await unitOfWork.SavingsAccounts.UpdateRangeAsync(new Collection<SavingsAccount>(accounts), cancellationToken);
+                await unitOfWork.SavingsAccountRepository.UpdateRangeAsync(new Collection<SavingsAccount>(accounts), cancellationToken);
                 return accounts.Count;
             }, cancellationToken: cancellationToken);
             processed += count;

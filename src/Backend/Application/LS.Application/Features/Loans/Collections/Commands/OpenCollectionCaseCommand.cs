@@ -52,7 +52,7 @@ internal class OpenCollectionCaseCommandHandler(
                 triggeredBy: request.TriggeredBy
             );
 
-            await unitOfWork.CollectionCases.CreateAsync(newCase, cancellationToken);
+            await unitOfWork.CollectionCaseRepository.CreateAsync(newCase, cancellationToken);
 
             // Update loan status to Arrears if not already
             if (loan.Status != LoanStatus.Arrears)

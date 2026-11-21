@@ -1,8 +1,9 @@
+using LS.Persistence.Features.CheckOff.Repositories;
+using LS.Domain.Features.CheckOff.Contracts.Repositories;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using LS.Persistence.Features.CheckOff.DataContext;
 using LS.Domain.Features.CheckOff.Contracts;
-using LS.Persistence.Features.CheckOff.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +63,12 @@ public static class CheckOffPersistenceDI
             services.AddDbContext<CheckOffDBContext, CheckOffSqlServerDBContext>(ConfigureDbContextOptions);
         }
 
+        services.AddScoped<IEmployerRepository, EmployerRepository>();
+        services.AddScoped<IMemberEmploymentRepository, MemberEmploymentRepository>();
+        services.AddScoped<ICheckoffInstructionRepository, CheckoffInstructionRepository>();
+        services.AddScoped<ICheckoffBatchRepository, CheckoffBatchRepository>();
+        services.AddScoped<ICheckoffStagingRowRepository, CheckoffStagingRowRepository>();
+        services.AddScoped<ICheckoffStagingLoanAllocationRepository, CheckoffStagingLoanAllocationRepository>();
         services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
 
         return services;

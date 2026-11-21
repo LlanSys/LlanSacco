@@ -18,7 +18,7 @@ public class GetAllTenantsQueryHandler(IControlPlaneUnitOfWork unitOfWork) : IRe
 
     public async Task<AppResponse<List<TenantResponse>>> Handle(GetAllTenantsQuery request, CancellationToken cancellationToken)
     {
-        var rawTenants = await _unitOfWork.Tenants.FindAll()
+        var rawTenants = await _unitOfWork.TenantRepository.FindAll()
             .Include(t => t.Modules)
             .AsNoTracking()
             .ToListAsync(cancellationToken).ConfigureAwait(false);

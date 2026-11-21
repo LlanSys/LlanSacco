@@ -40,7 +40,7 @@ internal sealed class CreateCheckoffInstructionCommandHandler(
     {
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var employment = await unitOfWork.MemberEmployments.FirstOrDefaultAsync(
+            var employment = await unitOfWork.MemberEmploymentRepository.FirstOrDefaultAsync(
                 e => e.Id == request.MemberEmploymentId && e.EmployerId == request.EmployerId, cancellationToken);
 
             if (employment == null)
@@ -55,7 +55,7 @@ internal sealed class CreateCheckoffInstructionCommandHandler(
                 0m, // Assume expected shares
                 "System");
 
-            await unitOfWork.CheckoffInstructions.CreateAsync(instruction, cancellationToken);
+            await unitOfWork.CheckoffInstructionRepository.CreateAsync(instruction, cancellationToken);
 
             return new AppResponse<Guid>(instruction.Id, "Check-off instruction created successfully.");
         }, cancellationToken);

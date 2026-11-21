@@ -16,13 +16,13 @@ internal sealed class GetCheckoffBatchesQueryHandler(
 {
     public async Task<AppResponse<List<CheckoffBatchResponse>>> Handle(GetCheckoffBatchesQuery request, CancellationToken cancellationToken)
     {
-        var batches = await unitOfWork.CheckoffBatches.ListAsync(
+        var batches = await unitOfWork.CheckoffBatchRepository.ListAsync(
             q => q.OrderByDescending(b => b.CreatedAt),
             cancellationToken);
 
         var employerIds = batches.Select(b => b.EmployerId).Distinct().ToList();
         
-        var employers = await unitOfWork.Employers.ListAsync(
+        var employers = await unitOfWork.EmployerRepository.ListAsync(
             q => q.Where(e => employerIds.Contains(e.Id)),
             cancellationToken);
 

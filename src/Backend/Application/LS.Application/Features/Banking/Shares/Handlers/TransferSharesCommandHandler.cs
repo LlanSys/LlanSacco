@@ -28,7 +28,7 @@ internal partial class TransferSharesCommandHandler(
         if (request.NumberOfShares <= 0)
             return AppResponses.Failure<Guid>("Number of shares to transfer must be greater than zero.");
 
-        var product = await unitOfWork.ShareProducts.FirstOrDefaultAsync(x => x.Id == request.ShareProductId, cancellationToken)
+        var product = await unitOfWork.ShareProductRepository.FirstOrDefaultAsync(x => x.Id == request.ShareProductId, cancellationToken)
             .ConfigureAwait(false);
 
         if (product == null)
@@ -36,13 +36,13 @@ internal partial class TransferSharesCommandHandler(
 
         decimal totalValue = request.NumberOfShares * product.PricePerShare;
 
-        var fromAccount = await unitOfWork.ShareAccounts.FirstOrDefaultAsync(x => x.MemberId == request.FromMemberId && x.ShareProductId == request.ShareProductId, cancellationToken)
+        var fromAccount = await unitOfWork.ShareAccountRepository.FirstOrDefaultAsync(x => x.MemberId == request.FromMemberId && x.ShareProductId == request.ShareProductId, cancellationToken)
             .ConfigureAwait(false);
 
         if (fromAccount == null || fromAccount.TotalShares < request.NumberOfShares)
             return AppResponses.Failure<Guid>("Insufficient shares in the source account.");
 
-        var toAccount = await unitOfWork.ShareAccounts.FirstOrDefaultAsync(x => x.MemberId == request.ToMemberId && x.ShareProductId == request.ShareProductId, cancellationToken)
+        var toAccount = await unitOfWork.ShareAccountRepository.FirstOrDefaultAsync(x => x.MemberId == request.ToMemberId && x.ShareProductId == request.ShareProductId, cancellationToken)
             .ConfigureAwait(false);
 
         var isNewAccount = toAccount is null;
@@ -52,12 +52,12 @@ internal partial class TransferSharesCommandHandler(
         fromAccount.RemoveShares(request.NumberOfShares, product.PricePerShare, actorProvider.ActorId);
         toAccount.AddShares(request.NumberOfShares, product.PricePerShare, actorProvider.ActorId);
 
-        await unitOfWork.ShareAccounts.UpdateAsync(fromAccount, cancellationToken);
+        await unitOfWork.ShareAccountRepository.UpdateAsync(fromAccount, cancellationToken);
 
         if (isNewAccount)
-            await unitOfWork.ShareAccounts.CreateAsync(toAccount, cancellationToken);
+            await unitOfWork.ShareAccountRepository.CreateAsync(toAccount, cancellationToken);
         else
-            await unitOfWork.ShareAccounts.UpdateAsync(toAccount, cancellationToken);
+            await unitOfWork.ShareAccountRepository.UpdateAsync(toAccount, cancellationToken);
 
         var transferOutTransaction = ShareTransaction.CreateTransfer(
             fromAccount.Id,
@@ -81,8 +81,8 @@ internal partial class TransferSharesCommandHandler(
             actorProvider.ActorId
         );
 
-        await unitOfWork.ShareTransactions.CreateAsync(transferOutTransaction, cancellationToken);
-        await unitOfWork.ShareTransactions.CreateAsync(transferInTransaction, cancellationToken);
+        await unitOfWork.ShareTransactionRepository.CreateAsync(transferOutTransaction, cancellationToken);
+        await unitOfWork.ShareTransactionRepository.CreateAsync(transferInTransaction, cancellationToken);
 
         await publisher.PublishAsync(new ShareTransferredIntegrationEvent(fromAccount.TenantId, fromAccount.Id, toAccount.Id, request.NumberOfShares, product.PricePerShare, totalValue, null, actorProvider.ActorId) { EventId = transferOutTransaction.Id, OccurredAt = transferOutTransaction.TransactionDate }, cancellationToken);
 

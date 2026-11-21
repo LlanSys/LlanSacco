@@ -308,6 +308,6 @@ Before we move from one phase to another:
 
 Follow [Architecture Remediation And Repository Governance Plan](docs/architecture/architecture-remediation-plan.md) before expanding product features. It tracks repository and Unit of Work alignment, AppResponse, behaviours and caching, validator placement, operation-named command slices and the protected GitHub PR workflow.
 
-Phases 0–2 are complete for review. Phase 0 established the remote and required merge check. Phase 1 established the architecture tests and exact debt register. Phase 2 verified transactional persistence, financial replay, outbox recovery and tenant-aware delivery. See the [Phase 2 verification report](docs/architecture/phase-2-verification.md) and [draft PR #3](https://github.com/LlanSys/LlanSacco/pull/3). Finish and verify each remediation phase, then present it for review before starting the next one.
+Phases 0–2 are complete and on `main` through [PR #3](https://github.com/LlanSys/LlanSacco/pull/3). Phase 3 is complete for review. The [Phase 3 verification report](docs/architecture/phase-3-verification.md) covers named and scoped repositories, the reduced debt register and both provider configurations. Finish and verify each remediation phase, then present it for review before starting the next one.
 
 The 2026-11-21 direction is to improve the established LlanSacco application incrementally using selected StarterTemplate platform improvements. Preserve SACCO workflows, migration history and application identities. Keep LlanSacco's architecture and CI gates in force.

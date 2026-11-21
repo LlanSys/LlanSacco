@@ -22,7 +22,7 @@ internal class ResolveCollectionCaseCommandHandler(
 {
     public async Task<AppResponse<bool>> Handle(ResolveCollectionCaseCommand request, CancellationToken cancellationToken)
     {
-        var collectionCase = await unitOfWork.CollectionCases.FindByIdAsync(request.CollectionCaseId, cancellationToken);
+        var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
             return AppResponses.Failure<bool>(AppError.BusinessRule("Collection case not found"));
 
@@ -41,7 +41,7 @@ internal class ResolveCollectionCaseCommandHandler(
             collectionCase.ResolvedAt = DateTimeOffset.UtcNow;
             collectionCase.ResolutionReason = request.ResolutionReason;
 
-            await unitOfWork.CollectionCases.UpdateAsync(collectionCase, cancellationToken);
+            await unitOfWork.CollectionCaseRepository.UpdateAsync(collectionCase, cancellationToken);
 
             // Revert loan status to active if arrears cleared
             if (loan.Status == LoanStatus.Arrears)

@@ -27,14 +27,14 @@ public class UpdateDeploymentStampCommandHandler(
     public async Task<AppResponse<DeploymentStampResponse>> Handle(UpdateDeploymentStampCommand request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
-        var stamp = await _unitOfWork.DeploymentStamps.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
+        var stamp = await _unitOfWork.DeploymentStampRepository.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
 
         if (stamp == null)
         {
             return AppResponses.Failure<DeploymentStampResponse>("Deployment stamp not found.");
         }
 
-        var duplicateName = await _unitOfWork.DeploymentStamps.AnyAsync(s => s.Name == request.Request.Name && s.Id != request.Id, cancellationToken).ConfigureAwait(false);
+        var duplicateName = await _unitOfWork.DeploymentStampRepository.AnyAsync(s => s.Name == request.Request.Name && s.Id != request.Id, cancellationToken).ConfigureAwait(false);
 
         if (duplicateName)
         {
@@ -71,7 +71,7 @@ public class UpdateDeploymentStampCommandHandler(
         stamp.UpdatedAt = DateTimeOffset.UtcNow;
         stamp.UpdatedBy = "System";
 
-        await _unitOfWork.DeploymentStamps.UpdateAsync(stamp, cancellationToken).ConfigureAwait(false)  ;
+        await _unitOfWork.DeploymentStampRepository.UpdateAsync(stamp, cancellationToken).ConfigureAwait(false)  ;
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         ControlPlaneLogDefinitions.LogDeploymentStampUpdated(_logger, stamp.Id, stamp.Name);

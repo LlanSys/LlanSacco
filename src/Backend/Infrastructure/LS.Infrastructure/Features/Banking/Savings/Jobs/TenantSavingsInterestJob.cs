@@ -19,9 +19,9 @@ public sealed class TenantSavingsInterestJob(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var catalog = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
-        var hostTenant = await catalog.Tenants.FindByIdAsync(options.Value.DefaultTenantId, cancellationToken).ConfigureAwait(false)
+        var hostTenant = await catalog.TenantRepository.FindByIdAsync(options.Value.DefaultTenantId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("The host tenant is missing from the tenant catalog.");
-        var tenantIds = await catalog.Tenants.ListAsync(q => q
+        var tenantIds = await catalog.TenantRepository.ListAsync(q => q
             .Where(tenant => tenant.DeploymentStampId == hostTenant.DeploymentStampId && tenant.Status == TenantStatus.Active)
             .OrderBy(tenant => tenant.Id).Select(tenant => tenant.Id), cancellationToken).ConfigureAwait(false);
 
@@ -36,9 +36,9 @@ public sealed class TenantSavingsInterestJob(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var catalog = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
-        var hostTenant = await catalog.Tenants.FindByIdAsync(options.Value.DefaultTenantId, cancellationToken).ConfigureAwait(false)
+        var hostTenant = await catalog.TenantRepository.FindByIdAsync(options.Value.DefaultTenantId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("The host tenant is missing from the tenant catalog.");
-        var tenant = await catalog.Tenants.FindByIdAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        var tenant = await catalog.TenantRepository.FindByIdAsync(tenantId, cancellationToken).ConfigureAwait(false);
         if (tenant is null || tenant.Status != TenantStatus.Active || tenant.DeploymentStampId != hostTenant.DeploymentStampId)
             return;
 

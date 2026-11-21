@@ -24,10 +24,10 @@ public class CalculateDepositInterestJob(
         {
             var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                var products = await unitOfWork.DepositProducts.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
+                var products = await unitOfWork.DepositProductRepository.ListAsync(q => q.Where(p => p.TenantId == tenantId && p.IsActive && p.InterestRate > 0), cancellationToken);
                 var productIds = products.Select(p => p.Id).ToArray();
                 var byId = products.ToDictionary(p => p.Id);
-                var accounts = await unitOfWork.DepositAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive && a.Balance > 0
+                var accounts = await unitOfWork.DepositAccountRepository.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive && a.Balance > 0
                         && a.MaturityDate > now && productIds.Contains(a.DepositProductId)
                         && (a.LastInterestAccruedOn == null || a.LastInterestAccruedOn < accrualDate))
                     .OrderBy(a => a.Id).Take(200), cancellationToken);
@@ -37,7 +37,7 @@ public class CalculateDepositInterestJob(
                     account.AccruedInterest += Math.Round(account.Balance * (product.InterestRate / 100m) / 365m, 4);
                     account.LastInterestAccruedOn = accrualDate;
                 }
-                await unitOfWork.DepositAccounts.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
+                await unitOfWork.DepositAccountRepository.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
                 return accounts.Count;
             }, cancellationToken: cancellationToken);
             processed += count;

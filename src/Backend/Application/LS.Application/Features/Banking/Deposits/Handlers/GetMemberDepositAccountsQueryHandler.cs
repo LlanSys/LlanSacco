@@ -15,7 +15,7 @@ internal class GetMemberDepositAccountsQueryHandler(IBankingUnitOfWork unitOfWor
 {
     public async Task<AppResponse<System.Collections.Generic.IEnumerable<DepositAccountResponse>>> Handle(GetMemberDepositAccountsQuery request, CancellationToken cancellationToken)
     {
-        var accounts = await unitOfWork.DepositAccounts.ListAsync(
+        var accounts = await unitOfWork.DepositAccountRepository.ListAsync(
             q => q.Where(x => x.MemberId == request.MemberId), 
             cancellationToken);
 

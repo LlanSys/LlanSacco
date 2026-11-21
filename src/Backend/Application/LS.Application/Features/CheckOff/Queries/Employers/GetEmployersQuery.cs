@@ -16,7 +16,7 @@ internal sealed class GetEmployersQueryHandler(
 {
     public async Task<AppResponse<List<EmployerResponse>>> Handle(GetEmployersQuery request, CancellationToken cancellationToken)
     {
-        var employers = await unitOfWork.Employers.ListAsync(
+        var employers = await unitOfWork.EmployerRepository.ListAsync(
             q => q.OrderBy(e => e.Name),
             cancellationToken);
 

@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-21. Phases 0–2 are complete for review. Phase 3 follows review of Phase 2. Phases 3–7 remain pending.
+Status reviewed 2026-11-22. Phases 0–2 are on main. Phase 3 is complete for review. Phases 4–7 remain pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -133,13 +133,13 @@ Gate: focused unit plus PostgreSQL and SQL Server integration tests prove saved 
 
 ### Phase 3 - Repository And Unit Of Work Alignment
 
-1. Normalize Membership and Loans, then Banking, CheckOff, Dividends, IAM, and ControlPlane; verify HR, Accounting, and Shared as well.
-2. Replace all 39 raw properties with named repository contracts; fix all 33 missing suffixes. Reuse existing named implementations before creating thin ones.
-3. Update constructor injection, registrations, handlers/services/jobs, mocks, and integration fixtures in each context-sized PR. Move misplaced UoW implementations.
-4. Inventory custom repository methods; retain justified persistence behavior and replace generic CRUD duplication with inherited methods/specifications. Preserve accepted IAM lifecycle and runtime lookup routing exceptions.
-5. Check references, context ownership, cancellation, filters, and commits across all consumers, including non-MediatR writers.
+1. [x] Normalize Membership and Loans, then Banking, CheckOff, Dividends, IAM and ControlPlane. Verify HR, Accounting and Shared.
+2. [x] Replace all 39 raw properties with named repository contracts and fix all 33 missing suffixes. Reuse the existing Membership implementations.
+3. [x] Update DI, handlers, jobs, consumers, mocks and provider fixtures. Move misplaced Unit of Work implementations.
+4. [x] Replace generic Accounting and IAM wrappers with inherited repository methods. Retain specialized aggregate, security lifecycle, sequence and runtime routing operations.
+5. [x] Verify context ownership, scoped registration, cancellation and existing persistence behavior across both providers.
 
-Gate: zero raw generic UoW properties or unsuffixed repository properties outside individually documented legitimate exceptions; no generic repository construction in UoW; DI resolves all contexts; provider regression tests pass.
+**Complete for review.** All 103 Phase 3 findings were removed from the exact debt register. DI resolves repositories for all ten bounded contexts under SQL Server and PostgreSQL configuration. API build, 84 architecture checks, 43 unit tests and 163 default integration tests passed locally. The opt-in RabbitMQ test passed separately. See the [Phase 3 verification report](phase-3-verification.md) for evidence and the PR for the required CI gate.
 
 ### Phase 4 - AppResponse And Business Failure Alignment
 
@@ -219,7 +219,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 0: Git bootstrap and baseline (PR #1; failing source baseline captured, merge gate verified)
 - [x] Phase 1: Standards and regression controls (all four items complete; see [Phase 1 evidence](phase-1-verification.md). Legacy remediation remains assigned to later phases.)
 - [x] Phase 2: Persistence/financial correctness (all five items complete; see [Phase 2 evidence](phase-2-verification.md).)
-- [ ] Phase 3: Repository/UoW alignment
+- [x] Phase 3: Repository/UoW alignment ([verification report](phase-3-verification.md))
 - [ ] Phase 4: AppResponse alignment
 - [ ] Phase 5: Behaviours and caching
 - [ ] Phase 6: Validators and slice layout

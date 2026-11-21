@@ -66,7 +66,7 @@ internal class PostBosaTransactionCommandHandler(
             "System"
         );
 
-        await _unitOfWork.MemberTransactions.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.MemberTransactionRepository.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.MemberAccountRepository.UpdateAsync(account, cancellationToken).ConfigureAwait(false);
 
         // Raise integration event

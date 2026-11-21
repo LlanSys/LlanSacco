@@ -16,7 +16,7 @@ internal class GetSavingsProductsQueryHandler(IBankingUnitOfWork unitOfWork)
 {
     public async Task<AppResponse<List<SavingsProductResponse>>> Handle(GetSavingsProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await unitOfWork.SavingsProducts.ListAsync(q => 
+        var products = await unitOfWork.SavingsProductRepository.ListAsync(q =>
         {
             var query = q;
             if (request.OnlyActive)

@@ -16,8 +16,8 @@ internal class GetDividendDeclarationsQueryHandler(
 {
     public async Task<AppResponse<IEnumerable<DividendDeclarationDto>>> Handle(GetDividendDeclarationsQuery request, CancellationToken cancellationToken)
     {
-        var declarations = await uow.DividendDeclarations.ListAsync(ct: cancellationToken);
-        var totals = await uow.DividendCalculations.ListAsync(q => q.GroupBy(c => c.DeclarationId).Select(g => new { Id = g.Key, Total = g.Sum(c => c.NetPayout) }), cancellationToken);
+        var declarations = await uow.DividendDeclarationRepository.ListAsync(ct: cancellationToken);
+        var totals = await uow.DividendCalculationRepository.ListAsync(q => q.GroupBy(c => c.DeclarationId).Select(g => new { Id = g.Key, Total = g.Sum(c => c.NetPayout) }), cancellationToken);
         var totalsByDeclaration = totals.ToDictionary(t => t.Id, t => t.Total);
 
         var dtos = declarations.Select(d => new DividendDeclarationDto

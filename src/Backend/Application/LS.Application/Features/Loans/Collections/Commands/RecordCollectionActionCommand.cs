@@ -29,7 +29,7 @@ internal class RecordCollectionActionCommandHandler(
     {
         var tenantId = tenantProvider.TenantId;
 
-        var collectionCase = await unitOfWork.CollectionCases.FindByIdAsync(request.CollectionCaseId, cancellationToken);
+        var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
             return AppResponses.Failure<Guid>(AppError.BusinessRule("Collection case not found"));
 
@@ -43,7 +43,7 @@ internal class RecordCollectionActionCommandHandler(
             CreatedBy = "System"
         };
 
-        await unitOfWork.CollectionActions.CreateAsync(action, cancellationToken);
+        await unitOfWork.CollectionActionRepository.CreateAsync(action, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         logger.LogInformation("Recorded collection action {ActionId} for case {CaseId}", action.Id, request.CollectionCaseId);

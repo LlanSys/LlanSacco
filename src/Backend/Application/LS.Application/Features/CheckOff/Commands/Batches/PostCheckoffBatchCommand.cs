@@ -35,7 +35,7 @@ internal sealed class PostCheckoffBatchCommandHandler(
         if (tenantId == Guid.Empty) return AppResponses.Failure<bool>(AppError.Forbidden("A tenant is required."));
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var batch = await unitOfWork.CheckoffBatches.FirstOrDefaultAsync(
+            var batch = await unitOfWork.CheckoffBatchRepository.FirstOrDefaultAsync(
                 b => b.TenantId == tenantId && b.Id == request.BatchId, cancellationToken);
 
             if (batch == null)
@@ -47,7 +47,7 @@ internal sealed class PostCheckoffBatchCommandHandler(
                 return AppResponses.Failure<bool>($"Batch is in status '{batch.Status}', cannot post. Batch must be Validated.");
 
             batch.Status = CheckoffBatchStatus.Posting;
-            await unitOfWork.CheckoffBatches.UpdateAsync(batch, cancellationToken);
+            await unitOfWork.CheckoffBatchRepository.UpdateAsync(batch, cancellationToken);
             await publisher.PublishAsync(new CheckoffPostingRequested(tenantId, batch.Id, actorProvider.ActorId), cancellationToken);
             return AppResponses.Success("Batch posting accepted.", true);
         }, cancellationToken);

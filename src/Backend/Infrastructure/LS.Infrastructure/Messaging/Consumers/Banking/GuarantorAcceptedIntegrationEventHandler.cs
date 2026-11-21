@@ -20,7 +20,7 @@ public class GuarantorAcceptedIntegrationEventHandler(
             message.GuarantorMemberId, message.LockedAmount);
 
         // Find the savings account
-        var accounts = await bankingUnitOfWork.SavingsAccounts.ListAsync(q => q.Where(x => x.MemberId == message.GuarantorMemberId), context.CancellationToken);
+        var accounts = await bankingUnitOfWork.SavingsAccountRepository.ListAsync(q => q.Where(x => x.MemberId == message.GuarantorMemberId), context.CancellationToken);
         var savingsAccount = accounts.FirstOrDefault();
 
         if (savingsAccount == null)
@@ -30,7 +30,7 @@ public class GuarantorAcceptedIntegrationEventHandler(
         }
 
         savingsAccount.LockedFunds += message.LockedAmount;
-        await bankingUnitOfWork.SavingsAccounts.UpdateAsync(savingsAccount, context.CancellationToken);
+        await bankingUnitOfWork.SavingsAccountRepository.UpdateAsync(savingsAccount, context.CancellationToken);
         await bankingUnitOfWork.CompleteAsync(context.CancellationToken);
 
         logger.LogInformation("Successfully locked {LockedAmount} on savings account {SavingsAccountId} for Guarantor {GuarantorMemberId}.", 

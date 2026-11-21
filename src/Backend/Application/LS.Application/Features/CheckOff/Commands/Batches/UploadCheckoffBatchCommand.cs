@@ -43,7 +43,7 @@ internal sealed class UploadCheckoffBatchCommandHandler(
     {
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var employer = await unitOfWork.Employers.FirstOrDefaultAsync(
+            var employer = await unitOfWork.EmployerRepository.FirstOrDefaultAsync(
                 e => e.Id == request.EmployerId, cancellationToken);
 
             if (employer == null)
@@ -59,7 +59,7 @@ internal sealed class UploadCheckoffBatchCommandHandler(
                 request.Rows.Sum(r => r.Amount),
                 "System");
 
-            await unitOfWork.CheckoffBatches.CreateAsync(batch, cancellationToken);
+            await unitOfWork.CheckoffBatchRepository.CreateAsync(batch, cancellationToken);
 
             foreach (var rowDto in request.Rows)
             {
@@ -73,7 +73,7 @@ internal sealed class UploadCheckoffBatchCommandHandler(
                     0m, // Loans
                     "System");
 
-                await unitOfWork.CheckoffStagingRows.CreateAsync(row, cancellationToken);
+                await unitOfWork.CheckoffStagingRowRepository.CreateAsync(row, cancellationToken);
             }
 
             return new AppResponse<Guid>(batch.Id, "Check-off batch uploaded successfully and is pending validation.");

@@ -47,8 +47,8 @@ internal sealed partial class ApplyForLoanCommandHandler(
         var appNumber = $"LN-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
 
         // Fetch member's savings and shares
-        var savingsAccounts = await bankingUnitOfWork.SavingsAccounts.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
-        var shareAccounts = await bankingUnitOfWork.ShareAccounts.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
+        var savingsAccounts = await bankingUnitOfWork.SavingsAccountRepository.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
+        var shareAccounts = await bankingUnitOfWork.ShareAccountRepository.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
 
         decimal totalSavings = 0;
         foreach (var acc in savingsAccounts) totalSavings += acc.Balance;

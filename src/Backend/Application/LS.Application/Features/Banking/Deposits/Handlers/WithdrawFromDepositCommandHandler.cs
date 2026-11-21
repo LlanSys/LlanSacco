@@ -20,7 +20,7 @@ internal class WithdrawFromDepositCommandHandler(
     {
         var request = command.Request;
 
-        var account = await unitOfWork.DepositAccounts.FindByIdAsync(command.AccountId, cancellationToken);
+        var account = await unitOfWork.DepositAccountRepository.FindByIdAsync(command.AccountId, cancellationToken);
             
         if (account == null)
         {
@@ -37,7 +37,7 @@ internal class WithdrawFromDepositCommandHandler(
             return AppResponses.Failure<DepositTransactionResponse>("Insufficient balance for withdrawal.");
         }
 
-        var product = await unitOfWork.DepositProducts.FindByIdAsync(account.DepositProductId, cancellationToken);
+        var product = await unitOfWork.DepositProductRepository.FindByIdAsync(account.DepositProductId, cancellationToken);
         if (product == null)
         {
             return AppResponses.Failure<DepositTransactionResponse>("Deposit product associated with this account not found.");
@@ -69,7 +69,7 @@ internal class WithdrawFromDepositCommandHandler(
                     "Early Withdrawal Flat Penalty",
                     actorProvider.ActorId.ToString()
                 );
-                await unitOfWork.DepositTransactions.CreateAsync(penaltyTx, cancellationToken);
+                await unitOfWork.DepositTransactionRepository.CreateAsync(penaltyTx, cancellationToken);
             }
             else if (strategy == EarlyWithdrawalPenaltyStrategy.InterestForfeiture && product.InterestForfeiturePercentage.HasValue)
             {
@@ -86,7 +86,7 @@ internal class WithdrawFromDepositCommandHandler(
                     $"Early Withdrawal Interest Forfeiture: {forfeitedAmount}",
                     actorProvider.ActorId.ToString()
                 );
-                await unitOfWork.DepositTransactions.CreateAsync(penaltyTx, cancellationToken);
+                await unitOfWork.DepositTransactionRepository.CreateAsync(penaltyTx, cancellationToken);
             }
             else if (strategy == EarlyWithdrawalPenaltyStrategy.ProRataInterestReduction && product.ProRataReducedInterestRate.HasValue)
             {
@@ -107,7 +107,7 @@ internal class WithdrawFromDepositCommandHandler(
                         $"Early Withdrawal ProRata Interest Reduction: {forfeitedAmount}",
                         actorProvider.ActorId.ToString()
                     );
-                    await unitOfWork.DepositTransactions.CreateAsync(penaltyTx, cancellationToken);
+                    await unitOfWork.DepositTransactionRepository.CreateAsync(penaltyTx, cancellationToken);
                 }
             }
         }
@@ -125,8 +125,8 @@ internal class WithdrawFromDepositCommandHandler(
             actorProvider.ActorId.ToString()
         );
 
-        await unitOfWork.DepositTransactions.CreateAsync(transaction, cancellationToken);
-        await unitOfWork.DepositAccounts.UpdateAsync(account, cancellationToken);
+        await unitOfWork.DepositTransactionRepository.CreateAsync(transaction, cancellationToken);
+        await unitOfWork.DepositAccountRepository.UpdateAsync(account, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         var response = new DepositTransactionResponse(

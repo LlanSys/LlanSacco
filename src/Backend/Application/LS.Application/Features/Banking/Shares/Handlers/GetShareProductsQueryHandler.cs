@@ -13,7 +13,7 @@ internal class GetShareProductsQueryHandler(
 {
     public async Task<AppResponse<IEnumerable<ShareProductResponse>>> Handle(GetShareProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await unitOfWork.ShareProducts.ListAsync(q =>
+        var products = await unitOfWork.ShareProductRepository.ListAsync(q =>
         {
             if (!request.IncludeInactive)
                 q = q.Where(x => x.IsActive);

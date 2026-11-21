@@ -24,21 +24,21 @@ internal sealed class GetCheckoffBatchDetailsQueryHandler(
 {
     public async Task<AppResponse<CheckoffBatchDetailsResponse>> Handle(GetCheckoffBatchDetailsQuery request, CancellationToken cancellationToken)
     {
-        var batch = await unitOfWork.CheckoffBatches.FirstOrDefaultAsync(
+        var batch = await unitOfWork.CheckoffBatchRepository.FirstOrDefaultAsync(
             b => b.Id == request.BatchId, cancellationToken);
 
         if (batch == null)
             return AppResponses.NotFound<CheckoffBatchDetailsResponse>($"Batch with ID '{request.BatchId}' not found.");
 
-        var employer = await unitOfWork.Employers.FirstOrDefaultAsync(
+        var employer = await unitOfWork.EmployerRepository.FirstOrDefaultAsync(
             e => e.Id == batch.EmployerId, cancellationToken);
 
-        var rows = await unitOfWork.CheckoffStagingRows.ListAsync(
+        var rows = await unitOfWork.CheckoffStagingRowRepository.ListAsync(
             q => q.Where(r => r.CheckoffBatchId == batch.Id), cancellationToken);
 
         var rowIds = rows.Select(r => r.Id).ToList();
 
-        var allocations = await unitOfWork.CheckoffStagingLoanAllocations.ListAsync(
+        var allocations = await unitOfWork.CheckoffStagingLoanAllocationRepository.ListAsync(
             q => q.Where(a => rowIds.Contains(a.CheckoffStagingRowId)), cancellationToken);
 
         var rowResponses = rows.Select(r => new CheckoffStagingRowResponse(

@@ -10,11 +10,6 @@ public class AccountRepository(AccountingDBContext context) : Repository<Account
 {
     private readonly AccountingDBContext _context = context;
 
-    public async Task<Account?> GetByCodeAsync(string accountCode, CancellationToken cancellationToken = default)
-    {
-        return await FirstOrDefaultAsync(a => a.AccountCode == accountCode, cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<Dictionary<Guid, decimal>> GetAccountBalancesAsync(DateTimeOffset asOfDate, CancellationToken cancellationToken = default)
     {
         return await _context.Set<JournalLine>()

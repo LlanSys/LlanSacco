@@ -15,7 +15,7 @@ internal class GetDepositProductsQueryHandler(IBankingUnitOfWork unitOfWork)
 {
     public async Task<AppResponse<System.Collections.Generic.IEnumerable<DepositProductResponse>>> Handle(GetDepositProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await unitOfWork.DepositProducts.ListAsync(ct: cancellationToken);
+        var products = await unitOfWork.DepositProductRepository.ListAsync(ct: cancellationToken);
 
         var response = products.Select(p => new DepositProductResponse(
             p.Id,

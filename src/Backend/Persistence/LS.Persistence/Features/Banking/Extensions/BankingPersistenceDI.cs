@@ -1,3 +1,11 @@
+using LS.Persistence.Features.Banking.FOSA.Repositories;
+using LS.Persistence.Features.Banking.Deposits.Repositories;
+using LS.Persistence.Features.Banking.Savings.Repositories;
+using LS.Persistence.Features.Banking.Shares.Repositories;
+using LS.Domain.Features.Banking.FOSA.Contracts.Repositories;
+using LS.Domain.Features.Banking.Deposits.Contracts.Repositories;
+using LS.Domain.Features.Banking.Savings.Contracts.Repositories;
+using LS.Domain.Features.Banking.Shares.Contracts.Repositories;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using LS.Persistence.Features.Banking.DataContext;
@@ -60,7 +68,21 @@ public static class BankingPersistenceDI
             services.AddDbContext<BankingDBContext, BankingSqlServerDBContext>(ConfigureDbContextOptions);
         }
 
-        services.AddScoped<LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository, Repositories.FOSA.VaultTransferRepository>();
+        services.AddScoped<IVaultTransferRepository, VaultTransferRepository>();
+        services.AddScoped<IShareProductRepository, ShareProductRepository>();
+        services.AddScoped<IShareAccountRepository, ShareAccountRepository>();
+        services.AddScoped<IShareTransactionRepository, ShareTransactionRepository>();
+        services.AddScoped<ISavingsProductRepository, SavingsProductRepository>();
+        services.AddScoped<ISavingsAccountRepository, SavingsAccountRepository>();
+        services.AddScoped<ISavingsTransactionRepository, SavingsTransactionRepository>();
+        services.AddScoped<IDepositProductRepository, DepositProductRepository>();
+        services.AddScoped<IDepositAccountRepository, DepositAccountRepository>();
+        services.AddScoped<IDepositTransactionRepository, DepositTransactionRepository>();
+        services.AddScoped<IFosaAccountRepository, FosaAccountRepository>();
+        services.AddScoped<IFosaTransactionRepository, FosaTransactionRepository>();
+        services.AddScoped<ITellerTillRepository, TellerTillRepository>();
+        services.AddScoped<ITillBalancingRecordRepository, TillBalancingRecordRepository>();
+        services.AddScoped<IVaultRepository, VaultRepository>();
         services.AddScoped<IBankingUnitOfWork, BankingUnitOfWork>();
 
         return services;

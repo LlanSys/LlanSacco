@@ -30,14 +30,14 @@ public class UpdateTenantCommandHandler(
     public async Task<AppResponse<TenantResponse>> Handle(UpdateTenantCommand request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
-        var tenant = await _unitOfWork.Tenants.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
+        var tenant = await _unitOfWork.TenantRepository.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
 
         if (tenant == null)
         {
             return AppResponses.Failure<TenantResponse>("Tenant not found.");
         }
 
-        var duplicateHostName = await _unitOfWork.Tenants.AnyAsync(t => t.HostName == request.Request.HostName && t.Id != request.Id, cancellationToken).ConfigureAwait(false);
+        var duplicateHostName = await _unitOfWork.TenantRepository.AnyAsync(t => t.HostName == request.Request.HostName && t.Id != request.Id, cancellationToken).ConfigureAwait(false);
 
         if (duplicateHostName)
         {
@@ -75,7 +75,7 @@ public class UpdateTenantCommandHandler(
         tenant.UpdatedAt = DateTimeOffset.UtcNow;
         tenant.UpdatedBy = _actorProvider.ActorId;
 
-        await _unitOfWork.Tenants.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.TenantRepository.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         ControlPlaneLogDefinitions.LogTenantUpdated(_logger, tenant.Id, tenant.Identifier);

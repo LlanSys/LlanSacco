@@ -8,9 +8,9 @@ namespace LS.Domain.Features.ControlPlane.Contracts;
 
 public interface IControlPlaneUnitOfWork : IDisposable, IAsyncDisposable
 {
-    ITenantRepository Tenants { get; }
-    IDeploymentStampRepository DeploymentStamps { get; }
-    IImpersonationRecordRepository ImpersonationRecords { get; }
+    ITenantRepository TenantRepository { get; }
+    IDeploymentStampRepository DeploymentStampRepository { get; }
+    IImpersonationRecordRepository ImpersonationRecordRepository { get; }
     
     Task<int> CompleteAsync(CancellationToken cancellationToken = default);
 }

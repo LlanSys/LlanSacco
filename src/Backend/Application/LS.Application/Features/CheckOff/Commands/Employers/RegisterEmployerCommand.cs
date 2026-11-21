@@ -34,7 +34,7 @@ internal sealed class RegisterEmployerCommandHandler(
     {
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var existingEmployer = await unitOfWork.Employers.FirstOrDefaultAsync(
+            var existingEmployer = await unitOfWork.EmployerRepository.FirstOrDefaultAsync(
                 e => e.Name == request.Name, cancellationToken);
 
             if (existingEmployer != null)
@@ -50,7 +50,7 @@ internal sealed class RegisterEmployerCommandHandler(
                 request.PhoneNumber,
                 "System"); // CreatedBy
 
-            await unitOfWork.Employers.CreateAsync(employer, cancellationToken);
+            await unitOfWork.EmployerRepository.CreateAsync(employer, cancellationToken);
 
             // Let BaseUnitOfWork handle the SaveChanges inside ExecuteInTransactionAsync
             return new AppResponse<Guid>(employer.Id, "Employer registered successfully.");

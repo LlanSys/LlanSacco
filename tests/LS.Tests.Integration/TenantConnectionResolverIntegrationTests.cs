@@ -91,7 +91,7 @@ public class TenantConnectionResolverIntegrationTests
                 DatabaseConnectionString = encryptionMock.Encrypt(distinctConnectionString), // Encrypted!
                 TargetResourceGroup = "TestRG"
             };
-            await uow.DeploymentStamps.CreateAsync(stamp);
+            await uow.DeploymentStampRepository.CreateAsync(stamp);
             
             var tenant = new Tenant
             {
@@ -104,7 +104,7 @@ public class TenantConnectionResolverIntegrationTests
                 CreatedBy = "System",
                 SubscriptionTier = SubscriptionTier.Enterprise
             };
-            await uow.Tenants.CreateAsync(tenant);
+            await uow.TenantRepository.CreateAsync(tenant);
             await uow.CompleteAsync();
         }
 

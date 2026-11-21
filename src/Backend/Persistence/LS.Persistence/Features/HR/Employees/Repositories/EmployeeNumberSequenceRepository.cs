@@ -1,3 +1,4 @@
+using LS.Persistence.Common.Repositories;
 using LS.Domain.Features.HR.Employees.Contracts.Repositories;
 using LS.Domain.Features.HR.Employees.Entities;
 using LS.Persistence.Features.HR.DataContext;
@@ -7,7 +8,7 @@ using System.Data;
 
 namespace LS.Persistence.Features.HR.Employees.Repositories;
 
-internal sealed class EmployeeNumberSequenceRepository(HrDBContext context) : IEmployeeNumberSequenceRepository
+internal sealed class EmployeeNumberSequenceRepository(HrDBContext context) : Repository<EmployeeNumberSequence>(context), IEmployeeNumberSequenceRepository
 {
     public async Task<int> AllocateNextAsync(Guid departmentId, int year, CancellationToken cancellationToken)
     {

@@ -56,7 +56,7 @@ internal sealed class TenantConnectionResolver(
         using var scope = _serviceProvider.CreateScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
 
-        var tenant = await unitOfWork.Tenants.FindByIdAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        var tenant = await unitOfWork.TenantRepository.FindByIdAsync(tenantId, cancellationToken).ConfigureAwait(false);
         if (tenant == null)
         {
             return null;
@@ -72,7 +72,7 @@ internal sealed class TenantConnectionResolver(
         }
         else
         {
-            var stamp = await unitOfWork.DeploymentStamps.FindByIdAsync(tenant.DeploymentStampId, cancellationToken).ConfigureAwait(false);
+            var stamp = await unitOfWork.DeploymentStampRepository.FindByIdAsync(tenant.DeploymentStampId, cancellationToken).ConfigureAwait(false);
             if (stamp != null && !string.IsNullOrEmpty(stamp.DatabaseConnectionString))
             {
                 resolvedConnectionString = _encryptionService.Decrypt(stamp.DatabaseConnectionString);

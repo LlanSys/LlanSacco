@@ -173,6 +173,104 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             => publisher.Publish(message, cancellationToken);
     }
 
+    private sealed class LogoutCommitFault(string mode, CancellationTokenSource cancellation) : SaveChangesInterceptor
+    {
+        public int Attempts { get; private set; }
+        public override ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result,
+            CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<LS.Domain.Features.IAM.Users.Entities.RefreshToken>()
+                .Any(e => e.Entity.RevokedAt != null))
+            {
+                Attempts++;
+                // Fault after SQL has executed, before the owning transaction commits.
+                if (mode == "failure") throw new InvalidOperationException("Injected logout commit failure.");
+                if (mode == "retry" && Attempts == 1) throw new DbUpdateConcurrencyException("Injected logout conflict.");
+                if (mode == "cancel") { cancellation.Cancel(); cancellationToken.ThrowIfCancellationRequested(); }
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("failure")]
+    [InlineData("retry")]
+    [InlineData("cancel")]
+    [InlineData("foreign-session")]
+    [InlineData("repeat")]
+    public async Task Logout_revokes_owned_session_and_tokens_under_one_commit(string mode)
+    {
+        var tenant = new Tenant();
+        using var cancellation = new CancellationTokenSource();
+        var fault = new LogoutCommitFault(mode, cancellation);
+        var options = new DbContextOptionsBuilder<LS.Persistence.Features.IAM.DataContext.IamDBContext>(
+            Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>()).AddInterceptors(fault).Options;
+        await using var db = new LS.Persistence.Features.IAM.DataContext.IamDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var user = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "logout-test", "Test", "User", "logout@example.test", "+254700000000", new Actor().ActorId);
+        var otherUser = LS.Domain.Features.IAM.Users.Entities.AppUser.Create(tenant.TenantId, null, "logout-other", "Other", "User", "other@example.test", "+254700000001", new Actor().ActorId);
+        var session = LS.Domain.Features.IAM.Users.Entities.AppUserSession.Create(Guid.CreateVersion7(), user.Id, "127.0.0.1", "test", DateTimeOffset.UtcNow.AddHours(1), user.Id);
+        var otherSession = LS.Domain.Features.IAM.Users.Entities.AppUserSession.Create(Guid.CreateVersion7(), otherUser.Id, "127.0.0.1", "test", DateTimeOffset.UtcNow.AddHours(1), otherUser.Id);
+        var token = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(user.Id, "logout-token", DateTimeOffset.UtcNow.AddHours(1), user.Id);
+        var otherToken = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(otherUser.Id, "other-token", DateTimeOffset.UtcNow.AddHours(1), otherUser.Id);
+        db.AddRange(user, otherUser, session, otherSession, token, otherToken);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
+        services.AddAuthentication();
+        services.AddHttpContextAccessor();
+        services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
+            .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
+            .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>().AddSignInManager();
+        foreach (var contract in typeof(LS.Domain.Features.IAM.Contracts.IIamUnitOfWork).GetProperties().Select(p => p.PropertyType).Where(t => !t.IsGenericType))
+        {
+            var implementation = typeof(LS.Persistence.Features.IAM.IamUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
+        services.AddScoped<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork, LS.Persistence.Features.IAM.IamUnitOfWork>();
+        var publisher = Substitute.For<IPublisher>();
+        services.AddSingleton(publisher);
+        var auth = Substitute.For<Microsoft.AspNetCore.Authentication.IAuthenticationService>();
+        var cookieSignOuts = 0;
+        auth.When(a => a.SignOutAsync(Arg.Any<Microsoft.AspNetCore.Http.HttpContext>(), Arg.Any<string>(),
+            Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>()))
+            .Do(_ => { Assert.Null(db.Database.CurrentTransaction); cookieSignOuts++; });
+        services.AddSingleton(auth);
+        await using var provider = services.BuildServiceProvider();
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = provider };
+        http.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id)], "test"));
+        http.Request.Headers["X-Session-Id"] = (mode == "foreign-session" ? otherSession.Id : session.Id).ToString();
+        provider.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext = http;
+        var handlerType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType("LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.Logout")!;
+        var handler = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.LogoutCommand, AppResponse<bool>>)ActivatorUtilities.CreateInstance(provider, handlerType);
+        var command = new LS.Application.Features.IAM.Users.Commands.LogoutCommand();
+        if (mode == "failure") await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
+        else if (mode == "cancel") await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
+        else Assert.True((await handler.Handle(command, cancellation.Token)).IsSuccess);
+        if (mode == "repeat") Assert.True((await handler.Handle(command, cancellation.Token)).IsSuccess);
+        var committed = mode is not ("failure" or "cancel");
+        Assert.Equal(committed ? mode == "repeat" ? 2 : 1 : 0, cookieSignOuts);
+        if (committed)
+            await publisher.Received(mode == "repeat" ? 2 : 1).Publish(
+                Arg.Is<LS.Domain.Features.IAM.Users.Events.UserLogoutEvent>(e => e.AppUserId == user.Id
+                    && e.SessionId == (mode == "foreign-session" ? null : session.Id.ToString())), Arg.Any<CancellationToken>());
+        if (!committed)
+        {
+            Assert.Empty(db.ChangeTracker.Entries());
+            await provider.GetRequiredService<LS.Domain.Features.IAM.Contracts.IIamUnitOfWork>().CompleteAsync();
+            await publisher.DidNotReceive().Publish(Arg.Any<LS.Domain.Features.IAM.Users.Events.UserLogoutEvent>(), Arg.Any<CancellationToken>());
+        }
+        await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
+        Assert.Equal(committed && mode != "foreign-session", (await verify.AppUserSessions.SingleAsync(s => s.Id == session.Id)).IsRevoked);
+        Assert.Equal(committed, (await verify.RefreshTokens.SingleAsync(t => t.Id == token.Id)).RevokedAt.HasValue);
+        Assert.False((await verify.AppUserSessions.SingleAsync(s => s.Id == otherSession.Id)).IsRevoked);
+        Assert.Null((await verify.RefreshTokens.SingleAsync(t => t.Id == otherToken.Id)).RevokedAt);
+        Assert.Equal(mode == "retry" ? 2 : mode == "repeat" ? 2 : 1, fault.Attempts);
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

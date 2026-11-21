@@ -100,9 +100,9 @@ internal sealed class IamTokenRepository(IamDBContext context) : Repository<Refr
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public async Task RevokeAllUserTokensAsync(string userId, string reason, string? revokedByIp = null)
+    public async Task RevokeAllUserTokensAsync(string userId, string reason, string? revokedByIp = null, CancellationToken cancellationToken = default)
     {
-        var activeTokens = await GetActiveTokensByUserIdAsync(userId).ConfigureAwait(false);
+        var activeTokens = await GetActiveTokensByUserIdAsync(userId, cancellationToken).ConfigureAwait(false);
         if (!activeTokens.Any()) return;
 
         foreach (var token in activeTokens)

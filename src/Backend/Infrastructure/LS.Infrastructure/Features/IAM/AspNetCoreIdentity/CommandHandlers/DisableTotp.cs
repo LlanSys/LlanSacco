@@ -59,7 +59,7 @@ internal sealed class DisableTotp(
             {
                 await userManager.UpdateSecurityStampAsync(user).ConfigureAwait(false);
                 await iamUnitOfWork.TokenRepository
-                    .RevokeAllUserTokensAsync(user.Id, "MFA disabled for MFA-required account")
+                    .RevokeAllUserTokensAsync(user.Id, "MFA disabled for MFA-required account", cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
 
                 var activeSessions = await iamUnitOfWork.SessionRepository

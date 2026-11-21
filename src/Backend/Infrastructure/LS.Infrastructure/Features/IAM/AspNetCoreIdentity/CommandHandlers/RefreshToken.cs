@@ -112,7 +112,7 @@ internal sealed class RefreshToken(
                 SecurityLogDefinitions.LogSecurityEvent(logger, "TokenReuseDetected", userId, "Already used refresh token attempted");
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
-                    await iamUnitOfWork.TokenRepository.RevokeAllUserTokensAsync(userId, "Token reuse detected").ConfigureAwait(false);
+                    await iamUnitOfWork.TokenRepository.RevokeAllUserTokensAsync(userId, "Token reuse detected", cancellationToken: cancellationToken).ConfigureAwait(false);
                     return true;
                 }, cancellationToken: cancellationToken).ConfigureAwait(false);
 

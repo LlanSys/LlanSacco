@@ -49,7 +49,7 @@ internal sealed class RevokeEmployeeSystemAccess(
 
             await sessionService.RevokeAllUserSessionsAsync(user.Id, null, cancellationToken).ConfigureAwait(false);
             await iamUnitOfWork.TokenRepository
-                .RevokeAllUserTokensAsync(user.Id, "Employee system access revoked")
+                .RevokeAllUserTokensAsync(user.Id, "Employee system access revoked", cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 

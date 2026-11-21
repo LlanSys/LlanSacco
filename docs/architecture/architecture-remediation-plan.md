@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed: 2026-11-10, including the password-login and session transaction follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
+Status reviewed: 2026-11-21, including the logout transaction follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -9,6 +9,8 @@ Repository: https://github.com/LlanSys/LlanSacco
 Restore the documented modular monolith, Clean Architecture, feature ownership, generic repository/Unit of Work, AppResponse, validation, and MediatR pipeline conventions. Establish a protected PR workflow with executable architecture checks. Preserve existing features and user changes; correct runtime defects before treating naming cleanup as complete.
 
 AGENTS.md remains canonical. The user's September 10 instructions explicitly refine the contract: feature-specific repository interfaces and Repository property suffixes; separate validator files; operation-named files containing the command and handler by default. Phase 1 reconciled these rules with the canonical docs and regression tests; existing implementation debt remains assigned to the later phases. BaseTemplate is a reference, not authority over these instructions: its current checkout also contains exceptions and inherited weaknesses.
+
+Platform alignment direction (2026-11-21): continue improving the existing LlanSacco application, preserving its SACCO workflows, data, migrations and identities. Selectively adopt the verified platform improvements from [StarterTemplate PR #12](https://github.com/LlanSys/starter-template/pull/12), merged on 2026-11-20. Replacing LlanSacco with a fresh clone would not close the recovery and isolation gates below.
 
 ## 2. Verified Starting Point
 
@@ -118,7 +120,9 @@ Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved 
 - [x] Commit IAM user creation, role assignment and profile creation together, using the current tenant/actor and an explicit commit predicate. Provider tests verify role-result rejection, profile-save failure, retry and cancellation without compensating deletion. Remove the redundant save in the email-OTP retry callback.
 - [x] Commit password-login session changes, login metadata and refresh tokens together; issue the authentication cookie after commit with the password authentication claim. Verify failure, retry, cancellation, JWT rejection, MFA and wrong-password cases on both providers.
 - [x] Make standalone session replacement atomic so a failed replacement preserves previous active sessions; expose an explicitly staged device-session operation for callers that own the transaction.
-- [ ] Finish the wider IAM and cross-context mutation audit: email-OTP/TOTP completion, SSO, passkey and logout transaction boundaries, member-link validation and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
+- [x] Stage logout session and refresh-token revocation under one commit, constrain session lookup to its authenticated owner, and defer cookie sign-out until persistence succeeds. Initial 12 provider cases passed; the final notification adjustment still needs the rerun below.
+- [ ] Re-run the final logout provider cases (including verified-session notification payload) and full integration suite when Docker connectivity is restored.
+- [ ] Finish the wider IAM and cross-context mutation audit: email-OTP/TOTP completion, SSO and passkey transaction boundaries, member-link validation and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
 - [ ] Settle and test generic/Shared domain-event commit semantics. Financial outboxes do not settle every domain-event helper.
 - [x] Add separate provider migrations to rebuild the three accounting unique indexes. Upgrade tests reproduce existing non-unique indexes, prove successful repair and confirm duplicate journals cause rollback without data loss. No deployed database was migrated.
 

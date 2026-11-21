@@ -1,5 +1,4 @@
 using LS.Application.Features.IAM.Users.Commands;
-using LS.Application.Features.IAM.Users.Contracts.Interfaces;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Domain.Features.IAM.Users.Events;
@@ -16,7 +15,6 @@ namespace LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers;
 internal sealed class Logout(
     SignInManager<AppUser> signInManager,
     IHttpContextAccessor httpContextAccessor,
-    ISessionService sessionService,
     IIamUnitOfWork iamUnitOfWork,
     IPublisher publisher,
     ILogger<Logout> logger) : IRequestHandler<LogoutCommand, AppResponse<bool>>
@@ -29,28 +27,33 @@ internal sealed class Logout(
             var sessionId = httpContextAccessor.HttpContext?.Request.Headers["X-Session-Id"].FirstOrDefault()
                 ?? httpContextAccessor.HttpContext?.User?.FindFirstValue("session_id");
 
-            ServiceLogDefinitions.LogUserSignedOut(logger, userId ?? string.Empty);
-
-            await signInManager.SignOutAsync().ConfigureAwait(false);
-
+            string? revokedSessionId = null;
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                if (!string.IsNullOrWhiteSpace(sessionId))
-                {
-                    await sessionService.RevokeSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
-                }
-
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
+                    if (Guid.TryParse(sessionId, out var sessionGuid))
+                    {
+                        var session = await iamUnitOfWork.SessionRepository.FirstOrDefaultAsync(
+                            s => s.Id == sessionGuid && s.AppUserId == userId, cancellationToken).ConfigureAwait(false);
+                        revokedSessionId = session?.Id.ToString();
+                        if (session is not null && !session.IsRevoked)
+                        {
+                            session.Revoke("User signed out");
+                            await iamUnitOfWork.SessionRepository.UpdateAsync(session, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
                     await iamUnitOfWork.TokenRepository
-                        .RevokeAllUserTokensAsync(userId, "User signed out", httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString())
+                        .RevokeAllUserTokensAsync(userId, "User signed out", httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString(), cancellationToken)
                         .ConfigureAwait(false);
                     return true;
                 }, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-                await publisher.Publish(new UserLogoutEvent(userId, sessionId), cancellationToken).ConfigureAwait(false);
             }
 
+            await signInManager.SignOutAsync().ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(userId))
+                await publisher.Publish(new UserLogoutEvent(userId, revokedSessionId), cancellationToken).ConfigureAwait(false);
+            ServiceLogDefinitions.LogUserSignedOut(logger, userId ?? string.Empty);
             return AppResponses.Success("Signed out successfully", true);
         }
         catch (Exception ex)

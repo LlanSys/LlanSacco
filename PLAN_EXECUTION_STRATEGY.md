@@ -310,3 +310,5 @@ Follow [Architecture Remediation And Repository Governance Plan](docs/architectu
 
 
 Phase 0 and Phase 1 evidence is preserved in their reports. Phase 2 PR #3 remains a draft. Its current work adds context-owned outboxes, CheckOff worker/result corrections, payment and journal replay protection, migration-generator repairs and background tenant scope. The missing ApplyForLoanRequest is restored and Blazor builds locally. See docs/architecture/phase-2-verification.md for verified coverage and the remaining IAM retry, domain-event, recurring-job and end-to-end recovery checks. Phase 2 is not closed; Required / Remediation remains enforced.
+
+2026-11-21 direction: improve the established LlanSacco application incrementally using selected StarterTemplate platform improvements. Preserve SACCO workflows, migration history and application identities. StarterTemplate PR #12 is merged; LlanSacco still follows its own architecture-remediation gates. The current Phase 2 continuation addresses logout atomicity and records the preserved workspace dependency conflicts in docs/architecture/phase-2-verification.md.

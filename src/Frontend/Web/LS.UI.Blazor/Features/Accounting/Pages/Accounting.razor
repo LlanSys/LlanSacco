@@ -1,0 +1,157 @@
+@page "/accounting"
+
+@rendermode InteractiveServer
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IAuthSession AuthSession
+@inject IIamAdminService IamAdminService
+@inject IFinanceService FinanceService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Accounting | LlanSacco</PageTitle>
+
+<RequireAuthenticated>
+    <section class="dashboard-page">
+        @if (!_isReady)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="my-4" />
+        }
+        else
+        {
+            <div class="dashboard-hero compact-hero">
+                <div>
+                    <h1>Accounting Dashboard</h1>
+                    <MudText Typo="Typo.body2">Financial overview and workspace modules.</MudText>
+                </div>
+            </div>
+
+            @if (Stats != null)
+            {
+                <MudGrid Class="mb-6">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-primary" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Large" Class="mb-2" />
+                            <MudText Typo="Typo.h5" Class="fw-bold">@Stats.TotalAssets.ToString("C")</MudText>
+                            <MudText Typo="Typo.body1">Total Assets</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-error" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                            <MudIcon Icon="@Icons.Material.Filled.CreditCard" Size="Size.Large" Class="mb-2" />
+                            <MudText Typo="Typo.h5" Class="fw-bold">@Stats.TotalLiabilities.ToString("C")</MudText>
+                            <MudText Typo="Typo.body1">Total Liabilities</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-success" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Large" Class="mb-2" />
+                            <MudText Typo="Typo.h5" Class="fw-bold">@Stats.NetIncomeYtd.ToString("C")</MudText>
+                            <MudText Typo="Typo.body1">Net Income (YTD)</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudPaper Class="pa-4 d-flex flex-column align-center justify-center mud-theme-warning" Elevation="2" Style="border-radius: 12px; min-height: 140px;">
+                            <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Class="mb-2" />
+                            <MudText Typo="Typo.h4" Class="fw-bold">@Stats.PendingTransactions</MudText>
+                            <MudText Typo="Typo.body1">Pending Transactions</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudText Typo="Typo.h6" Class="mb-4 mt-6">Workspace</MudText>
+            <div class="admin-module-grid">
+                @foreach (var module in _modules)
+                {
+                    <MudPaper Class="admin-tile" Elevation="1" Style="border-radius: 12px;">
+                        <MudIcon Icon="@MenuIconMapper.Resolve(module.Icon)" Class="tile-icon" />
+                        <div>
+                            <strong>@module.Title</strong>
+                            <span>@module.Description</span>
+                        </div>
+                        <MudButton Href="@module.Url" Variant="Variant.Text" Class="bt-small-button" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Open
+                        </MudButton>
+                    </MudPaper>
+                }
+            </div>
+        }
+    </section>
+</RequireAuthenticated>
+
+@code {
+    private readonly List<MenuResponse> _modules = [];
+    private bool _isReady;
+    private AccountingDashboardStatsResponse? Stats { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await AuthSession.InitializeAsync();
+        if (AuthSession.IsAuthenticated)
+        {
+            await Task.WhenAll(LoadModulesAsync(), LoadStatsAsync());
+            _isReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadStatsAsync()
+    {
+        try
+        {
+            var response = await FinanceService.GetDashboardStatsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Stats = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load accounting statistics.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading accounting statistics: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadModulesAsync()
+    {
+        var response = await IamAdminService.GetNavigationMenusAsync("Accounting");
+        if (!response.IsSuccess || response.Data is null)
+        {
+            Snackbar.Add(response.Message ?? "We could not load accounting menus.", Severity.Error);
+            return;
+        }
+
+        _modules.Clear();
+        var allMenus = Flatten(response.Data);
+        _modules.AddRange(allMenus);
+    }
+
+    private static IEnumerable<MenuResponse> Flatten(IEnumerable<MenuResponse>? menus)
+    {
+        if (menus is null)
+        {
+            yield break;
+        }
+
+        foreach (var menu in menus)
+        {
+            yield return menu;
+            foreach (var child in Flatten(menu.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+}

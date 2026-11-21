@@ -1,0 +1,90 @@
+@page "/checkoff/batches"
+@using LS.SharedKernel.Features.CheckOff.Dtos
+@using LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces
+@using LS.UI.Blazor.Features.CheckOff.Components
+@inject ICheckOffService CheckOffService
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Checkoff Batches | LlanSacco</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Checkoff Batches</MudText>
+
+<MudTable Items="@Batches" Loading="@IsLoading" Hover="true" Breakpoint="Breakpoint.Sm" Striped="true" Elevation="1">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenUploadDialog" StartIcon="@Icons.Material.Filled.CloudUpload">
+            Upload Batch
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Reference</MudTh>
+        <MudTh>Employer</MudTh>
+        <MudTh>Period</MudTh>
+        <MudTh>Total Amount</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Uploaded</MudTh>
+        <MudTh Style="width: 100px;">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Reference">@context.BatchReference</MudTd>
+        <MudTd DataLabel="Employer">@context.EmployerName</MudTd>
+        <MudTd DataLabel="Period">@context.ProcessingPeriod.ToString("MMMM yyyy")</MudTd>
+        <MudTd DataLabel="Total Amount">@context.TotalAmount.ToString("N2")</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Uploaded">@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => ViewDetails(context.Id))">View</MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<CheckoffBatchResponse> Batches = new();
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBatches();
+    }
+
+    private async Task LoadBatches()
+    {
+        IsLoading = true;
+        var response = await CheckOffService.GetBatchesAsync();
+        if (response.IsSuccess && response.Data != null)
+        {
+            Batches = response.Data;
+        }
+        IsLoading = false;
+    }
+
+    private async Task OpenUploadDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UploadBatchDialog>("Upload Checkoff Batch", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadBatches();
+        }
+    }
+
+    private void ViewDetails(Guid batchId)
+    {
+        NavigationManager.NavigateTo($"/checkoff/batches/{batchId}");
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Warning,
+        "Validated" => Color.Info,
+        "Posting" => Color.Secondary,
+        "Processed" => Color.Success,
+        "Failed" => Color.Error,
+        _ => Color.Default
+    };
+}

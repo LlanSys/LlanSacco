@@ -1,0 +1,55 @@
+using LS.Domain.Features.HR.Employees.Contracts.Repositories;
+using LS.Domain.Features.IAM.Users.Contracts.Repositories;
+using LS.Domain.Shared.Contracts.Repositories;
+using LS.Domain.Features.IAM.Users.Entities;
+using LS.Persistence.Common.Repositories;
+using LS.Persistence.Features.IAM.DataContext;
+using LS.Persistence.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Collections.ObjectModel;
+
+namespace LS.Persistence.Features.IAM.Users.Repositories;
+
+internal sealed class IamAppUserTotpSecretRepository(IamDBContext context, ILogger<IamAppUserTotpSecretRepository> logger) : Repository<AppUserTotpSecret>(context), IAppUserTotpSecretRepository
+{
+    public async Task<AppUserTotpSecret?> GetByUserIdAsync(string userId)
+    {
+        return await FindByCondition(x => x.AppUserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync().ConfigureAwait(false);
+    }
+
+    public async Task<AppUserTotpSecret?> GetActiveSecretByUserIdAsync(string userId)
+    {
+        return await FindByCondition(x =>
+                x.AppUserId == userId &&
+                x.IsActive &&
+                (x.ExpiresAt == null || x.ExpiresAt > DateTimeOffset.UtcNow))
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync().ConfigureAwait(false);
+    }
+
+    public async Task<bool> DeactivateUserSecretsAsync(string userId)
+    {
+        try
+        {
+            var secrets = await FindByCondition(x => x.AppUserId == userId && x.IsActive)
+                .ToListAsync().ConfigureAwait(false);
+
+            foreach (var secret in secrets)
+            {
+                secret.Deactivate();
+            }
+
+            await UpdateRangeAsync(new Collection<AppUserTotpSecret>(secrets)).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PersistenceLogDefinitions.LogDeactivateUserTotpSecretsError(logger, userId, ex);
+            return false;
+        }
+    }
+}

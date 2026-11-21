@@ -1,0 +1,35 @@
+@inherits LayoutComponentBase
+
+<MudProviderHost />
+
+<div class="auth-split-layout">
+    <div class="auth-brand-section">
+        <!-- Brand image is applied via CSS background -->
+        <div class="auth-brand-overlay">
+            <div class="brand-lockup">
+                <div class="brand-mark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+                <strong>LlanSacco</strong>
+            </div>
+            <div class="brand-quote">
+                <h2>Empowering Financial Growth</h2>
+                <p>Enterprise-grade SACCO management platform built for modern financial operations and security.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="auth-form-section">
+        <main class="auth-page">
+            @Body
+        </main>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>

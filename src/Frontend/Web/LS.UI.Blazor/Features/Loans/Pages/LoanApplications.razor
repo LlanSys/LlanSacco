@@ -1,0 +1,174 @@
+@page "/loans/applications"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@inject SweetAlertService Swal
+@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+
+<PageTitle>Loan Applications - Control Plane</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h5">Loan Applications</MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/loans/apply">Apply for Loan</MudButton>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_applications" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+        <HeaderContent>
+            <MudTh>App #</MudTh>
+            <MudTh>Date</MudTh>
+            <MudTh>Member ID</MudTh>
+            <MudTh>Product ID</MudTh>
+            <MudTh>Principal</MudTh>
+            <MudTh>Term</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="App #">@context.ApplicationNumber</MudTd>
+            <MudTd DataLabel="Date">@context.ApplicationDate.ToString("yyyy-MM-dd")</MudTd>
+            <MudTd DataLabel="Member ID">@context.MemberId</MudTd>
+            <MudTd DataLabel="Product ID">@context.LoanProductId</MudTd>
+            <MudTd DataLabel="Principal">@context.PrincipalAmount.ToString("N2")</MudTd>
+            <MudTd DataLabel="Term">@context.TermInMonths mo</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.Status == "Submitted")
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Warning">Pending</MudChip>
+                }
+                else if (context.Status == "Approved")
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Approved</MudChip>
+                }
+                else if (context.Status == "Rejected")
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Rejected</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Info">@context.Status.ToString()</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                @if (context.Status == "Submitted")
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => RejectApplication(context))">Reject</MudButton>
+                }
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<LoanApplicationResponse> _applications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApplications();
+    }
+
+    private async Task LoadApplications()
+    {
+        _isLoading = true;
+        try
+        {
+            var response = await LoanService.GetLoanApplicationsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                _applications = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load applications.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ApproveApplication(LoanApplicationResponse app)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Approve Loan?",
+            Text = $"Are you sure you want to approve application {app.ApplicationNumber} for {app.PrincipalAmount:N2}?",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, approve it!",
+            CancelButtonText = "Cancel"
+        });
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            var response = await LoanService.ApproveLoanAsync(app.Id);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Loan approved successfully.", Severity.Success);
+                await LoadApplications();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to approve loan.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RejectApplication(LoanApplicationResponse app)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Reject Loan?",
+            Text = "Please provide a reason for rejection:",
+            Input = SweetAlertInputType.Text,
+            InputPlaceholder = "Reason...",
+            Icon = SweetAlertIcon.Warning,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Reject",
+            ConfirmButtonColor = "#d33",
+            CancelButtonText = "Cancel",
+            
+        });
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            var reason = result.Value;
+            var response = await LoanService.RejectLoanAsync(app.Id, reason);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Loan rejected successfully.", Severity.Success);
+                await LoadApplications();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to reject loan.", Severity.Error);
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+

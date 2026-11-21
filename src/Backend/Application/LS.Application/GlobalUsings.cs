@@ -1,0 +1,13 @@
+global using LS.Domain.Features.HR.Contracts;
+global using LS.Domain.Features.HR.Employees.Contracts.Repositories;
+global using LS.Domain.Features.HR.Employees.Entities;
+global using LS.Domain.Features.HR.Employees.Enums;
+global using LS.Domain.Features.HR.Employees.Events;
+global using LS.Domain.Features.IAM.Contracts;
+global using LS.Domain.Features.IAM.Users.Contracts.Repositories;
+global using LS.Domain.Features.IAM.Users.Entities;
+global using LS.Domain.Features.IAM.Users.Enums;
+global using LS.Domain.Features.IAM.Users.Events;
+global using LS.Domain.Features.Shared.Contracts;
+global using LS.Domain.Features.Shared.EmailTemplates.Entities;
+global using LS.Domain.Features.Shared.FailedMessages.Enums;

@@ -1,0 +1,121 @@
+@inject IAuthSession AuthSession
+@inject IIamAdminService IamAdminService
+
+<div class="side-shell d-flex flex-column" style="height: 100%;">
+    <div class="brand-row pa-4" style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+        <a class="brand-lockup d-flex align-center gap-2" href="/dashboard" style="text-decoration: none; color: inherit; background: #fff; padding: 0.5rem 0.75rem 0.5rem 1rem; border-radius: 0.8rem; min-height: 3rem;">
+            <span class="brand-mark d-flex align-center justify-center" style="background: #0f172a; color: white; border-radius: 0.55rem; width: 2rem; height: 2rem; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em;">LS</span>
+            <span class="brand-name font-weight-bold" style="color: #0f172a; font-size: 0.88rem; letter-spacing: 0.01em;">LlanSacco</span>
+        </a>
+    </div>
+
+    <div class="nav-scrollable flex-grow-1" style="overflow-y: auto; padding: 0.7rem 0.55rem 1rem;">
+        <MudNavMenu Color="Color.Primary" Margin="Margin.Dense">
+            @if (_isLoading)
+            {
+                <MudProgressLinear Color="Color.Success" Indeterminate="true" Class="my-2" Style="opacity: 0.4;" />
+            }
+            else if (_loadError is not null)
+            {
+                <div class="nav-error pa-3" style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Class="me-1" Size="Size.Small" />
+                    @_loadError
+                </div>
+            }
+            else
+            {
+                @foreach (var menu in _menus)
+                {
+                    @RenderMenu(menu)
+                }
+
+                @if (_hasAdminGroup)
+                {
+                    <MudDivider Class="my-2" Style="background-color: rgba(255,255,255,0.12);" />
+                    @foreach (var admin in _adminMenus)
+                    {
+                        @RenderMenu(admin)
+                    }
+                }
+            }
+        </MudNavMenu>
+    </div>
+
+    <UserProfileMenu />
+</div>
+
+@code {
+    private readonly List<MenuResponse> _menus = [];
+    private readonly List<MenuResponse> _adminMenus = [];
+    private bool _isLoading = true;
+    private bool _hasAdminGroup;
+    private string? _loadError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await AuthSession.InitializeAsync();
+        if (!AuthSession.IsAuthenticated)
+        {
+            _isLoading = false;
+            StateHasChanged();
+            return;
+        }
+
+        var response = await IamAdminService.GetNavigationMenusAsync("Sidebar");
+        if (response.IsSuccess && response.Data is not null && response.Data.Count > 0)
+        {
+            _menus.Clear();
+
+            var adminKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "admin", "admin-center" };
+
+            var regularMenus = response.Data
+                .Where(m => !adminKeys.Contains(m.Key))
+                .OrderBy(m => m.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var adminMenus = response.Data
+                .Where(m => adminKeys.Contains(m.Key))
+                .ToList();
+
+            _menus.AddRange(regularMenus);
+
+            if (adminMenus.Count > 0)
+            {
+                _hasAdminGroup = true;
+                _adminMenus.AddRange(adminMenus);
+            }
+        }
+        else if (!response.IsSuccess)
+        {
+            _loadError = "Menus unavailable.";
+        }
+
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private RenderFragment<MenuResponse> RenderMenu => menu => __builder =>
+    {
+        if (menu.Children is null || menu.Children.Count == 0)
+        {
+            var match = menu.Key.Equals("dashboard", StringComparison.OrdinalIgnoreCase) ? NavLinkMatch.All : NavLinkMatch.Prefix;
+            <MudNavLink Href="@menu.Url.TrimStart('/')" Icon="@MenuIconMapper.Resolve(menu.Icon)" Match="@match" Style="color: rgba(255,255,255,0.82);">
+                @menu.Title
+            </MudNavLink>
+        }
+        else
+        {
+            <MudNavGroup Title="@menu.Title" Icon="@MenuIconMapper.Resolve(menu.Icon)" Style="color: rgba(255,255,255,0.82);">
+                @foreach (var child in menu.Children)
+                {
+                    @RenderMenu(child)
+                }
+            </MudNavGroup>
+        }
+    };
+}

@@ -1,0 +1,172 @@
+@page "/accounting/balance-sheet"
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IFinanceService FinanceService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+
+<PageTitle>Balance Sheet</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Balance Sheet</MudText>
+
+<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/accounting" Class="mb-4">Back to Accounting</MudButton>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudDatePicker Variant="Variant.Outlined" Margin="Margin.Dense" Label="As Of Date" @bind-Date="AsOfDate" />
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="LoadReport" Disabled="IsLoading">
+                @if (IsLoading)
+                {
+                    <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+                    <MudText Class="ms-2">Loading</MudText>
+                }
+                else
+                {
+                    <MudText>Generate Report</MudText>
+                }
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (ReportData != null)
+{
+    <MudGrid>
+        <!-- Assets -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="1">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Assets</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="ReportData.Assets" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Account</MudTh>
+                            <MudTh Style="text-align:right">Balance</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.AccountName (@context.AccountCode)</MudTd>
+                            <MudTd Style="text-align:right">@context.Balance.ToString("N2")</MudTd>
+                        </RowTemplate>
+                        <FooterContent>
+                            <MudTFootRow>
+                                <MudTd><strong>Total Assets</strong></MudTd>
+                                <MudTd Style="text-align:right"><strong>@ReportData.TotalAssets.ToString("N2")</strong></MudTd>
+                            </MudTFootRow>
+                        </FooterContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Liabilities & Equity -->
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="1" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Liabilities</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="ReportData.Liabilities" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Account</MudTh>
+                            <MudTh Style="text-align:right">Balance</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.AccountName (@context.AccountCode)</MudTd>
+                            <MudTd Style="text-align:right">@context.Balance.ToString("N2")</MudTd>
+                        </RowTemplate>
+                        <FooterContent>
+                            <MudTFootRow>
+                                <MudTd><strong>Total Liabilities</strong></MudTd>
+                                <MudTd Style="text-align:right"><strong>@ReportData.TotalLiabilities.ToString("N2")</strong></MudTd>
+                            </MudTFootRow>
+                        </FooterContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="1">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Equity</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTable Items="ReportData.Equities" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Account</MudTh>
+                            <MudTh Style="text-align:right">Balance</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.AccountName (@context.AccountCode)</MudTd>
+                            <MudTd Style="text-align:right">@context.Balance.ToString("N2")</MudTd>
+                        </RowTemplate>
+                        <FooterContent>
+                            <MudTFootRow>
+                                <MudTd><strong>Total Equity</strong></MudTd>
+                                <MudTd Style="text-align:right"><strong>@ReportData.TotalEquity.ToString("N2")</strong></MudTd>
+                            </MudTFootRow>
+                        </FooterContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+
+            <MudPaper Class="pa-4 mt-4 d-flex justify-space-between" Elevation="1" Style="background-color: var(--mud-palette-surface);">
+                <MudText Typo="Typo.h6">Total Liab. & Equity</MudText>
+                <MudText Typo="Typo.h6" Style="text-align:right">@ReportData.TotalLiabilitiesAndEquity.ToString("N2")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private DateTime? AsOfDate { get; set; } = DateTime.Today;
+    private bool IsLoading { get; set; }
+    private BalanceSheetDto? ReportData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReport();
+    }
+
+    private async Task LoadReport()
+    {
+        IsLoading = true;
+        try
+        {
+            var offset = AsOfDate.HasValue 
+                ? new DateTimeOffset(DateTime.SpecifyKind(AsOfDate.Value, DateTimeKind.Utc)) 
+                : DateTimeOffset.UtcNow;
+                
+            var response = await FinanceService.GetBalanceSheetAsync(offset);
+            if (response.IsSuccess && response.Data != null)
+            {
+                ReportData = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load balance sheet", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+
+
+
+
+

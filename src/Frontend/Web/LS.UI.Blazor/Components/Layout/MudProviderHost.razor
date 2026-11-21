@@ -1,0 +1,57 @@
+@rendermode InteractiveServer
+
+<MudThemeProvider Theme="_enterpriseTheme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@code {
+    private MudTheme _enterpriseTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#112250",        // Royal Blue — buttons, links, headers
+            Secondary = "#3C5070",      // Sapphire — secondary actions, badges
+            Tertiary = "#E0C68F",       // Quicksand — gold accents, highlights
+            Warning = "#B8860B",        // Dark Goldenrod — high contrast on cream
+            Error = "#B71C1C",          // Deep red — financial error severity
+            Info = "#3C5070",           // Sapphire — informational chips/alerts
+            Success = "#2E7D32",        // Forest green — approvals, active status
+            AppbarBackground = "#112250",
+            AppbarText = "#F5F0E9",     // Swan Wing
+            Background = "#F5F0E9",     // Swan Wing — page background
+            DrawerBackground = "#FFFFFF",
+            DrawerText = "#112250",
+            Surface = "#FFFFFF",
+            TextPrimary = "#112250",    // Royal Blue — deep contrast for text
+            TextSecondary = "#5A6A7A",  // Muted slate — secondary text
+            ActionDefault = "#3C5070",  // Sapphire — icon/action default
+            Divider = "#D9CBC2",        // Shellstone
+            TableLines = "#D9CBC2",     // Shellstone
+            TableHover = "rgba(17, 34, 80, 0.04)", // Subtle Royal Blue hover
+            HoverOpacity = 0.06
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "6px"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography() { FontFamily = new[] { "Inter", "sans-serif" }, FontSize = ".8rem", LineHeight = "1.4" },
+            H1 = new H1Typography() { FontWeight = "700", FontSize = "1.75rem" },
+            H2 = new H2Typography() { FontWeight = "600", FontSize = "1.5rem" },
+            H3 = new H3Typography() { FontWeight = "600", FontSize = "1.25rem" },
+            H4 = new H4Typography() { FontWeight = "600", FontSize = "1.125rem" },
+            H5 = new H5Typography() { FontWeight = "600", FontSize = "1rem" },
+            H6 = new H6Typography() { FontWeight = "600", FontSize = ".875rem" },
+            Subtitle1 = new Subtitle1Typography() { FontSize = ".875rem" },
+            Subtitle2 = new Subtitle2Typography() { FontSize = ".8rem" },
+            Body1 = new Body1Typography() { FontSize = ".875rem" },
+            Body2 = new Body2Typography() { FontSize = ".8rem" },
+            Button = new ButtonTypography() { TextTransform = "capitalize", FontWeight = "500", FontSize = ".8rem" }
+        }
+    };
+}
+
+
+

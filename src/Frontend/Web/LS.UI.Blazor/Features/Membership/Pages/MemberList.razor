@@ -1,0 +1,207 @@
+@page "/membership/list"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@using CurrieTechnologies.Razor.SweetAlert2
+@using LS.UI.Blazor.Features.IAM.Users.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject SweetAlertService Swal
+@inject IAuthSession AuthSession
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>Members List | LlanSacco</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h5">
+        Members List
+        @if (Members != null)
+        {
+            <MudChip Variant="Variant.Outlined" T="string" Color="Color.Info" Class="ms-2">@Members.Count</MudChip>
+        }
+    </MudText>
+    
+    <div>
+        <MudButton Variant="Variant.Outlined" Href="/membership/pending-approvals" Color="Color.Warning" Class="me-2" StartIcon="@Icons.Material.Filled.PendingActions">
+            Pending Approvals
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Href="/membership/onboarding" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd">
+            Onboard New Member
+        </MudButton>
+    </div>
+</div>
+
+@if (IsLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (Members == null || Members.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">No members found.</MudAlert>
+}
+else
+{
+    <MudTable Items="Members" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="1" Filter="new Func<MemberResponse,bool>(FilterFunc)">
+        <ToolBarContent>
+            <MudTextField @bind-Value="searchString" Placeholder="Search by name, ID, or phone..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Member #</MudTh>
+            <MudTh>Name</MudTh>
+            <MudTh>Phone</MudTh>
+            <MudTh>ID Number</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Applied</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Member #">@context.MemberNumber</MudTd>
+            <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+            <MudTd DataLabel="Phone">@context.PhoneNumber</MudTd>
+            <MudTd DataLabel="ID Number">@context.IdentificationNumber</MudTd>
+            <MudTd DataLabel="Type">@context.MembershipType</MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.Status == "Active")
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success" Size="Size.Small">Active</MudChip>
+                }
+                else if (context.Status == "PendingApproval")
+                {
+                    <MudChip Variant="Variant.Filled" T="string" Color="Color.Warning" Size="Size.Small">Pending Approval</MudChip>
+                }
+                else
+                {
+                    <MudChip Variant="Variant.Outlined" T="string" Size="Size.Small">@context.Status</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Applied">@context.JoinedAt.ToString("dd MMM yyyy")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudMenu Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Visibility" OnClick="@(() => Navigation.NavigateTo($"/membership/{context.Id}"))">View Details</MudMenuItem>
+                    
+                    @if (context.Status == "PendingApproval" && AuthSession.HasPermission("membership.onboard.approve"))
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success" OnClick="@(() => ApproveAsync(context))">Approve</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Cancel" IconColor="Color.Error" OnClick="@(() => RejectAsync(context))">Reject</MudMenuItem>
+                    }
+                </MudMenu>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<MemberResponse>? Members { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMembers();
+    }
+
+    private async Task LoadMembers()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await MembershipService.GetMembersAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Members = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to load members.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading members: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private bool FilterFunc(MemberResponse element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if ($"{element.FirstName} {element.LastName}".Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.IdentificationNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (element.PhoneNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (element.MemberNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        return false;
+    }
+
+    private async Task ApproveAsync(MemberResponse member)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = "Approve Member?",
+            Text = $"Are you sure you want to approve {member.FirstName} {member.LastName}?",
+            Icon = SweetAlertIcon.Question,
+            ShowCancelButton = true,
+            ConfirmButtonText = "Yes, approve",
+            CancelButtonText = "Cancel"
+        });
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            var response = await MembershipService.ApproveMemberAsync(new ApproveMemberRequest(member.Id, "Approved via Membership Data Table"));
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Member approved successfully.", Severity.Success);
+                await LoadMembers();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to approve member.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RejectAsync(MemberResponse member)
+    {
+        var result = await Swal.FireAsync(new SweetAlertOptions
+        {
+            Title = $"Reject {member.FirstName} {member.LastName}?",
+            Input = SweetAlertInputType.Text,
+            InputLabel = "Reason for Rejection",
+            InputPlaceholder = "Enter reason...",
+            ShowCancelButton = true,
+            ConfirmButtonText = "Reject",
+            ConfirmButtonColor = "#B71C1C"
+        });
+
+        if (result.IsConfirmed && string.IsNullOrWhiteSpace(result.Value))
+        {
+            Snackbar.Add("A rejection reason is required.", Severity.Warning);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(result.Value))
+        {
+            var response = await MembershipService.RejectMemberAsync(new RejectMemberRequest(member.Id, result.Value));
+            if (response.IsSuccess)
+            {
+                Snackbar.Add($"Member {member.FirstName} {member.LastName} rejected.", Severity.Warning);
+                await LoadMembers();
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? "Failed to reject member.", Severity.Error);
+            }
+        }
+    }
+}

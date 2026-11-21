@@ -1,0 +1,102 @@
+@using LS.SharedKernel.Features.CheckOff.Dtos
+@using LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces
+@inject ICheckOffService CheckOffService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudSelect T="Guid" Label="Employer" @bind-Value="request.EmployerId" Required="true" RequiredError="Employer is required.">
+                @foreach (var employer in Employers)
+                {
+                    <MudSelectItem Value="@employer.Id">@employer.Name (@employer.Code)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField @bind-Value="request.BatchReference" Label="Batch Reference" Required="true" RequiredError="Reference is required!" Class="mt-3"/>
+            <MudDatePicker @bind-Date="selectedDate" Label="Processing Period (Month/Year)" OpenTo="OpenTo.Month" FixDay="1" DateFormat="MM/yyyy" Required="true" Class="mt-3"/>
+            
+            <MudText Typo="Typo.body2" Class="mt-4 mb-2 text-muted">For demonstration, 3 sample rows will be automatically attached to this batch.</MudText>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Disabled="@(!success || isSubmitting)">
+            @if (isSubmitting)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                <MudText Class="ms-2">Uploading</MudText>
+            }
+            else
+            {
+                <MudText>Upload Batch</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm form = null!;
+    private bool success;
+    private bool isSubmitting;
+    private DateTime? selectedDate = DateTime.Today;
+    private UploadCheckoffBatchRequest request = new();
+
+    private List<EmployerResponse> Employers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await CheckOffService.GetEmployersAsync();
+        if (response.IsSuccess && response.Data != null)
+        {
+            Employers = response.Data;
+            if (Employers.Any())
+            {
+                request.EmployerId = Employers.First().Id;
+            }
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (!form.IsValid || selectedDate == null) return;
+
+        isSubmitting = true;
+        
+        // Mocking some rows based on the Plan
+        var mockRows = new List<CheckoffRowRequest>
+        {
+            new() { EmployeePayrollNumber = "EMP001", MemberName = "John Doe", Amount = 5000, ReferenceNumber = "REF-100" },
+            new() { EmployeePayrollNumber = "EMP002", MemberName = "Jane Smith", Amount = 7500, ReferenceNumber = "REF-101" },
+            new() { EmployeePayrollNumber = "EMP003", MemberName = "Alice Johnson", Amount = 3000, ReferenceNumber = "REF-102" }
+        };
+
+        var finalRequest = new UploadCheckoffBatchRequest
+        {
+            EmployerId = request.EmployerId,
+            BatchReference = request.BatchReference,
+            ProcessingPeriod = selectedDate.Value,
+            Rows = mockRows
+        };
+
+        var response = await CheckOffService.UploadBatchAsync(finalRequest);
+        if (response.IsSuccess)
+        {
+            Snackbar.Add("Batch uploaded successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(response.Message ?? "Upload failed", Severity.Error);
+        }
+
+        isSubmitting = false;
+    }
+}

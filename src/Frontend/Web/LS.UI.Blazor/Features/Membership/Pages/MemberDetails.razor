@@ -1,0 +1,314 @@
+@page "/membership/members/{Id:guid}"
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Membership.Contracts.Interfaces
+@inject IMembershipService MembershipService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize]
+
+<PageTitle>Member Details</PageTitle>
+
+<div class="d-flex justify-space-between mb-4">
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/membership">Back to Membership</MudButton>
+    <div>
+        @if (_member != null && _member.KycStatus == "Pending")
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.VerifiedUser" OnClick="VerifyKycAsync" Disabled="@_isVerifyingKyc" Class="mr-2">
+                @(_isVerifyingKyc ? "Verifying..." : "Verify KYC")
+            </MudButton>
+        }
+        @if (_member != null)
+        {
+            <MudMenu Label="Actions" EndIcon="@Icons.Material.Filled.ArrowDropDown" Variant="Variant.Filled" Color="Color.Secondary">
+                <MudMenuItem OnClick="SuspendMemberAsync">Suspend Account</MudMenuItem>
+                <MudMenuItem OnClick="CloseMemberAsync">Close Account</MudMenuItem>
+            </MudMenu>
+        }
+    </div>
+</div>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (_member == null)
+{
+    <MudAlert Severity="Severity.Error">Member not found.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h6" Class="mb-4">Member Details: @_member.FirstName @_member.LastName</MudText>
+    
+    <MudTabs Margin="Margin.Dense" Variant="Variant.Outlined" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Margin="Margin.Dense" Variant="Variant.Outlined" Text="Profile">
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.MemberNumber" Label="Member Number" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.Status.ToString()" Label="Status" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.Email" Label="Email" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.PhoneNumber" Label="Phone" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.IdentificationNumber" Label="ID Number" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.DateOfBirth.ToString()" Label="Date of Birth" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.MembershipType.ToString()" Label="Membership Type" ReadOnly="true"  />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <div class="d-flex flex-column mt-2">
+                        <MudText Typo="Typo.caption" Class="mb-1" Color="Color.Default">KYC Status</MudText>
+                        <MudChip T="string" Color="@GetKycColor(_member.KycStatus)" Size="Size.Small">@_member.KycStatus</MudChip>
+                    </div>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_member.JoinedAt.ToString("g")" Label="Joined At" ReadOnly="true"  />
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Margin="Margin.Dense" Variant="Variant.Outlined" Text="Shares">
+            <LS.UI.Blazor.Features.Banking.Pages.MemberShares MemberId="@_member.Id" />
+        </MudTabPanel>
+
+        <MudTabPanel Margin="Margin.Dense" Variant="Variant.Outlined" Text="Beneficiaries">
+            <div class="d-flex justify-space-between mb-4">
+                <MudText Typo="Typo.subtitle1">Beneficiaries</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="OpenAddBeneficiaryDialog" StartIcon="@Icons.Material.Filled.Add">
+                    Add Beneficiary
+                </MudButton>
+            </div>
+            
+            <MudTable Items="@_beneficiaries" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Loading="@_isLoadingBeneficiaries">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Relationship</MudTh>
+                    <MudTh>Allocation %</MudTh>
+                    <MudTh>Next of Kin</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="beneficiary">
+                    <MudTd DataLabel="Name">@beneficiary.FullName</MudTd>
+                    <MudTd DataLabel="Relationship">@beneficiary.Relationship</MudTd>
+                    <MudTd DataLabel="Allocation %">@beneficiary.AllocationPercentage %</MudTd>
+                    <MudTd DataLabel="Next of Kin">
+                        @if(beneficiary.IsNextOfKin) { <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" /> }
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveBeneficiaryAsync(beneficiary.Id))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No beneficiaries assigned.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Margin="Margin.Dense" Variant="Variant.Outlined" Text="Guarantors">
+            <div class="d-flex justify-space-between mb-4">
+                <MudText Typo="Typo.subtitle1">Guarantors</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/membership/guarantors/nominate" StartIcon="@Icons.Material.Filled.Add">
+                    Nominate Guarantor
+                </MudButton>
+            </div>
+            <MudAlert Severity="Severity.Info" Class="mb-4">
+                Guarantor information for <strong>@_member.FirstName</strong>. 
+                Pending requests can be managed in the <a href="/membership/guarantors/requests">Guarantor Portal</a>.
+            </MudAlert>
+            
+            <MudTable Items="@(new List<string>())" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Guarantor Member No.</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Amount Guaranteed</MudTh>
+                    <MudTh>Status</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="guarantor">
+                    <MudTd>--</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No guarantors assigned.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isLoadingBeneficiaries = false;
+    private bool _isVerifyingKyc = false;
+    private MemberResponse? _member;
+    private List<BeneficiaryResponse> _beneficiaries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMemberAsync();
+        await LoadBeneficiariesAsync();
+    }
+
+    private async Task LoadMemberAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            var response = await MembershipService.GetMemberAsync(Id);
+            if (response.IsSuccess && response.Data != null)
+            {
+                _member = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Failed to load member.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadBeneficiariesAsync()
+    {
+        _isLoadingBeneficiaries = true;
+        try
+        {
+            var response = await MembershipService.GetMemberBeneficiariesAsync(Id);
+            if (response.IsSuccess && response.Data != null)
+            {
+                _beneficiaries = response.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load beneficiaries: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingBeneficiaries = false;
+            StateHasChanged();
+        }
+    }
+
+    private Color GetKycColor(string status) => status switch
+    {
+        "Verified" => Color.Success,
+        "Rejected" => Color.Error,
+        "Pending" => Color.Warning,
+        _ => Color.Default
+    };
+
+    private async Task VerifyKycAsync()
+    {
+        _isVerifyingKyc = true;
+        try
+        {
+            var response = await MembershipService.VerifyMemberKycAsync(Id);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("KYC verification completed.", Severity.Success);
+                await LoadMemberAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "KYC verification failed.", Severity.Error);
+                await LoadMemberAsync();
+            }
+        }
+        finally
+        {
+            _isVerifyingKyc = false;
+        }
+    }
+
+    private async Task SuspendMemberAsync()
+    {
+        var parameters = new DialogParameters { ["Message"] = "Are you sure you want to suspend this member?", ["ConfirmText"] = "Suspend" };
+        var dialog = await DialogService.ShowAsync<LS.UI.Blazor.Components.Common.ConfirmDialog>("Suspend Member", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            var response = await MembershipService.SuspendMemberAsync(Id, "Suspended by admin");
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Member suspended.", Severity.Success);
+                await LoadMemberAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Failed to suspend member.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task CloseMemberAsync()
+    {
+        var parameters = new DialogParameters { ["Message"] = "Are you sure you want to close this member account?", ["ConfirmText"] = "Close Account" };
+        var dialog = await DialogService.ShowAsync<LS.UI.Blazor.Components.Common.ConfirmDialog>("Close Member", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            var response = await MembershipService.CloseMemberAsync(Id, "Closed by admin");
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Member account closed.", Severity.Success);
+                await LoadMemberAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Failed to close member account.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenAddBeneficiaryDialog()
+    {
+        var parameters = new DialogParameters { ["MemberId"] = Id };
+        var dialog = await DialogService.ShowAsync<AddBeneficiaryDialog>("Add Beneficiary", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadBeneficiariesAsync();
+        }
+    }
+
+    private async Task RemoveBeneficiaryAsync(Guid beneficiaryId)
+    {
+        var parameters = new DialogParameters { ["Message"] = "Are you sure you want to remove this beneficiary?", ["ConfirmText"] = "Remove" };
+        var dialog = await DialogService.ShowAsync<LS.UI.Blazor.Components.Common.ConfirmDialog>("Remove Beneficiary", parameters);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            var response = await MembershipService.RemoveBeneficiaryAsync(Id, beneficiaryId);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Beneficiary removed.", Severity.Success);
+                await LoadBeneficiariesAsync();
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Failed to remove beneficiary.", Severity.Error);
+            }
+        }
+    }
+}

@@ -38,13 +38,14 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
         
         try
         {
+            var transactionTypeCode = GetTransactionTypeCode(evt);
             var mapping = await _unitOfWork.TransactionTypeGlMappingRepository
-                .GetByTransactionTypeCodeAsync(GetTransactionTypeCode(evt), context.CancellationToken)
+                .FirstOrDefaultAsync(m => m.TransactionTypeCode == transactionTypeCode, context.CancellationToken)
                 .ConfigureAwait(false);
 
             if (mapping == null)
             {
-                throw new InvalidOperationException($"No GL mapping found for transaction type {GetTransactionTypeCode(evt)}");
+                throw new InvalidOperationException($"No GL mapping found for transaction type {transactionTypeCode}");
             }
 
             var entries = await CreateJournalEntriesAsync(evt, mapping).ConfigureAwait(false);

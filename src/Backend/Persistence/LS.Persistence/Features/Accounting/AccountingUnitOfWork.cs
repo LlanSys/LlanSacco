@@ -5,7 +5,7 @@ using LS.Persistence.Features.Accounting.DataContext;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace LS.Persistence.Features.Accounting.Repositories;
+namespace LS.Persistence.Features.Accounting;
 
 public class AccountingUnitOfWork(AccountingDBContext context,
     IAccountRepository accountRepository,

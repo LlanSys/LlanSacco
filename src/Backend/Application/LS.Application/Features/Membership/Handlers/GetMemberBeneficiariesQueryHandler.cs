@@ -17,7 +17,7 @@ internal class GetMemberBeneficiariesQueryHandler(
 
     public async Task<AppResponse<List<BeneficiaryResponse>>> Handle(GetMemberBeneficiariesQuery request, CancellationToken cancellationToken)
     {
-        var memberBeneficiaries = await _unitOfWork.Beneficiaries.ListAsync(
+        var memberBeneficiaries = await _unitOfWork.BeneficiaryRepository.ListAsync(
             query: q => q.Where(b => b.MemberId == request.MemberId), 
             ct: cancellationToken);
 

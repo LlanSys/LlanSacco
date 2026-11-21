@@ -17,7 +17,7 @@ internal class GetMemberSavingsAccountsQueryHandler(IBankingUnitOfWork unitOfWor
 {
     public async Task<AppResponse<List<SavingsAccountResponse>>> Handle(GetMemberSavingsAccountsQuery request, CancellationToken cancellationToken)
     {
-        var accounts = await unitOfWork.SavingsAccounts.ListAsync(q => q
+        var accounts = await unitOfWork.SavingsAccountRepository.ListAsync(q => q
             .Where(x => x.MemberId == request.MemberId)
             .Select(a => new SavingsAccountResponse(
                 a.Id,

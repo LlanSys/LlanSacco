@@ -23,7 +23,7 @@ internal class OpenTillCommandHandler(IBankingUnitOfWork unitOfWork) : IRequestH
 {
     public async Task<AppResponse<bool>> Handle(OpenTillCommand request, CancellationToken cancellationToken)
     {
-        var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
+        var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
         if (till is null)
         {
             return AppResponses.Failure<bool>("Teller till not found.");
@@ -38,7 +38,7 @@ internal class OpenTillCommandHandler(IBankingUnitOfWork unitOfWork) : IRequestH
         till.Status = TillStatus.Open;
         till.OpenedAt = DateTimeOffset.UtcNow;
 
-        await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.TellerTillRepository.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         return AppResponses.Success<bool>("Till opened successfully.", true);

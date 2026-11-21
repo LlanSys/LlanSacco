@@ -18,7 +18,7 @@ public class GetAllDeploymentStampsQueryHandler(IControlPlaneUnitOfWork unitOfWo
 
     public async Task<AppResponse<List<DeploymentStampResponse>>> Handle(GetAllDeploymentStampsQuery request, CancellationToken cancellationToken)
     {
-        var rawStamps = await _unitOfWork.DeploymentStamps.FindAll()
+        var rawStamps = await _unitOfWork.DeploymentStampRepository.FindAll()
             .AsNoTracking()
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 

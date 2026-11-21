@@ -1,3 +1,5 @@
+using LS.Persistence.Features.IAM.ReferenceData.Repositories;
+using LS.Domain.Features.IAM.ReferenceData.Contracts.Repositories;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using LS.Domain.Features.HR.Contracts;
@@ -85,6 +87,13 @@ public static class IamPersistenceDI
         services.AddScoped<ITempTotpSecretRepository, IamTempTotpSecretRepository>();
         services.AddScoped<IPermissionRepository, IamPermissionRepository>();
         services.AddScoped<IMenuRepository, IamMenuRepository>();
+        services.AddScoped<IPermissionContextRepository, PermissionContextRepository>();
+        services.AddScoped<IPermissionResourceRepository, PermissionResourceRepository>();
+        services.AddScoped<IPermissionActionRepository, PermissionActionRepository>();
+        services.AddScoped<IMenuPlacementRepository, MenuPlacementRepository>();
+        services.AddScoped<IMenuIconRepository, MenuIconRepository>();
+        services.AddScoped<IMenuRouteRepository, MenuRouteRepository>();
+        services.AddScoped<IFido2CredentialRepository, Fido2CredentialRepository>();
         services.AddScoped<IIamUnitOfWork, IamUnitOfWork>();
 
         return services;

@@ -23,7 +23,7 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
         {
             await checkOffUnitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                var row = await checkOffUnitOfWork.CheckoffStagingRows.FirstOrDefaultAsync(
+                var row = await checkOffUnitOfWork.CheckoffStagingRowRepository.FirstOrDefaultAsync(
                     r => r.Id == rowId && r.CheckoffBatchId == batchId && r.TenantId == tenantId, cancellationToken)
                     ?? throw new InvalidOperationException("Checkoff row was not found.");
                 if (row.Status == CheckoffRowStatus.Processed) return true;
@@ -32,7 +32,7 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
                 if (row.AmountForSavings < 0 || row.AmountForShares < 0 || row.AmountForLoans < 0 || row.TotalDeducted <= 0 ||
                     row.TotalDeducted != row.AmountForSavings + row.AmountForShares + row.AmountForLoans)
                     throw new InvalidOperationException("Checkoff row amounts are inconsistent.");
-                var allocations = await checkOffUnitOfWork.CheckoffStagingLoanAllocations.ListAsync(
+                var allocations = await checkOffUnitOfWork.CheckoffStagingLoanAllocationRepository.ListAsync(
                     q => q.Where(a => a.TenantId == tenantId && a.CheckoffStagingRowId == rowId), cancellationToken);
                 if (allocations.Any(a => a.Amount <= 0) || allocations.Sum(a => a.Amount) != row.AmountForLoans)
                     throw new InvalidOperationException("Checkoff loan allocations do not match the deduction.");
@@ -45,19 +45,19 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
                 if (row.AmountForSavings > 0)
                 {
                     var reference = $"CHK:{row.Id:N}:S";
-                    var prior = await bankingUnitOfWork.SavingsTransactions.FirstOrDefaultAsync(
+                    var prior = await bankingUnitOfWork.SavingsTransactionRepository.FirstOrDefaultAsync(
                         t => t.TenantId == tenantId && t.ExternalReferenceId == reference, cancellationToken);
                     Guid productId;
                     if (prior is not null)
                     {
-                        var account = await bankingUnitOfWork.SavingsAccounts.FirstOrDefaultAsync(
+                        var account = await bankingUnitOfWork.SavingsAccountRepository.FirstOrDefaultAsync(
                             a => a.TenantId == tenantId && a.Id == prior.SavingsAccountId, cancellationToken)
                             ?? throw new InvalidOperationException("Original savings account was not found.");
                         productId = account.SavingsProductId;
                     }
                     else
                     {
-                        var products = await bankingUnitOfWork.SavingsProducts.ListAsync(q => q
+                        var products = await bankingUnitOfWork.SavingsProductRepository.ListAsync(q => q
                             .Where(p => p.TenantId == tenantId && p.IsActive && p.IsDefaultCheckoffTarget).Take(2), cancellationToken);
                         if (products.Count != 1) throw new InvalidOperationException("Exactly one active checkoff savings product is required.");
                         productId = products.Single().Id;
@@ -69,19 +69,19 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
                 if (row.AmountForShares > 0)
                 {
                     var reference = $"CHK:{row.Id:N}:H";
-                    var prior = await bankingUnitOfWork.ShareTransactions.FirstOrDefaultAsync(
+                    var prior = await bankingUnitOfWork.ShareTransactionRepository.FirstOrDefaultAsync(
                         t => t.TenantId == tenantId && t.ReferenceNumber == reference, cancellationToken);
                     Guid productId;
                     if (prior is not null)
                     {
-                        var account = await bankingUnitOfWork.ShareAccounts.FirstOrDefaultAsync(
+                        var account = await bankingUnitOfWork.ShareAccountRepository.FirstOrDefaultAsync(
                             a => a.TenantId == tenantId && a.Id == prior.ShareAccountId, cancellationToken)
                             ?? throw new InvalidOperationException("Original share account was not found.");
                         productId = account.ShareProductId;
                     }
                     else
                     {
-                        var products = await bankingUnitOfWork.ShareProducts.ListAsync(q => q
+                        var products = await bankingUnitOfWork.ShareProductRepository.ListAsync(q => q
                             .Where(p => p.TenantId == tenantId && p.IsActive).Take(2), cancellationToken);
                         if (products.Count != 1) throw new InvalidOperationException("Exactly one active checkoff share product is required.");
                         productId = products.Single().Id;
@@ -101,7 +101,7 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
                 }
                 row.Status = CheckoffRowStatus.Processed;
                 row.ExceptionReason = null;
-                await checkOffUnitOfWork.CheckoffStagingRows.UpdateAsync(row, cancellationToken);
+                await checkOffUnitOfWork.CheckoffStagingRowRepository.UpdateAsync(row, cancellationToken);
                 return true;
             }, cancellationToken);
         }

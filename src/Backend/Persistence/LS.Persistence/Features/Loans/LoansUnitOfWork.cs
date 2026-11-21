@@ -1,6 +1,6 @@
+using LS.Domain.Features.Loans.Collections.Contracts.Repositories;
 using LS.Domain.Features.Loans.Contracts;
 using LS.Domain.Features.Loans.Contracts.Repositories;
-using LS.Domain.Shared.Contracts.Repositories;
 using LS.Persistence.Common;
 using LS.Persistence.Features.Loans.DataContext;
 using MediatR;
@@ -13,11 +13,11 @@ public class LoansUnitOfWork(
     ILoanProductRepository loanProductRepository,
     ILoanApplicationRepository loanApplicationRepository,
     ILoanRepaymentRepository loanRepaymentRepository,
-    IRepository<LS.Domain.Features.Loans.Entities.LoanGuarantor> loanGuarantorRepository,
-    IRepository<LS.Domain.Features.Loans.Entities.LoanRepaymentSchedule> loanRepaymentScheduleRepository,
-    IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionCase> collectionCases,
-    IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionAction> collectionActions,
-    IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionPromise> collectionPromises,
+    ILoanGuarantorRepository loanGuarantorRepository,
+    ILoanRepaymentScheduleRepository loanRepaymentScheduleRepository,
+    ICollectionCaseRepository collectionCaseRepository,
+    ICollectionActionRepository collectionActionRepository,
+    ICollectionPromiseRepository collectionPromiseRepository,
     IPublisher publisher,
     ILogger<LoansUnitOfWork> logger
 ) : BaseUnitOfWork<LoansDBContext>(context, publisher, logger), ILoansUnitOfWork
@@ -25,10 +25,10 @@ public class LoansUnitOfWork(
     public ILoanProductRepository LoanProductRepository { get; } = loanProductRepository;
     public ILoanApplicationRepository LoanApplicationRepository { get; } = loanApplicationRepository;
     public ILoanRepaymentRepository LoanRepaymentRepository { get; } = loanRepaymentRepository;
-    public IRepository<LS.Domain.Features.Loans.Entities.LoanGuarantor> LoanGuarantorRepository { get; } = loanGuarantorRepository;
-    public IRepository<LS.Domain.Features.Loans.Entities.LoanRepaymentSchedule> LoanRepaymentScheduleRepository { get; } = loanRepaymentScheduleRepository;
+    public ILoanGuarantorRepository LoanGuarantorRepository { get; } = loanGuarantorRepository;
+    public ILoanRepaymentScheduleRepository LoanRepaymentScheduleRepository { get; } = loanRepaymentScheduleRepository;
     
-    public IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionCase> CollectionCases { get; } = collectionCases;
-    public IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionAction> CollectionActions { get; } = collectionActions;
-    public IRepository<LS.Domain.Features.Loans.Collections.Entities.CollectionPromise> CollectionPromises { get; } = collectionPromises;
+    public ICollectionCaseRepository CollectionCaseRepository { get; } = collectionCaseRepository;
+    public ICollectionActionRepository CollectionActionRepository { get; } = collectionActionRepository;
+    public ICollectionPromiseRepository CollectionPromiseRepository { get; } = collectionPromiseRepository;
 }

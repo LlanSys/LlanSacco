@@ -80,7 +80,9 @@ internal sealed class RefreshToken(
                 }
             }
 
-            var storedRefreshToken = await iamUnitOfWork.TokenRepository.GetRefreshTokenAsync(request.RefreshToken, userId).ConfigureAwait(false);
+            var storedRefreshToken = await iamUnitOfWork.TokenRepository
+                .FirstOrDefaultAsync(token => token.Token == request.RefreshToken && token.AppUserId == userId, cancellationToken)
+                .ConfigureAwait(false);
             if (storedRefreshToken == null)
             {
                 SecurityLogDefinitions.LogSecurityEvent(logger, "RefreshTokenNotFound", userId, "Refresh token not found for user");
@@ -92,7 +94,9 @@ internal sealed class RefreshToken(
                 SecurityLogDefinitions.LogSecurityEvent(logger, "ExpiredRefreshToken", userId, "Expired refresh token used");
                 await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
                 {
-                    var expiredToken = await iamUnitOfWork.TokenRepository.GetRefreshTokenAsync(request.RefreshToken, userId).ConfigureAwait(false);
+                    var expiredToken = await iamUnitOfWork.TokenRepository
+                        .FirstOrDefaultAsync(token => token.Token == request.RefreshToken && token.AppUserId == userId, cancellationToken)
+                        .ConfigureAwait(false);
                     if (expiredToken is not null && expiredToken.ExpiresAt <= DateTimeOffset.UtcNow)
                         await iamUnitOfWork.TokenRepository.RevokeRefreshTokenAsync(expiredToken, "Token expired").ConfigureAwait(false);
                     return true;
@@ -167,8 +171,8 @@ internal sealed class RefreshToken(
             {
                 if (!await iamUnitOfWork.TokenRepository.TryUseRefreshTokenAsync(request.RefreshToken, userId, cancellationToken).ConfigureAwait(false))
                     return false;
-                await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(newRefreshTokenEntity).ConfigureAwait(false);
-                await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(userId).ConfigureAwait(false);
+                await iamUnitOfWork.TokenRepository.CreateAsync(newRefreshTokenEntity, cancellationToken).ConfigureAwait(false);
+                await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(userId, cancellationToken).ConfigureAwait(false);
                 return true;
             }, cancellationToken: cancellationToken).ConfigureAwait(false);
 

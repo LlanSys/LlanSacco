@@ -20,7 +20,7 @@ internal class AssignCollectionOfficerCommandHandler(
 {
     public async Task<AppResponse<bool>> Handle(AssignCollectionOfficerCommand request, CancellationToken cancellationToken)
     {
-        var collectionCase = await unitOfWork.CollectionCases.FindByIdAsync(request.CollectionCaseId, cancellationToken);
+        var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
             return AppResponses.Failure<bool>(AppError.BusinessRule("Collection case not found"));
 
@@ -29,7 +29,7 @@ internal class AssignCollectionOfficerCommandHandler(
 
         collectionCase.AssignedOfficerUserId = request.OfficerUserId;
 
-        await unitOfWork.CollectionCases.UpdateAsync(collectionCase, cancellationToken);
+        await unitOfWork.CollectionCaseRepository.UpdateAsync(collectionCase, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         logger.LogInformation("Assigned officer {OfficerId} to collection case {CaseId}", request.OfficerUserId, request.CollectionCaseId);

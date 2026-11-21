@@ -53,7 +53,7 @@ public sealed class CreateTenantCommandHandlerTests
         };
         var command = new CreateTenantCommand(request);
 
-        _unitOfWork.Tenants.AnyAsync(
+        _unitOfWork.TenantRepository.AnyAsync(
             Arg.Any<Expression<Func<Tenant, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(true);
@@ -64,7 +64,7 @@ public sealed class CreateTenantCommandHandlerTests
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("already exists", result.Message, StringComparison.OrdinalIgnoreCase);
-        await _unitOfWork.Tenants.DidNotReceiveWithAnyArgs().CreateAsync(default!, default);
+        await _unitOfWork.TenantRepository.DidNotReceiveWithAnyArgs().CreateAsync(default!, default);
         await _unitOfWork.DidNotReceiveWithAnyArgs().CompleteAsync(default);
     }
 
@@ -82,12 +82,12 @@ public sealed class CreateTenantCommandHandlerTests
         };
         var command = new CreateTenantCommand(request);
 
-        _unitOfWork.Tenants.AnyAsync(
+        _unitOfWork.TenantRepository.AnyAsync(
             Arg.Any<Expression<Func<Tenant, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(false);
 
-        _unitOfWork.DeploymentStamps.FirstOrDefaultAsync(
+        _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(
             Arg.Any<Expression<Func<DeploymentStamp, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns((DeploymentStamp)null!);
@@ -114,12 +114,12 @@ public sealed class CreateTenantCommandHandlerTests
         };
         var command = new CreateTenantCommand(request);
 
-        _unitOfWork.Tenants.AnyAsync(
+        _unitOfWork.TenantRepository.AnyAsync(
             Arg.Any<Expression<Func<Tenant, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(false);
 
-        _unitOfWork.DeploymentStamps.FirstOrDefaultAsync(
+        _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(
             Arg.Any<Expression<Func<DeploymentStamp, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(new DeploymentStamp { Id = request.DeploymentStampId, Name = "Stamp", TargetResourceGroup = "test-rg", CreatedBy = "test" });
@@ -159,12 +159,12 @@ public sealed class CreateTenantCommandHandlerTests
             CreatedBy = "test-user"
         };
 
-        _unitOfWork.DeploymentStamps.FirstOrDefaultAsync(
+        _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(
             Arg.Any<Expression<Func<DeploymentStamp, bool>>>(), 
             Arg.Any<CancellationToken>())
             .Returns(stamp);
 
-        _unitOfWork.Tenants.AnyAsync(
+        _unitOfWork.TenantRepository.AnyAsync(
             Arg.Any<Expression<Func<Tenant, bool>>>(), 
             Arg.Any<CancellationToken>())
             .Returns(false);
@@ -178,7 +178,7 @@ public sealed class CreateTenantCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(TenantStatus.PendingKYC.ToDisplayString(), result.Data!.Status);
 
-        await _unitOfWork.Tenants.Received(1).CreateAsync(
+        await _unitOfWork.TenantRepository.Received(1).CreateAsync(
             Arg.Is<Tenant>(t => 
                 t.Status == TenantStatus.PendingKYC && 
                 t.Identifier == "test-tenant" &&

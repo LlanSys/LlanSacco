@@ -29,8 +29,8 @@ internal sealed partial class TenantOutboxRouting(
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var catalog = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
-                var hostTenant = await catalog.Tenants.FindByIdAsync(settings.Value.DefaultTenantId, stoppingToken).ConfigureAwait(false);
-                var tenants = hostTenant is null ? [] : await catalog.Tenants.ListAsync(q => q
+                var hostTenant = await catalog.TenantRepository.FindByIdAsync(settings.Value.DefaultTenantId, stoppingToken).ConfigureAwait(false);
+                var tenants = hostTenant is null ? [] : await catalog.TenantRepository.ListAsync(q => q
                     .Where(t => t.DeploymentStampId == hostTenant.DeploymentStampId
                         && (t.Status == TenantStatus.Active || t.Status == TenantStatus.Suspended))
                     .OrderBy(t => t.Id).Select(t => t.Id), stoppingToken).ConfigureAwait(false);

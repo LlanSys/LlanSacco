@@ -35,7 +35,7 @@ internal class CreateSavingsProductCommandHandler(
     {
         var request = command.Request;
         
-        bool exists = await unitOfWork.SavingsProducts.AnyAsync(x => x.Code == request.Code, cancellationToken);
+        bool exists = await unitOfWork.SavingsProductRepository.AnyAsync(x => x.Code == request.Code, cancellationToken);
             
         if (exists)
         {
@@ -60,7 +60,7 @@ internal class CreateSavingsProductCommandHandler(
             product.Description = request.Description;
         }
 
-        await unitOfWork.SavingsProducts.CreateAsync(product, cancellationToken);
+        await unitOfWork.SavingsProductRepository.CreateAsync(product, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         var response = new SavingsProductResponse(

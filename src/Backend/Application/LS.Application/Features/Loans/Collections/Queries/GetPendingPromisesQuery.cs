@@ -16,7 +16,7 @@ internal class GetPendingPromisesQueryHandler(ILoansUnitOfWork unitOfWork) : IRe
 {
     public async Task<AppResponse<IEnumerable<CollectionPromiseResponse>>> Handle(GetPendingPromisesQuery request, CancellationToken cancellationToken)
     {
-        var promises = await unitOfWork.CollectionPromises.ListAsync(query => 
+        var promises = await unitOfWork.CollectionPromiseRepository.ListAsync(query =>
         {
             var q = query.Where(p => p.Status == Domain.Features.Loans.Collections.Enums.PromiseStatus.Pending);
             if (request.OfficerUserId.HasValue)

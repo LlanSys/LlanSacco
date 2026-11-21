@@ -28,7 +28,7 @@ public class ActivateTenantCommandHandler(
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
 
-        var tenant = await _unitOfWork.Tenants.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
+        var tenant = await _unitOfWork.TenantRepository.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
 
         if (tenant == null)
         {
@@ -39,7 +39,7 @@ public class ActivateTenantCommandHandler(
         tenant.UpdatedAt = DateTimeOffset.UtcNow;
         tenant.UpdatedBy = _actorProvider.ActorId;
 
-        await _unitOfWork.Tenants.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.TenantRepository.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         ControlPlaneLogDefinitions.LogTenantActivated(_logger, tenant.Id, tenant.Identifier);

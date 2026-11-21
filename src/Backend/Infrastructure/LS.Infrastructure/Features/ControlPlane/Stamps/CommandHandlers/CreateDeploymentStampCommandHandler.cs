@@ -29,7 +29,7 @@ public class CreateDeploymentStampCommandHandler(
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
         var req = request.Request;
-        var existingStamp = await _unitOfWork.DeploymentStamps.AnyAsync(s => s.Name == req.Name, cancellationToken).ConfigureAwait(false);
+        var existingStamp = await _unitOfWork.DeploymentStampRepository.AnyAsync(s => s.Name == req.Name, cancellationToken).ConfigureAwait(false);
 
         if (existingStamp)
         {
@@ -59,7 +59,7 @@ public class CreateDeploymentStampCommandHandler(
             CreatedBy = "System"
         };
         
-        await _unitOfWork.DeploymentStamps.CreateAsync(stamp, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.DeploymentStampRepository.CreateAsync(stamp, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         ControlPlaneLogDefinitions.LogDeploymentStampCreated(_logger, stamp.Id, stamp.Name);

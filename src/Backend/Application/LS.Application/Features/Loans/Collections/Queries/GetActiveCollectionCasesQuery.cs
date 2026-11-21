@@ -16,7 +16,7 @@ internal class GetActiveCollectionCasesQueryHandler(ILoansUnitOfWork unitOfWork)
 {
     public async Task<AppResponse<IEnumerable<CollectionCaseResponse>>> Handle(GetActiveCollectionCasesQuery request, CancellationToken cancellationToken)
     {
-        var cases = await unitOfWork.CollectionCases.ListAsync(query => 
+        var cases = await unitOfWork.CollectionCaseRepository.ListAsync(query =>
         {
             var q = query.Where(c => c.Status == Domain.Features.Loans.Collections.Enums.CollectionCaseStatus.Open);
             if (request.OfficerUserId.HasValue)

@@ -15,7 +15,7 @@ internal class GetCollectionCaseDetailsQueryHandler(ILoansUnitOfWork unitOfWork)
 {
     public async Task<AppResponse<CollectionCaseDetailsResponse>> Handle(GetCollectionCaseDetailsQuery request, CancellationToken cancellationToken)
     {
-        var caseDetails = await unitOfWork.CollectionCases.FirstOrDefaultAsync(query => 
+        var caseDetails = await unitOfWork.CollectionCaseRepository.FirstOrDefaultAsync(query =>
             query.Where(c => c.Id == request.CollectionCaseId)
                  .Select(c => new CollectionCaseDetailsResponse(
                      c.Id,

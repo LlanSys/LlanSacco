@@ -30,7 +30,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
         if (tenantProvider.TenantId == Guid.Empty) return AppResponses.Failure<bool>(AppError.Forbidden("A tenant context is required."));
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var batch = await unitOfWork.CheckoffBatches.FirstOrDefaultAsync(
+            var batch = await unitOfWork.CheckoffBatchRepository.FirstOrDefaultAsync(
                 b => b.Id == request.BatchId && b.TenantId == tenantProvider.TenantId, cancellationToken);
 
             if (batch == null)
@@ -39,7 +39,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
             if (batch.Status != CheckoffBatchStatus.Staged)
                 return AppResponses.Failure<bool>($"Batch is in status '{batch.Status}', cannot validate.");
 
-            var rows = await unitOfWork.CheckoffStagingRows.ListAsync(
+            var rows = await unitOfWork.CheckoffStagingRowRepository.ListAsync(
                 q => q.Where(r => r.CheckoffBatchId == batch.Id && r.TenantId == tenantProvider.TenantId), cancellationToken);
             if (rows.Count == 0) return AppResponses.Failure<bool>("An empty batch cannot be validated.");
 
@@ -48,7 +48,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
             var employments = new List<MemberEmployment>();
             foreach (var chunk in payrollNumbers.Chunk(500))
             {
-                employments.AddRange(await unitOfWork.MemberEmployments.ListAsync(q => q.Where(e =>
+                employments.AddRange(await unitOfWork.MemberEmploymentRepository.ListAsync(q => q.Where(e =>
                     e.TenantId == tenantProvider.TenantId && e.EmployerId == batch.EmployerId && e.IsActive &&
                     chunk.Contains(e.EmployeePayrollNumber)), cancellationToken));
             }
@@ -75,8 +75,8 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
                 if (row.ExceptionReason is not null) invalidCount++;
             }
             batch.Status = invalidCount == 0 ? CheckoffBatchStatus.Validated : CheckoffBatchStatus.Failed;
-            await unitOfWork.CheckoffStagingRows.UpdateRangeAsync(new Collection<CheckoffStagingRow>(rows), cancellationToken);
-            await unitOfWork.CheckoffBatches.UpdateAsync(batch, cancellationToken);
+            await unitOfWork.CheckoffStagingRowRepository.UpdateRangeAsync(new Collection<CheckoffStagingRow>(rows), cancellationToken);
+            await unitOfWork.CheckoffBatchRepository.UpdateAsync(batch, cancellationToken);
             // Validation itself succeeded; Data reports validity and the persisted row diagnostics explain failures.
             return new AppResponse<bool>(invalidCount == 0, $"Batch validation completed. {invalidCount} invalid rows.");
         }, cancellationToken);

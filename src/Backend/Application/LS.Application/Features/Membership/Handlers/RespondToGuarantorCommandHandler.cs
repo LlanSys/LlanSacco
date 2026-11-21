@@ -32,7 +32,7 @@ internal class RespondToGuarantorCommandHandler(
             return AppResponses.Failure<bool>(AppError.Unexpected());
         }
 
-        var guarantorRequest = await _unitOfWork.GuarantorRequests.FindByIdAsync(request.Request.RequestId, cancellationToken).ConfigureAwait(false);
+        var guarantorRequest = await _unitOfWork.GuarantorRequestRepository.FindByIdAsync(request.Request.RequestId, cancellationToken).ConfigureAwait(false);
         if (guarantorRequest == null)
             return AppResponses.Failure<bool>(AppError.NotFound("Guarantor request not found."));
 
@@ -58,14 +58,14 @@ internal class RespondToGuarantorCommandHandler(
                 guarantorRequest.AmountToGuarantee,
                 updatedBy);
 
-            await _unitOfWork.MemberGuarantors.CreateAsync(memberGuarantor, cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.MemberGuarantorRepository.CreateAsync(memberGuarantor, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             guarantorRequest.Reject(request.Request.ResponseNote ?? "Rejected.", updatedBy);
         }
 
-        await _unitOfWork.GuarantorRequests.UpdateAsync(guarantorRequest, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.GuarantorRequestRepository.UpdateAsync(guarantorRequest, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation("Guarantor request {RequestId} was {Status} by {UpdatedBy}", guarantorRequest.Id, request.Request.IsAccepted ? "Accepted" : "Rejected", updatedBy);

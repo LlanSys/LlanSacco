@@ -1,10 +1,8 @@
+using LS.Domain.Features.IAM.ReferenceData.Contracts.Repositories;
 using LS.Domain.Shared.Contracts;
-using LS.Domain.Features.HR.Employees.Contracts.Repositories;
 using LS.Domain.Features.IAM.Menus.Contracts.Repositories;
 using LS.Domain.Features.IAM.Permissions.Contracts.Repositories;
-using LS.Domain.Features.IAM.ReferenceData.Entities;
 using LS.Domain.Features.IAM.Users.Contracts.Repositories;
-using LS.Domain.Shared.Contracts.Repositories;
 
 namespace LS.Domain.Features.IAM.Contracts;
 
@@ -18,11 +16,11 @@ public interface IIamUnitOfWork : ITransactionalUnitOfWork
     ITempTotpSecretRepository TempTotpSecretRepository { get; }
     IPermissionRepository PermissionRepository { get; }
     IMenuRepository MenuRepository { get; }
-    IRepository<PermissionContext> PermissionContextRepository { get; }
-    IRepository<PermissionResource> PermissionResourceRepository { get; }
-    IRepository<PermissionAction> PermissionActionRepository { get; }
-    IRepository<MenuPlacement> MenuPlacementRepository { get; }
-    IRepository<MenuIcon> MenuIconRepository { get; }
-    IRepository<MenuRoute> MenuRouteRepository { get; }
-    IRepository<Fido2Credential> Fido2CredentialRepository { get; }
+    IPermissionContextRepository PermissionContextRepository { get; }
+    IPermissionResourceRepository PermissionResourceRepository { get; }
+    IPermissionActionRepository PermissionActionRepository { get; }
+    IMenuPlacementRepository MenuPlacementRepository { get; }
+    IMenuIconRepository MenuIconRepository { get; }
+    IMenuRouteRepository MenuRouteRepository { get; }
+    IFido2CredentialRepository Fido2CredentialRepository { get; }
 }

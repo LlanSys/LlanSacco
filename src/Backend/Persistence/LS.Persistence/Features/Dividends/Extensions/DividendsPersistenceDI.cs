@@ -1,7 +1,8 @@
+using LS.Persistence.Features.Dividends.Repositories;
+using LS.Domain.Features.Dividends.Contracts.Repositories;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Common.Interceptors;
-using LS.Persistence.Features.Dividends.Contracts;
 using LS.Persistence.Features.Dividends.DataContext;
 using LS.Persistence.Features.Dividends.Providers.PostgreSql;
 using LS.Persistence.Features.Dividends.Providers.SqlServer;
@@ -62,6 +63,9 @@ public static class DividendsPersistenceDI
             services.AddDbContext<DividendsDBContext, DividendsSqlServerDBContext>(ConfigureDbContextOptions);
         }
 
+        services.AddScoped<IDividendDeclarationRepository, DividendDeclarationRepository>();
+        services.AddScoped<IDividendCalculationRepository, DividendCalculationRepository>();
+        services.AddScoped<IDividendDistributionPreferenceRepository, DividendDistributionPreferenceRepository>();
         services.AddScoped<IDividendsUnitOfWork, DividendsUnitOfWork>();
 
         return services;

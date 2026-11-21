@@ -18,7 +18,7 @@ public class GetDeploymentStampByIdQueryHandler(IControlPlaneUnitOfWork unitOfWo
 
     public async Task<AppResponse<DeploymentStampResponse>> Handle(GetDeploymentStampByIdQuery request, CancellationToken cancellationToken)
     {
-        var stamp = await _unitOfWork.DeploymentStamps
+        var stamp = await _unitOfWork.DeploymentStampRepository
             .FindAll()
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken)

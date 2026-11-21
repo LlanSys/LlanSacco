@@ -2,12 +2,12 @@ using LS.Application.Features.Dividends.Queries;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.Domain.Features.Dividends.Entities;
 using LS.Domain.Shared.Contracts.Common;
-using LS.Persistence.Common.Repositories;
+using LS.Persistence.Features.Dividends.Extensions;
 using LS.Persistence.Features.Dividends.DataContext;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
 
 namespace LS.Tests.Unit.Features.Dividends;
 
@@ -18,8 +18,7 @@ public sealed class DividendReadCompatibilityTests
     {
         var tenantId = Guid.CreateVersion7();
         var actorId = Guid.CreateVersion7().ToString();
-        var tenant = Substitute.For<ICurrentTenantProvider>();
-        tenant.TenantId.Returns(tenantId);
+        var tenant = new Tenant(tenantId);
         await using var context = new DividendsDBContext(new DbContextOptionsBuilder<DividendsDBContext>()
             .UseInMemoryDatabase(Guid.CreateVersion7().ToString()).Options, tenant);
         var first = DividendDeclaration.Create(tenantId, 2026, 0.1m, 0.05m, createdBy: actorId);
@@ -32,11 +31,14 @@ public sealed class DividendReadCompatibilityTests
             DividendCalculation.Create(tenantId, second.Id, Guid.CreateVersion7(), 1000, 500, 0, 0, 0, 0, actorId));
         await context.SaveChangesAsync(CancellationToken.None);
         context.ChangeTracker.Clear();
-        var unitOfWork = Substitute.For<IDividendsUnitOfWork>();
-        unitOfWork.DividendDeclarations.Returns(new Repository<DividendDeclaration>(context));
-        unitOfWork.DividendCalculations.Returns(new Repository<DividendCalculation>(context));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=localhost;Database=DividendsTests;Integrated Security=true"
+        }).Build();
         var services = new ServiceCollection();
-        services.AddSingleton(unitOfWork);
+        services.AddDividendsPersistence(configuration);
+        services.AddSingleton(context);
+        services.AddSingleton<ICurrentTenantProvider>(tenant);
         services.AddLogging();
         services.AddMediatR(c => c.RegisterServicesFromAssemblyContaining<GetDividendDeclarationsQuery>());
         await using var provider = services.BuildServiceProvider();
@@ -58,4 +60,6 @@ public sealed class DividendReadCompatibilityTests
         Assert.False(missing.IsSuccess);
         Assert.NotNull(missing.Error);
     }
+
+    private sealed record Tenant(Guid TenantId) : ICurrentTenantProvider;
 }

@@ -20,7 +20,7 @@ internal class OpenDepositAccountCommandHandler(
     {
         var request = command.Request;
 
-        var product = await unitOfWork.DepositProducts.FindByIdAsync(request.DepositProductId, cancellationToken);
+        var product = await unitOfWork.DepositProductRepository.FindByIdAsync(request.DepositProductId, cancellationToken);
         if (product == null)
         {
             return AppResponses.NotFound<DepositAccountResponse>($"Deposit product with ID {request.DepositProductId} not found.");
@@ -41,7 +41,7 @@ internal class OpenDepositAccountCommandHandler(
             actorProvider.ActorId.ToString()
         );
 
-        await unitOfWork.DepositAccounts.CreateAsync(account, cancellationToken);
+        await unitOfWork.DepositAccountRepository.CreateAsync(account, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         var response = new DepositAccountResponse(

@@ -56,7 +56,7 @@ internal sealed class TenantModuleResolver(
         using var scope = _serviceProvider.CreateScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
 
-        var modules = await unitOfWork.Tenants.FindAll()
+        var modules = await unitOfWork.TenantRepository.FindAll()
             .Where(t => t.Id == tenantId)
             .SelectMany(t => t.Modules)
             .Where(m => m.IsActive)

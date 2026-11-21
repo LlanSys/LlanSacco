@@ -24,7 +24,7 @@ public class ProcessDepositMaturitiesJob(
         {
             var count = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                var accounts = await unitOfWork.DepositAccounts.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
+                var accounts = await unitOfWork.DepositAccountRepository.ListAsync(q => q.Where(a => a.TenantId == tenantId && a.IsActive
                         && a.MaturityDate <= now && a.AccruedInterest > 0)
                     .OrderBy(a => a.Id).Take(200), cancellationToken);
                 foreach (var account in accounts)
@@ -32,11 +32,11 @@ public class ProcessDepositMaturitiesJob(
                     var interest = account.AccruedInterest;
                     account.Balance += interest;
                     account.AccruedInterest = 0;
-                    await unitOfWork.DepositTransactions.CreateAsync(DepositTransaction.Create(account.Id,
+                    await unitOfWork.DepositTransactionRepository.CreateAsync(DepositTransaction.Create(account.Id,
                         DepositTransactionType.InterestAccrual, interest, account.Balance, "Maturity Interest Capitalization",
                         ICurrentActorProvider.SystemActor), cancellationToken);
                 }
-                await unitOfWork.DepositAccounts.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
+                await unitOfWork.DepositAccountRepository.UpdateRangeAsync(new Collection<DepositAccount>(accounts), cancellationToken);
                 return accounts.Count;
             }, cancellationToken: cancellationToken);
             processed += count;

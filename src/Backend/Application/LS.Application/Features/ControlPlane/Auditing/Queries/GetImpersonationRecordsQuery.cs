@@ -29,7 +29,7 @@ internal sealed class GetImpersonationRecordsQueryHandler(
 {
     public async Task<AppResponse<IReadOnlyList<ImpersonationRecordResponse>>> Handle(GetImpersonationRecordsQuery request, CancellationToken cancellationToken)
     {
-        var query = await unitOfWork.ImpersonationRecords.ListAsync(
+        var query = await unitOfWork.ImpersonationRecordRepository.ListAsync(
             q => request.ActiveOnly 
                 ? q.Where(x => x.Status == ImpersonationRecordStatus.Active && x.ExpiryTime > DateTimeOffset.UtcNow)
                 : q,

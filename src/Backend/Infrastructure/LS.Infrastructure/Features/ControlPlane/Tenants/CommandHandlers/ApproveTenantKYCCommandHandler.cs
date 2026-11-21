@@ -31,7 +31,7 @@ public class ApproveTenantKYCCommandHandler(
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
 
-        var tenant = await _unitOfWork.Tenants.FindByIdAsync(request.TenantId, cancellationToken).ConfigureAwait(false);
+        var tenant = await _unitOfWork.TenantRepository.FindByIdAsync(request.TenantId, cancellationToken).ConfigureAwait(false);
 
         if (tenant == null)
         {
@@ -43,7 +43,7 @@ public class ApproveTenantKYCCommandHandler(
             return AppResponses.Failure<TenantResponse>($"Cannot approve KYC from status {tenant.Status}.");
         }
 
-        var stamp = await _unitOfWork.DeploymentStamps.FirstOrDefaultAsync(s => s.Id == tenant.DeploymentStampId, cancellationToken).ConfigureAwait(false);
+        var stamp = await _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(s => s.Id == tenant.DeploymentStampId, cancellationToken).ConfigureAwait(false);
         if (stamp == null)
         {
             return AppResponses.Failure<TenantResponse>("Deployment stamp for this tenant could not be found.");
@@ -80,7 +80,7 @@ public class ApproveTenantKYCCommandHandler(
             tenant.MarkAsActive();
         }
 
-        await _unitOfWork.Tenants.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.TenantRepository.UpdateAsync(tenant, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         var dto = new TenantResponse

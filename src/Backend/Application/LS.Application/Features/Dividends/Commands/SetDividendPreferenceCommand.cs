@@ -43,7 +43,7 @@ internal class SetDividendPreferenceCommandHandler(
         if (!Guid.TryParse(memberIdString, out var memberId) || memberId == Guid.Empty)
             return AppResponses.Failure<Guid>("Invalid user token or member reference.");
 
-        var existingPref = await uow.DividendDistributionPreferences
+        var existingPref = await uow.DividendDistributionPreferenceRepository
             .FirstOrDefaultAsync(x => x.MemberId == memberId, cancellationToken);
 
         if (existingPref != null)
@@ -53,7 +53,7 @@ internal class SetDividendPreferenceCommandHandler(
                 request.FosaPercentage,
                 request.ExternalBankPercentage);
             
-            await uow.DividendDistributionPreferences.UpdateAsync(existingPref, cancellationToken);
+            await uow.DividendDistributionPreferenceRepository.UpdateAsync(existingPref, cancellationToken);
             await uow.CompleteAsync(cancellationToken);
             
             return AppResponses.Success(existingPref.Id);
@@ -67,7 +67,7 @@ internal class SetDividendPreferenceCommandHandler(
             request.ExternalBankPercentage,
             actorProvider.ActorId);
 
-        await uow.DividendDistributionPreferences.CreateAsync(newPref, cancellationToken);
+        await uow.DividendDistributionPreferenceRepository.CreateAsync(newPref, cancellationToken);
         await uow.CompleteAsync(cancellationToken);
 
         return AppResponses.Success(newPref.Id);

@@ -22,7 +22,7 @@ internal sealed class EndImpersonationCommandHandler(
 {
     public async Task<AppResponse<bool>> Handle(EndImpersonationCommand request, CancellationToken cancellationToken)
     {
-        var record = await unitOfWork.ImpersonationRecords.FindByIdAsync(request.ImpersonationRecordId, cancellationToken).ConfigureAwait(false);
+        var record = await unitOfWork.ImpersonationRecordRepository.FindByIdAsync(request.ImpersonationRecordId, cancellationToken).ConfigureAwait(false);
         
         if (record == null)
         {
@@ -42,7 +42,7 @@ internal sealed class EndImpersonationCommandHandler(
         record.Status = ImpersonationRecordStatus.Exited;
         record.ExpiryTime = timeProvider.GetUtcNow(); // Explicitly cap it
         
-        await unitOfWork.ImpersonationRecords.UpdateAsync(record, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.ImpersonationRecordRepository.UpdateAsync(record, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
 
         LogDefinitions.LogImpersonationEnded(logger, actorProvider.ActorId, record.Id);

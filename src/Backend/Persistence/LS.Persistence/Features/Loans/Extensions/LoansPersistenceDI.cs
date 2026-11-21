@@ -1,3 +1,5 @@
+using LS.Persistence.Features.Loans.Collections.Repositories;
+using LS.Domain.Features.Loans.Collections.Contracts.Repositories;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using LS.Persistence.Features.Loans.DataContext;
@@ -65,6 +67,11 @@ public static class LoansPersistenceDI
         services.AddScoped<ILoanProductRepository, LoanProductRepository>();
         services.AddScoped<ILoanApplicationRepository, LoanApplicationRepository>();
         services.AddScoped<ILoanRepaymentRepository, LoanRepaymentRepository>();
+        services.AddScoped<ILoanGuarantorRepository, LoanGuarantorRepository>();
+        services.AddScoped<ILoanRepaymentScheduleRepository, LoanRepaymentScheduleRepository>();
+        services.AddScoped<ICollectionCaseRepository, CollectionCaseRepository>();
+        services.AddScoped<ICollectionActionRepository, CollectionActionRepository>();
+        services.AddScoped<ICollectionPromiseRepository, CollectionPromiseRepository>();
         services.AddScoped<ILoansUnitOfWork, LoansUnitOfWork>();
 
         return services;

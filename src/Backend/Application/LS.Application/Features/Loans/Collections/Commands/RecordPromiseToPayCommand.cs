@@ -28,7 +28,7 @@ internal class RecordPromiseToPayCommandHandler(
     {
         var tenantId = tenantProvider.TenantId;
 
-        var collectionCase = await unitOfWork.CollectionCases.FindByIdAsync(request.CollectionCaseId, cancellationToken);
+        var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
             return AppResponses.Failure<Guid>(AppError.BusinessRule("Collection case not found"));
 
@@ -42,7 +42,7 @@ internal class RecordPromiseToPayCommandHandler(
             CreatedBy = "System"
         };
 
-        await unitOfWork.CollectionPromises.CreateAsync(promise, cancellationToken);
+        await unitOfWork.CollectionPromiseRepository.CreateAsync(promise, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 
         logger.LogInformation("Recorded pending promise {PromiseId} for case {CaseId}", promise.Id, request.CollectionCaseId);

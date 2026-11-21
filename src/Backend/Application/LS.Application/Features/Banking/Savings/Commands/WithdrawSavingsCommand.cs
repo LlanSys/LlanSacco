@@ -46,7 +46,7 @@ internal class WithdrawSavingsCommandHandler(
         
         if (!string.IsNullOrWhiteSpace(request.ExternalReferenceId))
         {
-            bool alreadyProcessed = await unitOfWork.SavingsTransactions.AnyAsync(x => x.ExternalReferenceId == request.ExternalReferenceId && x.Type == SavingsTransactionType.Withdrawal, cancellationToken);
+            bool alreadyProcessed = await unitOfWork.SavingsTransactionRepository.AnyAsync(x => x.ExternalReferenceId == request.ExternalReferenceId && x.Type == SavingsTransactionType.Withdrawal, cancellationToken);
             
             if (alreadyProcessed)
             {
@@ -54,7 +54,7 @@ internal class WithdrawSavingsCommandHandler(
             }
         }
 
-        var product = await unitOfWork.SavingsProducts.FirstOrDefaultAsync(x => x.Id == request.SavingsProductId, cancellationToken);
+        var product = await unitOfWork.SavingsProductRepository.FirstOrDefaultAsync(x => x.Id == request.SavingsProductId, cancellationToken);
 
         if (product == null)
         {
@@ -71,7 +71,7 @@ internal class WithdrawSavingsCommandHandler(
             return AppResponses.Failure<SavingsAccountResponse>($"Savings product '{product.Name}' does not allow withdrawals.");
         }
 
-        var account = await unitOfWork.SavingsAccounts.FirstOrDefaultAsync(x => x.MemberId == request.MemberId && x.SavingsProductId == request.SavingsProductId, cancellationToken);
+        var account = await unitOfWork.SavingsAccountRepository.FirstOrDefaultAsync(x => x.MemberId == request.MemberId && x.SavingsProductId == request.SavingsProductId, cancellationToken);
 
         if (account == null)
         {
@@ -89,7 +89,7 @@ internal class WithdrawSavingsCommandHandler(
             var today = DateTimeOffset.UtcNow.Date;
             var startOfMonth = new DateTimeOffset(today.Year, today.Month, 1, 0, 0, 0, TimeSpan.Zero);
 
-            var recentWithdrawals = await unitOfWork.SavingsTransactions.ListAsync(q => q
+            var recentWithdrawals = await unitOfWork.SavingsTransactionRepository.ListAsync(q => q
                 .Where(x => x.SavingsAccountId == account.Id 
                             && x.Type == SavingsTransactionType.Withdrawal 
                             && x.CreatedAt >= startOfMonth), cancellationToken);
@@ -126,7 +126,7 @@ internal class WithdrawSavingsCommandHandler(
 
         // Update balance
         account.Balance -= totalDeduction;
-        await unitOfWork.SavingsAccounts.UpdateAsync(account, cancellationToken);
+        await unitOfWork.SavingsAccountRepository.UpdateAsync(account, cancellationToken);
 
         // Record withdrawal transaction
         var withdrawalTransaction = SavingsTransaction.Create(
@@ -137,7 +137,7 @@ internal class WithdrawSavingsCommandHandler(
             request.ExternalReferenceId,
             actorProvider.ActorId.ToString()
         );
-        await unitOfWork.SavingsTransactions.CreateAsync(withdrawalTransaction, cancellationToken);
+        await unitOfWork.SavingsTransactionRepository.CreateAsync(withdrawalTransaction, cancellationToken);
 
         // Record fee transaction if applicable
         if (product.WithdrawalFee > 0)
@@ -150,7 +150,7 @@ internal class WithdrawSavingsCommandHandler(
                 request.ExternalReferenceId,
                 actorProvider.ActorId.ToString()
             );
-            await unitOfWork.SavingsTransactions.CreateAsync(feeTransaction, cancellationToken);
+            await unitOfWork.SavingsTransactionRepository.CreateAsync(feeTransaction, cancellationToken);
         }
 
         // Publish event for Accounting

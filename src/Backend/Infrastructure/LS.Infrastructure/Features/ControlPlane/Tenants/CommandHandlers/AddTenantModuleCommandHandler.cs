@@ -29,7 +29,7 @@ public class AddTenantModuleCommandHandler(
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
 
-        var tenant = await _unitOfWork.Tenants.FindAll()
+        var tenant = await _unitOfWork.TenantRepository.FindAll()
             .Include(t => t.Modules)
             .FirstOrDefaultAsync(t => t.Id == request.TenantId, cancellationToken)
             .ConfigureAwait(false);

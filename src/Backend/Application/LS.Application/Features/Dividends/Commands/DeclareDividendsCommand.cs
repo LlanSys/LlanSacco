@@ -37,7 +37,7 @@ internal class DeclareDividendsCommandHandler(
 {
     public async Task<AppResponse<Guid>> Handle(DeclareDividendsCommand request, CancellationToken cancellationToken)
     {
-        var existing = await uow.DividendDeclarations
+        var existing = await uow.DividendDeclarationRepository
             .FirstOrDefaultAsync(x => x.FinancialYear == request.FinancialYear, cancellationToken);
             
         if (existing != null)
@@ -55,7 +55,7 @@ internal class DeclareDividendsCommandHandler(
             actorProvider.ActorId
         );
 
-        await uow.DividendDeclarations.CreateAsync(declaration, cancellationToken);
+        await uow.DividendDeclarationRepository.CreateAsync(declaration, cancellationToken);
         await uow.CompleteAsync(cancellationToken);
 
         return AppResponses.Success(declaration.Id);

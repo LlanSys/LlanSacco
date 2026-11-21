@@ -16,9 +16,9 @@ public class ControlPlaneUnitOfWork(
 {
     private readonly ControlPlaneDBContext _context = context ?? throw new ArgumentNullException(nameof(context));
 
-    public ITenantRepository Tenants { get; } = tenants ?? throw new ArgumentNullException(nameof(tenants));
-    public IDeploymentStampRepository DeploymentStamps { get; } = deploymentStamps ?? throw new ArgumentNullException(nameof(deploymentStamps));
-    public IImpersonationRecordRepository ImpersonationRecords { get; } = impersonationRecords ?? throw new ArgumentNullException(nameof(impersonationRecords));
+    public ITenantRepository TenantRepository { get; } = tenants ?? throw new ArgumentNullException(nameof(tenants));
+    public IDeploymentStampRepository DeploymentStampRepository { get; } = deploymentStamps ?? throw new ArgumentNullException(nameof(deploymentStamps));
+    public IImpersonationRecordRepository ImpersonationRecordRepository { get; } = impersonationRecords ?? throw new ArgumentNullException(nameof(impersonationRecords));
 
     public async Task<int> CompleteAsync(CancellationToken cancellationToken = default)
     {

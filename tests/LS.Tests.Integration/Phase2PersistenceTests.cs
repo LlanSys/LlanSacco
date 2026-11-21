@@ -9,7 +9,7 @@ using LS.Domain.Features.Accounting.Contracts;
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Features.Accounting.Enums;
 using LS.Persistence.Features.Accounting.DataContext;
-using LS.Persistence.Features.Accounting.Repositories;
+using LS.Persistence.Features.Accounting;
 using LS.Application.Features.Accounting.Services;
 using LS.SharedKernel.Features.Accounting.Dtos;
 using LS.Domain.Features.Loans.Contracts;
@@ -48,7 +48,7 @@ using LS.Domain.Features.HR.Payroll.Services;
 using LS.Domain.Features.Membership.Entities;
 using LS.Domain.Features.Membership.Enums;
 using LS.Domain.Shared.Contracts.Common;
-using LS.Persistence.Features.CheckOff.Contracts;
+using LS.Persistence.Features.CheckOff;
 using LS.Persistence.Features.CheckOff.DataContext;
 using LS.Persistence.Features.HR;
 using LS.Persistence.Features.HR.DataContext;
@@ -95,51 +95,48 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         services.AddSingleton<IKenyaTaxCalculatorService, KenyaTaxCalculatorService>();
         if (context is HrDBContext)
         {
-            // Resolve the real production implementations, including internal thin repositories.
-            foreach (var contract in typeof(IHrUnitOfWork).GetProperties().Select(p => p.PropertyType))
-            {
-                var implementation = typeof(HrUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
-                services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
-            }
+            RegisterRepositories<IHrUnitOfWork>(services);
             services.AddScoped<IHrUnitOfWork, HrUnitOfWork>();
         }
         else if (context is BankingDBContext)
         {
+            RegisterRepositories<IBankingUnitOfWork>(services);
             var implementation = typeof(BankingDBContext).Assembly.GetTypes()
                 .Single(t => t.IsClass && !t.IsAbstract && typeof(IBankingUnitOfWork).IsAssignableFrom(t));
-            var transferRepository = typeof(LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository);
-            var transferImplementation = typeof(BankingDBContext).Assembly.GetTypes()
-                .Single(t => t.IsClass && !t.IsAbstract && transferRepository.IsAssignableFrom(t));
-            services.AddScoped(transferRepository, sp => ActivatorUtilities.CreateInstance(sp, transferImplementation));
             services.AddScoped(typeof(IBankingUnitOfWork), sp => ActivatorUtilities.CreateInstance(sp, implementation));
             if (failSavingsPublication)
                 services.AddTransient<INotificationHandler<SavingsDepositedIntegrationEvent>, RejectSavingsPublication>();
         }
         else if (context is AccountingDBContext)
         {
-            foreach (var contract in typeof(IAccountingUnitOfWork).GetProperties().Select(p => p.PropertyType))
-            {
-                var implementation = typeof(AccountingUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
-                services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
-            }
+            RegisterRepositories<IAccountingUnitOfWork>(services);
             services.AddScoped<IAccountingUnitOfWork, AccountingUnitOfWork>();
         }
         else if (context is LoansDBContext)
         {
-            services.AddScoped<DbContext>(_ => context);
-            services.AddScoped(typeof(LS.Domain.Shared.Contracts.Repositories.IRepository<>), typeof(LS.Persistence.Common.Repositories.Repository<>));
-            foreach (var contract in new[] { typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanProductRepository), typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanApplicationRepository), typeof(LS.Domain.Features.Loans.Contracts.Repositories.ILoanRepaymentRepository) })
-            {
-                var implementation = typeof(LoansUnitOfWork).Assembly.GetTypes().Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
-                services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
-            }
+            RegisterRepositories<ILoansUnitOfWork>(services);
             services.AddScoped<ILoansUnitOfWork, LoansUnitOfWork>();
             services.AddScoped<LS.Application.Contracts.Interfaces.Common.IContextEventPublisher<ILoansUnitOfWork>, LoanTestPublisher>();
         }
-        else services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
+        else
+        {
+            RegisterRepositories<ICheckOffUnitOfWork>(services);
+            services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
+        }
         if (failInterestPublication)
             services.AddSingleton<INotificationHandler<SavingsInterestAppliedIntegrationEvent>>(new RejectInterestPublication());
         return services.BuildServiceProvider();
+    }
+
+    private static void RegisterRepositories<TUnitOfWork>(IServiceCollection services)
+    {
+        var implementations = typeof(BankingDBContext).Assembly.GetTypes();
+        foreach (var property in typeof(TUnitOfWork).GetProperties())
+        {
+            var contract = property.PropertyType;
+            var implementation = implementations.Single(t => t.IsClass && !t.IsAbstract && contract.IsAssignableFrom(t));
+            services.AddScoped(contract, sp => ActivatorUtilities.CreateInstance(sp, implementation));
+        }
     }
 
     // Persistence fault injection only; durable delivery is tested separately with the real bus outbox.
@@ -942,6 +939,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             builder.Services.AddSingleton<ICurrentTenantProvider>(tenant);
             builder.Services.AddSingleton<ICurrentActorProvider>(new Actor());
             builder.Services.AddScoped(_ => new CheckOffDBContext(checkoffOptions, tenant, new Actor()));
+            RegisterRepositories<ICheckOffUnitOfWork>(builder.Services);
             builder.Services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
             builder.Services.AddScoped<IContextEventPublisher<ICheckOffUnitOfWork>,
                 LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<ICheckOffUnitOfWork, CheckOffDBContext>>();
@@ -1040,7 +1038,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         }
         var banking = Substitute.For<IBankingUnitOfWork>();
         var product = SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId);
-        banking.SavingsProducts.ListAsync(Arg.Any<Func<IQueryable<SavingsProduct>, IQueryable<SavingsProduct>>>(), Arg.Any<CancellationToken>())
+        banking.SavingsProductRepository.ListAsync(Arg.Any<Func<IQueryable<SavingsProduct>, IQueryable<SavingsProduct>>>(), Arg.Any<CancellationToken>())
             .Returns(new List<SavingsProduct> { product });
         var payments = new CheckoffPaymentSender();
         for (var attempt = 0; attempt < 3; attempt++)
@@ -1346,7 +1344,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
                 var stampId = Guid.CreateVersion7();
                 var catalog = Substitute.For<LS.Domain.Features.ControlPlane.Contracts.IControlPlaneUnitOfWork>();
                 var tenants = Substitute.For<LS.Domain.Features.ControlPlane.Tenants.Contracts.Repositories.ITenantRepository>();
-                catalog.Tenants.Returns(tenants);
+                catalog.TenantRepository.Returns(tenants);
                 var hostTenant = new LS.Domain.Features.ControlPlane.Tenants.Entities.Tenant
                 {
                     Id = defaultTenant.TenantId, DeploymentStampId = stampId, Identifier = "host",
@@ -1590,12 +1588,12 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         await using var secondServices = Services(second, tenant);
         var firstUow = firstServices.GetRequiredService<IBankingUnitOfWork>();
         var secondUow = secondServices.GetRequiredService<IBankingUnitOfWork>();
-        var a = await firstUow.SavingsAccounts.FirstOrDefaultAsync(x => x.Id == account.Id);
-        var b = await secondUow.SavingsAccounts.FirstOrDefaultAsync(x => x.Id == account.Id);
+        var a = await firstUow.SavingsAccountRepository.FirstOrDefaultAsync(x => x.Id == account.Id);
+        var b = await secondUow.SavingsAccountRepository.FirstOrDefaultAsync(x => x.Id == account.Id);
         a!.Balance += 100;
         b!.Balance += 200;
-        await firstUow.SavingsAccounts.UpdateAsync(a);
-        await secondUow.SavingsAccounts.UpdateAsync(b);
+        await firstUow.SavingsAccountRepository.UpdateAsync(a);
+        await secondUow.SavingsAccountRepository.UpdateAsync(b);
         await firstUow.CompleteAsync();
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondUow.CompleteAsync());
         await using var fresh = new BankingDBContext(options, tenant, new Actor());

@@ -39,7 +39,7 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
             return AppResponses.Failure<bool>(AppError.BusinessRule("Provide a positive cash amount with at most two decimal places, a supported transaction type and a reference."));
         return await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
         {
-            var existing = await unitOfWork.FosaTransactions.ListAsync(
+            var existing = await unitOfWork.FosaTransactionRepository.ListAsync(
                 q => q.Where(transaction => transaction.Reference == request.Reference).Take(2), cancellationToken).ConfigureAwait(false);
             if (existing.Count != 0)
             {
@@ -50,13 +50,13 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
                     : AppResponses.Failure<bool>(AppError.BusinessRule("The cash transaction reference is already in use."));
             }
 
-            var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
+            var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
             if (till is null || till.Status != TillStatus.Open)
             {
                 return AppResponses.Failure<bool>("Teller till is invalid or not open.");
             }
 
-            var account = await unitOfWork.FosaAccounts.FindByIdAsync(request.FosaAccountId, cancellationToken).ConfigureAwait(false);
+            var account = await unitOfWork.FosaAccountRepository.FindByIdAsync(request.FosaAccountId, cancellationToken).ConfigureAwait(false);
             if (account is null || !account.IsActive)
             {
                 return AppResponses.Failure<bool>("FOSA account is invalid or inactive.");
@@ -98,10 +98,10 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
                 actorProvider.ActorId
             );
 
-            await unitOfWork.FosaTransactions.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.FosaTransactionRepository.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
 
-            await unitOfWork.FosaAccounts.UpdateAsync(account, cancellationToken).ConfigureAwait(false);
-            await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.FosaAccountRepository.UpdateAsync(account, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.TellerTillRepository.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
 
             return AppResponses.Success<bool>("Over the counter transaction processed successfully.", true);
         }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);

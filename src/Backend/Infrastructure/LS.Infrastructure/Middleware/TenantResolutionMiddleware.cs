@@ -40,7 +40,7 @@ public class TenantResolutionMiddleware(
                 using var scope = serviceProvider.CreateScope();
                 var uow = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
 
-                var tenant = await uow.Tenants
+                var tenant = await uow.TenantRepository
                     .FirstOrDefaultAsync(t => t.HostName == host && t.Status == TenantStatus.Active).ConfigureAwait(false);
 
                 tenantId = tenant?.Id ?? Guid.Empty;

@@ -32,7 +32,7 @@ internal sealed class LinkMemberToEmployerCommandHandler(
     {
         return await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var employer = await unitOfWork.Employers.FirstOrDefaultAsync(
+            var employer = await unitOfWork.EmployerRepository.FirstOrDefaultAsync(
                 e => e.Id == request.EmployerId, cancellationToken);
 
             if (employer == null)
@@ -40,7 +40,7 @@ internal sealed class LinkMemberToEmployerCommandHandler(
                 return AppResponses.NotFound<Guid>($"Employer with ID '{request.EmployerId}' not found.");
             }
 
-            var existingLink = await unitOfWork.MemberEmployments.FirstOrDefaultAsync(
+            var existingLink = await unitOfWork.MemberEmploymentRepository.FirstOrDefaultAsync(
                 me => me.MemberId == request.MemberId && me.EmployerId == request.EmployerId && me.IsActive, cancellationToken);
 
             if (existingLink != null)
@@ -55,7 +55,7 @@ internal sealed class LinkMemberToEmployerCommandHandler(
                 request.EmployeePayrollNumber,
                 "System");
 
-            await unitOfWork.MemberEmployments.CreateAsync(memberEmployment, cancellationToken);
+            await unitOfWork.MemberEmploymentRepository.CreateAsync(memberEmployment, cancellationToken);
 
             return new AppResponse<Guid>(memberEmployment.Id, "Member linked to employer successfully.");
         }, cancellationToken);

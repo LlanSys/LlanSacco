@@ -3,7 +3,7 @@ using LS.Domain.Features.Banking.FOSA.Entities;
 using LS.Persistence.Common.Repositories;
 using LS.Persistence.Features.Banking.DataContext;
 
-namespace LS.Persistence.Features.Banking.Repositories.FOSA;
+namespace LS.Persistence.Features.Banking.FOSA.Repositories;
 
-internal sealed class VaultTransferRepository(BankingDBContext context)
-    : Repository<VaultTransfer>(context), IVaultTransferRepository;
+internal sealed class TellerTillRepository(BankingDBContext context)
+    : Repository<TellerTill>(context), ITellerTillRepository;

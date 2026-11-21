@@ -35,7 +35,7 @@ internal class AddBeneficiaryCommandHandler(
             _actorProvider.ActorId.ToString()
         );
 
-        await _unitOfWork.Beneficiaries.CreateAsync(beneficiary, cancellationToken);
+        await _unitOfWork.BeneficiaryRepository.CreateAsync(beneficiary, cancellationToken);
         await _unitOfWork.CompleteAsync(cancellationToken);
 
         return AppResponses.Success(beneficiary.Id);

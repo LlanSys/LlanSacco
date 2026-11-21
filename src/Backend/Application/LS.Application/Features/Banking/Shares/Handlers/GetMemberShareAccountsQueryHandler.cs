@@ -13,7 +13,7 @@ internal class GetMemberShareAccountsQueryHandler(
 {
     public async Task<AppResponse<IEnumerable<ShareAccountResponse>>> Handle(GetMemberShareAccountsQuery request, CancellationToken cancellationToken)
     {
-        var accounts = await unitOfWork.ShareAccounts.ListAsync(q => q
+        var accounts = await unitOfWork.ShareAccountRepository.ListAsync(q => q
             .Where(x => x.MemberId == request.MemberId)
             .OrderBy(x => x.Product.Name)
             .Select(x => new ShareAccountResponse(

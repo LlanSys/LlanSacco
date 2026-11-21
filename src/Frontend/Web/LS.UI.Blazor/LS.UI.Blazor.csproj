@@ -14,10 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CurrieTechnologies.Razor.SweetAlert2" Version="5.6.0" />
-    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.12" PrivateAssets="all" />
-    <PackageReference Include="MudBlazor" Version="9.9.0" />
-    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <PackageReference Include="CurrieTechnologies.Razor.SweetAlert2" />
+    <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" PrivateAssets="all" />
+    <PackageReference Include="MudBlazor" />
+    <PackageReference Include="QRCoder" />
   </ItemGroup>
 
 </Project>

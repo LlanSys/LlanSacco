@@ -28,7 +28,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -60,7 +60,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -76,7 +76,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                     MessageId = table.Column<Guid>(type: "uuid", nullable: false),
                     ConsumerId = table.Column<Guid>(type: "uuid", nullable: false),
                     LockId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true, defaultValue: new byte[0]),
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true, defaultValue: Array.Empty<byte>()),
                     Received = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ReceiveCount = table.Column<int>(type: "integer", nullable: false),
                     ExpirationTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -103,7 +103,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -116,7 +116,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                 {
                     OutboxId = table.Column<Guid>(type: "uuid", nullable: false),
                     LockId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true, defaultValue: new byte[0]),
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true, defaultValue: Array.Empty<byte>()),
                     Created = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Delivered = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     LastSequenceNumber = table.Column<long>(type: "bigint", nullable: true),
@@ -150,7 +150,7 @@ namespace LS.Persistence.Features.Shared.DataContext.Migrations.SharedPostgreSql
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {

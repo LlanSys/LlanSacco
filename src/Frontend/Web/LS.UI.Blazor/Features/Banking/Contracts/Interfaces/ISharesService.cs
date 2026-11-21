@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LS.UI.Blazor.Features.Banking.Contracts.Interfaces;
 
-public interface ISharesService
+internal interface ISharesService
 {
     Task<AppResponse<IEnumerable<ShareProductResponse>>> GetShareProductsAsync(bool includeInactive = false);
     Task<AppResponse<Guid>> CreateShareProductAsync(CreateShareProductRequest request);

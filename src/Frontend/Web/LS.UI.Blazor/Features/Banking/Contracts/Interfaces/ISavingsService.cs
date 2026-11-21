@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LS.UI.Blazor.Features.Banking.Contracts.Interfaces;
 
-public interface ISavingsService
+internal interface ISavingsService
 {
     Task<AppResponse<IEnumerable<SavingsProductResponse>>> GetSavingsProductsAsync(bool includeInactive = false);
     Task<AppResponse<Guid>> CreateSavingsProductAsync(CreateSavingsProductRequest request);

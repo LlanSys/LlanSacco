@@ -3,7 +3,7 @@ using LS.SharedKernel.Features.CheckOff.Dtos;
 
 namespace LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces;
 
-public interface ICheckOffService
+internal interface ICheckOffService
 {
     Task<AppResponse<List<EmployerResponse>>> GetEmployersAsync();
     Task<AppResponse<List<CheckoffBatchResponse>>> GetBatchesAsync();

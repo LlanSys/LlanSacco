@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 
 namespace LS.UI.Blazor.Features.CheckOff.Contracts.Implementations;
 
-public class CheckOffService(HttpClient httpClient) : ICheckOffService
+internal sealed class CheckOffService(HttpClient httpClient) : ICheckOffService
 {
     public async Task<AppResponse<List<EmployerResponse>>> GetEmployersAsync()
     {

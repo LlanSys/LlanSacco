@@ -66,142 +66,144 @@ internal sealed class LoginWithPasskey(
 
         var credentialIdBytes = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(assertionIdStr);
 
-        AppUser? user = null;
-        LS.Domain.Features.IAM.Users.Entities.Fido2Credential? credential = null;
-
-        if (!string.IsNullOrWhiteSpace(command.Username))
+        var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
         {
-            var normalizedUsername = command.Username.ToUpperInvariant();
-            user = await userManager.Users
-                .Include(u => u.Fido2Credentials)
-                .FirstOrDefaultAsync(u => u.NormalizedUserName == normalizedUsername || u.NormalizedEmail == normalizedUsername, cancellationToken)
-                .ConfigureAwait(false);
-                
-            credential = user?.Fido2Credentials.FirstOrDefault(c => c.CredentialId.SequenceEqual(credentialIdBytes));
-        }
-        else
-        {
-            // Discoverable credential path: find the credential first
-            var untrackedCred = await iamUnitOfWork.Fido2CredentialRepository
-                .FindByCondition(c => c.CredentialId == credentialIdBytes)
-                .FirstOrDefaultAsync(cancellationToken)
-                .ConfigureAwait(false);
+            AppUser? user = null;
+            LS.Domain.Features.IAM.Users.Entities.Fido2Credential? credential = null;
 
-            if (untrackedCred != null)
+            if (!string.IsNullOrWhiteSpace(command.Username))
             {
+                var normalizedUsername = command.Username.ToUpperInvariant();
                 user = await userManager.Users
                     .Include(u => u.Fido2Credentials)
-                    .FirstOrDefaultAsync(u => u.Id == untrackedCred.UserId, cancellationToken)
+                    .FirstOrDefaultAsync(u => u.NormalizedUserName == normalizedUsername || u.NormalizedEmail == normalizedUsername, cancellationToken)
                     .ConfigureAwait(false);
 
-                // Use the tracked credential so EF can detect changes to SignatureCounter
                 credential = user?.Fido2Credentials.FirstOrDefault(c => c.CredentialId.SequenceEqual(credentialIdBytes));
             }
-        }
-
-        if (user == null || !user.IsActive || user.IsDeleted || credential == null)
-        {
-            return AppResponses.Failure<LoginResponse>("Invalid login attempt.");
-        }
-
-        try
-        {
-            var newSignCount = await passkeyService.MakeAssertionAsync(user, command.AssertionResponse, originalOptions, credential.PublicKey, credential.SignatureCounter, cancellationToken).ConfigureAwait(false);
-            if (newSignCount == null)
+            else
             {
-                return AppResponses.Failure<LoginResponse>("Passkey assertion failed.");
+                // Discoverable credential path: find the credential first
+                var untrackedCred = await iamUnitOfWork.Fido2CredentialRepository
+                    .FindByCondition(c => c.CredentialId == credentialIdBytes)
+                    .FirstOrDefaultAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (untrackedCred != null)
+                {
+                    user = await userManager.Users
+                        .Include(u => u.Fido2Credentials)
+                        .FirstOrDefaultAsync(u => u.Id == untrackedCred.UserId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // Use the tracked credential so EF can detect changes to SignatureCounter
+                    credential = user?.Fido2Credentials.FirstOrDefault(c => c.CredentialId.SequenceEqual(credentialIdBytes));
+                }
             }
 
-            // Update the signature counter
-            credential.SignatureCounter = newSignCount.Value;
-            await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            ServiceLogDefinitions.LogPasskeyAssertionException(logger, user.UserName ?? "username", ex);
-            return AppResponses.Failure<LoginResponse>("Passkey validation failed.");
-        }
+            if (user == null || !user.IsActive || user.IsDeleted || credential == null)
+            {
+                return AppResponses.Failure<LoginResponse>("Invalid login attempt.");
+            }
 
-        await cacheService.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var newSignCount = await passkeyService.MakeAssertionAsync(user, command.AssertionResponse, originalOptions, credential.PublicKey, credential.SignatureCounter, cancellationToken).ConfigureAwait(false);
+                if (newSignCount == null)
+                {
+                    return AppResponses.Failure<LoginResponse>("Passkey assertion failed.");
+                }
 
-        // Generate session, claims, tokens
-        var sessionId = Guid.CreateVersion7();
-        var sessionCreationResult = await serviceManager.SessionService.CreateSessionAsync(
-            user.Id,
-            sessionId,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
-            httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
-            "Passkey",
-            cancellationToken).ConfigureAwait(false);
+                // Update the signature counter
+                credential.SignatureCounter = newSignCount.Value;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceLogDefinitions.LogPasskeyAssertionException(logger, user.UserName ?? "username", ex);
+                return AppResponses.Failure<LoginResponse>("Passkey validation failed.");
+            }
 
-        if (!sessionCreationResult.IsSuccess)
-        {
-            return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
-        }
-
-        var activeSessionId = sessionCreationResult.Data;
-        var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
-        var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
-        var refreshToken = jwtService.CreateRefreshToken();
-
-        var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
-            user.Id,
-            refreshToken,
-            timeProvider.GetUtcNow().AddHours(_jwtSettings.RefreshTokenExpiryHours),
-            user.Id,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
-
-        user.RecordSuccessfulLogin();
-        await userManager.UpdateAsync(user).ConfigureAwait(false);
-
-        await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-        {
-            await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
-            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-            return true;
-        }, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-        
-        var appUserResponse = new AppUserResponse(
+            // Generate session, claims, tokens
+            var sessionId = Guid.CreateVersion7();
+            var sessionCreationResult = await serviceManager.SessionService.StageSessionAsync(
                 user.Id,
-                user.UserName ?? string.Empty,
-                user.FirstName ?? string.Empty,
-                user.LastName ?? string.Empty,
-                $"{user.FirstName ?? string.Empty} {user.LastName ?? string.Empty}".Trim(),
-                user.PhoneNumber,
-                user.NationalId,
-                user.Email ?? string.Empty,
-                user.Gender.ToDisplayString(),
-                ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
-                true,
-                false, // twoFactorEnabled = false for now since Passkey can be MFA itself
-                user.RequirePasswordChange,
-                user.CreatedAt,
-                user.LastLoginAt,
-                [..rolesResponse],
-                user.TenantId,
-                user.EmployeeId,
-                user.MemberId);
+                sessionId,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
+                httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
+                "Passkey",
+                cancellationToken).ConfigureAwait(false);
 
-        var tokenExpiry = timeProvider.GetUtcNow().AddMinutes(_jwtSettings.AccessTokenExpiryMinutes);
+            if (!sessionCreationResult.IsSuccess)
+            {
+                return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
+            }
 
-        var loginResponse = new LoginResponse(
+            var activeSessionId = sessionCreationResult.Data;
+            var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
+            var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
+            var refreshToken = jwtService.CreateRefreshToken();
+
+            var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
                 user.Id,
-                user.FirstName ?? string.Empty,
-                user.LastName ?? string.Empty,
-                user.Email ?? string.Empty,
-                false,
-                false,
-                true,
-                tokenResponse,
                 refreshToken,
-                activeSessionId.ToString(),
-                tokenExpiry,
-                appUserResponse,
-                userClaims.ToClaimResponses(),
-                false);
+                timeProvider.GetUtcNow().AddHours(_jwtSettings.RefreshTokenExpiryHours),
+                user.Id,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
 
-        return AppResponses.Success("Passkey Login successful", loginResponse);
+            user.RecordSuccessfulLogin();
+            if (!(await userManager.UpdateAsync(user).ConfigureAwait(false)).Succeeded)
+                return AppResponses.Failure<LoginResponse>("Could not complete login.");
+
+            await iamUnitOfWork.TokenRepository.CreateAsync(refreshTokenEntity, cancellationToken).ConfigureAwait(false);
+            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id, cancellationToken).ConfigureAwait(false);
+
+            var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+
+            var appUserResponse = new AppUserResponse(
+                    user.Id,
+                    user.UserName ?? string.Empty,
+                    user.FirstName ?? string.Empty,
+                    user.LastName ?? string.Empty,
+                    $"{user.FirstName ?? string.Empty} {user.LastName ?? string.Empty}".Trim(),
+                    user.PhoneNumber,
+                    user.NationalId,
+                    user.Email ?? string.Empty,
+                    user.Gender.ToDisplayString(),
+                    ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
+                    true,
+                    false, // twoFactorEnabled = false for now since Passkey can be MFA itself
+                    user.RequirePasswordChange,
+                    user.CreatedAt,
+                    user.LastLoginAt,
+                    [..rolesResponse],
+                    user.TenantId,
+                    user.EmployeeId,
+                    user.MemberId);
+
+            var tokenExpiry = timeProvider.GetUtcNow().AddMinutes(_jwtSettings.AccessTokenExpiryMinutes);
+
+            var loginResponse = new LoginResponse(
+                    user.Id,
+                    user.FirstName ?? string.Empty,
+                    user.LastName ?? string.Empty,
+                    user.Email ?? string.Empty,
+                    false,
+                    false,
+                    true,
+                    tokenResponse,
+                    refreshToken,
+                    activeSessionId.ToString(),
+                    tokenExpiry,
+                    appUserResponse,
+                    userClaims.ToClaimResponses(),
+                    false);
+
+            return AppResponses.Success("Passkey Login successful", loginResponse);
+        }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+
+        if (result.IsSuccess)
+            await cacheService.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+
+        return result;
     }
 }

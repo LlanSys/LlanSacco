@@ -39,136 +39,142 @@ internal sealed class ProcessSsoLogin(
     {
         var tenantId = currentTenantProvider.TenantId;
 
-        var user = await userManager.FindByLoginAsync(command.Provider, command.ProviderKey).ConfigureAwait(false);
-
-        if (user == null)
+        var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
         {
-            user = await userManager.FindByEmailAsync(command.Email).ConfigureAwait(false);
+            var user = await userManager.FindByLoginAsync(command.Provider, command.ProviderKey).ConfigureAwait(false);
 
-            if (user != null)
+            if (user == null)
             {
-                var linkResult = await userManager.AddLoginAsync(user, new UserLoginInfo(command.Provider, command.ProviderKey, command.Provider)).ConfigureAwait(false);
-                if (!linkResult.Succeeded)
+                user = await userManager.FindByEmailAsync(command.Email).ConfigureAwait(false);
+
+                if (user != null)
                 {
-                    ServiceLogDefinitions.LogSsoExternalLoginLinkFailed(logger, command.Email);
-                    return AppResponses.Failure<string>("Failed to link external account.");
+                    var linkResult = await userManager.AddLoginAsync(user, new UserLoginInfo(command.Provider, command.ProviderKey, command.Provider)).ConfigureAwait(false);
+                    if (!linkResult.Succeeded)
+                    {
+                        ServiceLogDefinitions.LogSsoExternalLoginLinkFailed(logger, command.Email);
+                        return AppResponses.Failure<LoginResponse>("Failed to link external account.");
+                    }
+                }
+                else if (_entraIdSettings.AutoLinkByVerifiedEmail)
+                {
+                    user = AppUser.CreateExternalUser(
+                        tenantId,
+                        command.Email,
+                        command.Email,
+                        command.FirstName,
+                        command.LastName,
+                        "System"
+                    );
+
+                    var createResult = await userManager.CreateAsync(user).ConfigureAwait(false);
+                    if (!createResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                        ServiceLogDefinitions.LogSsoUserCreationError(logger, command.Email, errors);
+                        return AppResponses.Failure<LoginResponse>("Failed to provision user.");
+                    }
+
+                    if (!(await userManager.AddToRoleAsync(user, "User").ConfigureAwait(false)).Succeeded)
+                        return AppResponses.Failure<LoginResponse>("Failed to provision user role.");
+
+                    if (!(await userManager.AddLoginAsync(user, new UserLoginInfo(command.Provider, command.ProviderKey, command.Provider)).ConfigureAwait(false)).Succeeded)
+                        return AppResponses.Failure<LoginResponse>("Failed to link external account.");
+                }
+                else
+                {
+                    return AppResponses.Failure<LoginResponse>("User not found and auto-provisioning is disabled.");
                 }
             }
-            else if (_entraIdSettings.AutoLinkByVerifiedEmail)
+
+            if (!user.IsActive || user.IsDeleted)
             {
-                user = AppUser.CreateExternalUser(
-                    tenantId,
-                    command.Email,
-                    command.Email,
-                    command.FirstName,
-                    command.LastName,
-                    "System"
-                );
-
-                var createResult = await userManager.CreateAsync(user).ConfigureAwait(false);
-                if (!createResult.Succeeded)
-                {
-                    var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
-                    ServiceLogDefinitions.LogSsoUserCreationError(logger, command.Email, errors);
-                    return AppResponses.Failure<string>("Failed to provision user.");
-                }
-
-                await userManager.AddToRoleAsync(user, "User").ConfigureAwait(false);
-
-                await userManager.AddLoginAsync(user, new UserLoginInfo(command.Provider, command.ProviderKey, command.Provider)).ConfigureAwait(false);
+                return AppResponses.Failure<LoginResponse>("This account is inactive. Please contact support.");
             }
-            else
+
+            var sessionId = Guid.CreateVersion7();
+            var sessionCreationResult = await sessionService.StageSessionAsync(
+                user.Id,
+                sessionId,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
+                httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
+                "SSO",
+                cancellationToken).ConfigureAwait(false);
+
+            if (!sessionCreationResult.IsSuccess)
             {
-                return AppResponses.Failure<string>("User not found and auto-provisioning is disabled.");
+                return AppResponses.Failure<LoginResponse>("Could not establish a user session.");
             }
-        }
 
-        if (!user.IsActive || user.IsDeleted)
-        {
-            return AppResponses.Failure<string>("This account is inactive. Please contact support.");
-        }
+            var activeSessionId = sessionCreationResult.Data;
+            var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
+            var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
+            var refreshToken = jwtService.CreateRefreshToken();
 
-        var sessionId = Guid.CreateVersion7();
-        var sessionCreationResult = await sessionService.CreateSessionAsync(
-            user.Id,
-            sessionId,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
-            httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
-            "SSO",
-            cancellationToken).ConfigureAwait(false);
-
-        if (!sessionCreationResult.IsSuccess)
-        {
-            return AppResponses.Failure<string>("Could not establish a user session.");
-        }
-
-        var activeSessionId = sessionCreationResult.Data;
-        var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
-        var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
-        var refreshToken = jwtService.CreateRefreshToken();
-
-        var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
-            user.Id,
-            refreshToken,
-            DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
-            user.Id,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
-
-        user.RecordSuccessfulLogin();
-        await userManager.UpdateAsync(user).ConfigureAwait(false);
-
-        await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-        {
-            await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
-            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-            return true;
-        }, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-        
-        var appUserResponse = new AppUserResponse(
+            var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
                 user.Id,
-                user.UserName ?? string.Empty,
-                user.FirstName ?? string.Empty,
-                user.LastName ?? string.Empty,
-                $"{user.FirstName ?? string.Empty} {user.LastName ?? string.Empty}".Trim(),
-                user.PhoneNumber,
-                user.NationalId,
-                user.Email ?? string.Empty,
-                user.Gender.ToDisplayString(),
-                ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
-                true,
-                false,
-                user.RequirePasswordChange,
-                user.CreatedAt,
-                user.LastLoginAt,
-                [..rolesResponse],
-                user.TenantId,
-                user.EmployeeId,
-                user.MemberId);
-
-        var loginResponse = new LoginResponse(
-                user.Id,
-                user.FirstName ?? string.Empty,
-                user.LastName ?? string.Empty,
-                user.Email ?? string.Empty,
-                false,
-                false,
-                true,
-                tokenResponse,
                 refreshToken,
-                activeSessionId.ToString(),
-                DateTimeOffset.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryMinutes),
-                appUserResponse,
-                userClaims.ToClaimResponses(),
-                false);
+                DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
+                user.Id,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
+
+            user.RecordSuccessfulLogin();
+            if (!(await userManager.UpdateAsync(user).ConfigureAwait(false)).Succeeded)
+                return AppResponses.Failure<LoginResponse>("Could not complete login.");
+
+            await iamUnitOfWork.TokenRepository.CreateAsync(refreshTokenEntity, cancellationToken).ConfigureAwait(false);
+            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id, cancellationToken).ConfigureAwait(false);
+
+            var rolesResponse = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+
+            var appUserResponse = new AppUserResponse(
+                    user.Id,
+                    user.UserName ?? string.Empty,
+                    user.FirstName ?? string.Empty,
+                    user.LastName ?? string.Empty,
+                    $"{user.FirstName ?? string.Empty} {user.LastName ?? string.Empty}".Trim(),
+                    user.PhoneNumber,
+                    user.NationalId,
+                    user.Email ?? string.Empty,
+                    user.Gender.ToDisplayString(),
+                    ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
+                    true,
+                    false,
+                    user.RequirePasswordChange,
+                    user.CreatedAt,
+                    user.LastLoginAt,
+                    [..rolesResponse],
+                    user.TenantId,
+                    user.EmployeeId,
+                    user.MemberId);
+
+            var loginResponse = new LoginResponse(
+                    user.Id,
+                    user.FirstName ?? string.Empty,
+                    user.LastName ?? string.Empty,
+                    user.Email ?? string.Empty,
+                    false,
+                    false,
+                    true,
+                    tokenResponse,
+                    refreshToken,
+                    activeSessionId.ToString(),
+                    DateTimeOffset.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpiryMinutes),
+                    appUserResponse,
+                    userClaims.ToClaimResponses(),
+                    false);
+            return AppResponses.Success(loginResponse);
+        }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+            return AppResponses.Failure<string>(result.Error!);
 
         var exchangeCode = Guid.CreateVersion7().ToString("N");
-        
+
         await cache.SetStringAsync(
-            $"SSO_Exchange_{exchangeCode}", 
-            JsonSerializer.Serialize(loginResponse), 
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, 
+            $"SSO_Exchange_{exchangeCode}",
+            JsonSerializer.Serialize(result.Data),
+            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
             cancellationToken).ConfigureAwait(false);
 
         return AppResponses.Success("SSO Login successful", exchangeCode);

@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Persistence.Features.Shared.DataContext;
 
-public class SharedDBContext : DbContext, ITenantFilteredDBContext
+public class SharedDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

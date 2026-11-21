@@ -1,5 +1,6 @@
 using Hangfire;
 using Hangfire.PostgreSql;
+using LS.Infrastructure.Features.Banking.Savings.Jobs;
 using LS.Persistence.Common.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -48,7 +49,7 @@ public static class HangfireExtensions
             options.WorkerCount = Environment.ProcessorCount * 2;
         });
 
-        // Register Jobs
+        services.AddTransient<TenantSavingsInterestJob>();
         services.AddTransient<LS.Application.Features.Banking.Savings.Jobs.CalculateSavingsInterestJob>();
 
         return services;
@@ -64,9 +65,9 @@ public static class HangfireExtensions
         });
 
         // Schedule Background Jobs
-        RecurringJob.AddOrUpdate<LS.Application.Features.Banking.Savings.Jobs.CalculateSavingsInterestJob>(
+        RecurringJob.AddOrUpdate<TenantSavingsInterestJob>(
             "calculate-savings-interest",
-            job => job.ExecuteAsync(CancellationToken.None),
+            job => job.ScheduleAsync(CancellationToken.None),
             Cron.Daily(23, 0) // Run daily at 11:00 PM
         );
 

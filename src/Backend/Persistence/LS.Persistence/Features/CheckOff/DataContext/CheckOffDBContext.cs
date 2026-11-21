@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace LS.Persistence.Features.CheckOff.DataContext;
 
-public class CheckOffDBContext : DbContext, ITenantFilteredDBContext
+public class CheckOffDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

@@ -169,3 +169,15 @@ The broad integration rerun then encountered database-fixture and Docker cleanup
 The implementation is verified separately in E:/Projects/LlanSacco-phase2-auth against the committed c3cfb25 dependency baseline. The broader workspace dependency alignment, remaining email-OTP/TOTP/SSO/passkey transactions, member-link validation, financial recovery, domain-event semantics and tenant-aware job/outbox delivery remain open. No database migration or deployment was performed. Keep PR #3 draft and the Phase 2 gate open.
 
 Final source verification: the isolated API build and all 84 architecture checks passed after the notification and cancellation adjustments. Staged whitespace checks passed and the debt register was not expanded. The final provider rerun remains blocked by the Docker endpoint failure described above.
+
+## Phase 2 closure candidate
+
+GitHub Required / Remediation and the full integration check passed on 207207b, including the final logout tests. The changes below require independent candidate verification.
+
+- Email OTP login, TOTP completion, SSO and passkey login stage sessions, login metadata and refresh tokens in their IAM transaction. TOTP enrollment and passkey counters participate in their respective commits. Cookie and SSO exchange publication happen after commit. IAM rejects member links that cannot be resolved in the current tenant.
+- Ordinary, transactional, retrying and Shared commits dispatch buffered domain notifications after persistence. Retry and explicit rejection discard rolled-back events. Context outboxes retain ownership of durable financial delivery. Both-provider tests inspect persisted state from a fresh context during notification.
+- The CheckOff regression uses real Banking and CheckOff databases. It interrupts after Banking returns and retries the same row through competing workers, checking one credit and a posted batch.
+- The recurring savings coordinator selects active tenants on the default tenant's stamp and supplies tenant and system-actor scope before resolving Banking persistence. Dedicated database outbox delivery requires separate verification.
+- FOSA cash postings detect matching and conflicting references before mutating balances. Separate SQL Server and PostgreSQL migrations add a unique tenant/reference index. An existing duplicate reference stops the upgrade without deleting records. Vault transfer still has no stable request reference.
+
+The original workspace dependency changes stay outside this candidate. Docker Desktop could not open the Linux engine pipe when querying the existing cg-llansacco group. The focused provider run hit the same fixture initialization failure, so GitHub CI is needed to verify the candidate's database checks. Phase 2 remains open pending review of the remaining checklist items and results.

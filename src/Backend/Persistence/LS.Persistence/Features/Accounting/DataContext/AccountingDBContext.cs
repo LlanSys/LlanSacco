@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Persistence.Features.Accounting.DataContext;
 
-public class AccountingDBContext : DbContext, ITenantFilteredDBContext
+public class AccountingDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

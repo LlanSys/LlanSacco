@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Persistence.Features.IAM.DataContext;
 
-public class IamDBContext : IdentityDbContext<AppUser, AppRole, string>, ITenantFilteredDBContext
+public class IamDBContext : IdentityDbContext<AppUser, AppRole, string>, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

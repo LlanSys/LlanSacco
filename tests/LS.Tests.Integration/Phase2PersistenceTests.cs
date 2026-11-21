@@ -75,11 +75,11 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             return ValueTask.FromResult(result);
         }
     }
-    private DbContextOptions<TContext> Options<TContext>(Reads? reads = null) where TContext : DbContext
+    private DbContextOptions<TContext> Options<TContext>(Reads? reads = null, string suffix = "") where TContext : DbContext
     {
         var options = new DbContextOptionsBuilder<TContext>();
-        if (fixture is PostgreSqlDbFixture) options.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _databaseName }.ConnectionString);
-        else options.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _databaseName }.ConnectionString);
+        if (fixture is PostgreSqlDbFixture) options.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _databaseName + suffix }.ConnectionString);
+        else options.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _databaseName + suffix }.ConnectionString);
         if (reads is not null) options.AddInterceptors(reads);
         return options.Options;
     }
@@ -457,6 +457,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     [InlineData("retry")]
     [InlineData("cancel")]
     [InlineData("role-rejection")]
+    [InlineData("missing-member")]
     public async Task User_creation_roles_and_profile_are_atomic(string mode)
     {
         var tenant = new Tenant();
@@ -471,6 +472,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         services.AddSingleton<ICurrentTenantProvider>(tenant);
         services.AddSingleton<ICurrentActorProvider>(new Actor());
         services.AddSingleton(Substitute.For<IHrUnitOfWork>());
+        services.AddSingleton(Substitute.For<LS.Domain.Features.Membership.Contracts.IMembershipUnitOfWork>());
         services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
             .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
             .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>();
@@ -494,22 +496,22 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.AppUserResponse>>)ActivatorUtilities.CreateInstance(provider, handlerType);
         var command = new LS.Application.Features.IAM.Users.Commands.CreateAppUserCommand(
             new LS.SharedKernel.Features.IAM.Users.Dtos.CreateAppUserRequest("creation-test", "creation@example.test",
-                "Creation-Test-Password1!", "Test", "User", "+254700000000", null, "Other", null, null, ["CreationTest"]), new Actor().ActorId);
+                "Creation-Test-Password1!", "Test", "User", "+254700000000", null, "Other", null, mode == "missing-member" ? Guid.CreateVersion7() : null, ["CreationTest"]), new Actor().ActorId);
         if (mode == "failure")
             await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
         else if (mode == "cancel")
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
         else
-            Assert.Equal(mode != "role-rejection", (await handler.Handle(command, cancellation.Token)).IsSuccess);
-        Assert.Equal(mode == "retry" ? 2 : mode == "role-rejection" ? 0 : 1, fault.Attempts);
+            Assert.Equal(mode is not ("role-rejection" or "missing-member"), (await handler.Handle(command, cancellation.Token)).IsSuccess);
+        Assert.Equal(mode == "retry" ? 2 : mode is "role-rejection" or "missing-member" ? 0 : 1, fault.Attempts);
         // A later save on the same scope must not leak rolled-back entities.
-        if (mode is "failure" or "cancel" or "role-rejection")
+        if (mode is "failure" or "cancel" or "role-rejection" or "missing-member")
             Assert.Empty(db.ChangeTracker.Entries());
         await db.SaveChangesAsync();
         await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(
             Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
         var saved = await verify.Users.SingleOrDefaultAsync(u => u.UserName == "creation-test");
-        if (mode is "failure" or "cancel" or "role-rejection")
+        if (mode is "failure" or "cancel" or "role-rejection" or "missing-member")
         {
             Assert.Null(saved);
             Assert.Empty(await verify.AppUserProfiles.ToListAsync());
@@ -712,6 +714,160 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.Equal(1000m, accounts.Sum(a => a.TotalValue));
         Assert.Equal(2, await verify.ShareTransactions.CountAsync());
     }
+    [Theory]
+    [InlineData("ordinary")]
+    [InlineData("transaction")]
+    [InlineData("retry")]
+    [InlineData("rollback")]
+    [InlineData("shared")]
+    public async Task Shared_notifications_observe_only_committed_state(string path)
+    {
+        var tenant = new Tenant();
+        var options = Options<LS.Persistence.Features.Shared.DataContext.SharedDBContext>();
+        await using var db = new LS.Persistence.Features.Shared.DataContext.SharedDBContext(options, tenant, new Actor());
+        await db.Database.EnsureCreatedAsync();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton(db);
+        var publisher = Substitute.For<IPublisher>();
+        services.AddSingleton(publisher);
+        foreach (var property in typeof(LS.Domain.Features.Shared.Contracts.ISharedUnitOfWork).GetProperties())
+        {
+            var repository = typeof(LS.Persistence.Features.Shared.SharedUnitOfWork).Assembly.GetTypes()
+                .Single(type => type.IsClass && !type.IsAbstract && property.PropertyType.IsAssignableFrom(type));
+            services.AddScoped(property.PropertyType, sp => ActivatorUtilities.CreateInstance(sp, repository));
+        }
+        services.AddScoped<LS.Domain.Features.Shared.Contracts.ISharedUnitOfWork, LS.Persistence.Features.Shared.SharedUnitOfWork>();
+        await using var provider = services.BuildServiceProvider();
+        var uow = provider.GetRequiredService<LS.Domain.Features.Shared.Contracts.ISharedUnitOfWork>();
+        var observed = new List<Guid>();
+        publisher.Publish(Arg.Any<IDomainEvent>(), Arg.Any<CancellationToken>()).Returns(async call =>
+        {
+            var evt = Assert.IsType<LS.Domain.Features.Shared.Payments.Events.PaymentCompletedEvent>(call.Arg<IDomainEvent>());
+            Assert.Null(db.Database.CurrentTransaction);
+            await using var read = new LS.Persistence.Features.Shared.DataContext.SharedDBContext(options, tenant, new Actor());
+            var payment = await read.PaymentRecords.SingleAsync(p => p.CustomerReference == evt.CustomerReference);
+            observed.Add(payment.Id);
+        });
+
+        async Task<int> Stage(int attempt)
+        {
+            var payment = new LS.Domain.Features.Shared.Payments.Entities.PaymentRecord(Guid.CreateVersion7(),
+                new LS.Domain.Shared.ValueObjects.Money(10m, "KES"), "Test payment", $"reference-{attempt}", "test")
+            { CreatedBy = new Actor().ActorId };
+            payment.UpdateStatus(LS.Domain.Features.Shared.Payments.Enums.PaymentStatus.Success);
+            await uow.PaymentRecordRepository.CreateAsync(payment);
+            return attempt;
+        }
+
+        if (path == "ordinary")
+        {
+            await Stage(1);
+            await uow.CompleteAsync();
+        }
+        else if (path == "shared")
+        {
+            await Stage(1);
+            await uow.CompleteWithEventsAsync();
+        }
+        else if (path == "transaction")
+            await uow.ExecuteInTransactionAsync(() => Stage(1), CancellationToken.None);
+        else
+        {
+            var attempts = 0;
+            await uow.ExecuteInTransactionWithRetryAsync(async () =>
+            {
+                var result = await Stage(++attempts);
+                await db.SaveChangesAsync();
+                Assert.Empty(observed);
+                if (path == "retry" && attempts == 1)
+                    throw new DbUpdateConcurrencyException("Retry after embedded save.");
+                return result;
+            }, shouldCommit: _ => path != "rollback");
+        }
+
+        await uow.CompleteAsync();
+        Assert.Equal(path == "rollback" ? 0 : 1, observed.Count);
+        await using var verify = new LS.Persistence.Features.Shared.DataContext.SharedDBContext(options, tenant, new Actor());
+        var persisted = await verify.PaymentRecords.Select(p => p.CustomerReference).ToListAsync();
+        Assert.Equal(path == "rollback" ? [] : new[] { path == "retry" ? "reference-2" : "reference-1" }, persisted);
+    }
+
+    private sealed class RealCheckoffPaymentSender(
+        DbContextOptions<BankingDBContext> options, Tenant tenant, bool interruptAfterPayment) : IBackgroundRequestSender
+    {
+        public async Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken)
+        {
+            await using var banking = new BankingDBContext(options, tenant, new Actor());
+            await using var services = Services(banking, tenant);
+            var result = await services.GetRequiredService<ISender>().Send(request, cancellationToken);
+            if (interruptAfterPayment)
+                throw new InvalidOperationException("Simulated interruption after the Banking commit.");
+            return result;
+        }
+    }
+
+    [Fact]
+    public async Task Checkoff_replays_an_already_committed_payment_across_competing_deliveries()
+    {
+        var tenant = new Tenant();
+        var checkoffOptions = Options<CheckOffDBContext>();
+        var bankingOptions = Options<BankingDBContext>(suffix: "_banking");
+        var employer = Employer.Create(tenant.TenantId, "Employer", "Contact", "employer@example.test", "+254700000000", new Actor().ActorId);
+        var member = Member.Create(tenant.TenantId, "M1", "One", "Member", "m1@example.test", "+254700000001", "ID1", new DateOnly(1990, 1, 1), default, new Actor().ActorId);
+        var batch = CheckoffBatch.Create(tenant.TenantId, employer.Id, "POST", DateTime.UtcNow, 100, new Actor().ActorId);
+        batch.Status = CheckoffBatchStatus.Posting;
+        var row = CheckoffStagingRow.Create(tenant.TenantId, batch.Id, "E1", "One", 100, 0, 0, new Actor().ActorId);
+        row.ResolvedMemberId = member.Id;
+        row.Status = CheckoffRowStatus.Validated;
+        await using (var setup = new CheckOffDBContext(checkoffOptions, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.AddRange(employer, member, batch, row);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var setup = new BankingDBContext(bankingOptions, tenant, new Actor()))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(SavingsProduct.Create("Savings", "SAV", 0, 0, true, 0, null, null, true, new Actor().ActorId));
+            await setup.SaveChangesAsync();
+        }
+
+        async Task Deliver(bool interrupt)
+        {
+            await using var checkoff = new CheckOffDBContext(checkoffOptions, tenant, new Actor());
+            await using var banking = new BankingDBContext(bankingOptions, tenant, new Actor());
+            await using var checkoffServices = Services(checkoff, tenant);
+            await using var bankingServices = Services(banking, tenant);
+            var checkoffUow = checkoffServices.GetRequiredService<ICheckOffUnitOfWork>();
+            var child = new ChildCheckoffChunkJob(checkoffUow, bankingServices.GetRequiredService<IBankingUnitOfWork>(),
+                Substitute.For<ILoansUnitOfWork>(), new RealCheckoffPaymentSender(bankingOptions, tenant, interrupt), tenant);
+            await new MasterCheckoffBatchJob(checkoffUow, child, tenant).ExecuteAsync(batch.Id, CancellationToken.None);
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Deliver(true));
+        await using (var afterFailure = new CheckOffDBContext(checkoffOptions, tenant, new Actor()))
+        {
+            Assert.Equal(CheckoffRowStatus.Validated, (await afterFailure.CheckoffStagingRows.SingleAsync()).Status);
+            Assert.Equal(CheckoffBatchStatus.Posting, (await afterFailure.CheckoffBatches.SingleAsync()).Status);
+        }
+
+        async Task Replay()
+        {
+            try { await Deliver(false); }
+            catch (DbUpdateConcurrencyException) { await Deliver(false); }
+        }
+
+        await Task.WhenAll(Replay(), Replay());
+
+        await using var verifiedCheckoff = new CheckOffDBContext(checkoffOptions, tenant, new Actor());
+        await using var verifiedBanking = new BankingDBContext(bankingOptions, tenant, new Actor());
+        Assert.Equal(CheckoffBatchStatus.Posted, (await verifiedCheckoff.CheckoffBatches.SingleAsync()).Status);
+        Assert.Equal(CheckoffRowStatus.Processed, (await verifiedCheckoff.CheckoffStagingRows.SingleAsync()).Status);
+        Assert.Equal(100m, (await verifiedBanking.SavingsAccounts.SingleAsync()).Balance);
+        Assert.Equal($"CHK:{row.Id:N}:S", (await verifiedBanking.SavingsTransactions.SingleAsync()).ExternalReferenceId);
+    }
+
     [Fact]
     public async Task Checkoff_worker_leaves_rejected_rows_retryable_and_finishes_only_after_success()
     {
@@ -832,8 +988,12 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         {
             await using var services = Services(db, tenant);
             var sender = services.GetRequiredService<ISender>();
-            Assert.True((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand(
-                till.Id, account.Id, LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType.CashWithdrawal, 100, "withdrawal"))).IsSuccess);
+            var withdrawal = new LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand(
+                till.Id, account.Id, LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType.CashWithdrawal, 100, "withdrawal");
+            Assert.True((await sender.Send(withdrawal)).IsSuccess);
+            db.ChangeTracker.Clear();
+            Assert.True((await sender.Send(withdrawal)).IsSuccess);
+            Assert.False((await sender.Send(withdrawal with { Amount = 101 })).IsSuccess);
             db.ChangeTracker.Clear();
             Assert.True((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand(till.Id, vault.Id,
                 new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(0, 0, 1, 0, 0, 0, 0, 0, 0), "vault transfer"))).IsSuccess);

@@ -48,163 +48,179 @@ internal sealed class VerifyTotpCode(
 
         try
         {
-            var user = await userManager.FindByIdAsync(request.UserId).ConfigureAwait(false);
-            if (user == null)
+            var attemptKey = CacheKeys.TotpAttempts(request.UserId);
+            var attemptsStr = await cache.GetStringAsync(attemptKey, cancellationToken).ConfigureAwait(false);
+            var attempts = int.TryParse(attemptsStr, out var count) ? count : 0;
+            var recordFailedAttempt = false;
+            AppUser? user = null;
+
+            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
             {
-                ServiceLogDefinitions.Log2FAVerificationAttemptNonExistentUser(logger, request.UserId);
-                return AppResponses.Failure<VerifyOtpResponse>("User not found");
-            }
-
-            TotpVerificationResult verification;
-
-            var tempSecret = await iamUnitOfWork.TempTotpSecretRepository
-                .GetValidTempSecretByUserIdAsync(user.Id)
-                .ConfigureAwait(false);
-
-            if (tempSecret != null)
-            {
-                ServiceLogDefinitions.LogUsingTempSecret(logger, user.Id);
-                var tempSecretDecryption = TryDecryptTotpSecret(user, tempSecret.EncryptedSecret);
-
-                if (tempSecretDecryption.IsUnavailable)
+                recordFailedAttempt = false;
+                user = await userManager.FindByIdAsync(request.UserId).ConfigureAwait(false);
+                if (user is null || !user.IsActive || user.IsDeleted)
                 {
-                    return AppResponses.Failure<VerifyOtpResponse>(tempSecretDecryption.Message!);
+                    ServiceLogDefinitions.Log2FAVerificationAttemptNonExistentUser(logger, request.UserId);
+                    return AppResponses.Failure<VerifyOtpResponse>("User not found");
                 }
 
-                verification = VerifyTotp(tempSecretDecryption.Secret!, request.Code)
-                    ? TotpVerificationResult.Valid()
-                    : TotpVerificationResult.Invalid();
+                TotpVerificationResult verification;
 
-                if (verification.IsValid)
+                var tempSecret = await iamUnitOfWork.TempTotpSecretRepository
+                    .GetValidTempSecretByUserIdAsync(user.Id)
+                    .ConfigureAwait(false);
+
+                if (tempSecret != null)
                 {
-                    await iamUnitOfWork.AppUserTotpSecretRepository.DeactivateUserSecretsAsync(user.Id).ConfigureAwait(false);
+                    ServiceLogDefinitions.LogUsingTempSecret(logger, user.Id);
+                    var tempSecretDecryption = TryDecryptTotpSecret(user, tempSecret.EncryptedSecret);
 
-                    var newSecret = AppUserTotpSecret.Create(
-                        user.Id,
-                        tempSecret.EncryptedSecret,
-                        user.Id);
-
-                    await iamUnitOfWork.AppUserTotpSecretRepository.CreateAsync(newSecret, cancellationToken).ConfigureAwait(false);
-                    await iamUnitOfWork.TempTotpSecretRepository.DeleteAsync(tempSecret.Id, cancellationToken).ConfigureAwait(false);
-                    await iamUnitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
-
-                    var isValid = await userManager.VerifyTwoFactorTokenAsync(user, userManager.Options.Tokens.AuthenticatorTokenProvider, request.Code.ToString(System.Globalization.CultureInfo.InvariantCulture)).ConfigureAwait(false);
-                    var enableResult = await userManager.SetTwoFactorEnabledAsync(user, true).ConfigureAwait(false);
-                    if (!enableResult.Succeeded)
+                    if (tempSecretDecryption.IsUnavailable)
                     {
-                        var errors = string.Join("; ", enableResult.Errors.Select(static error => error.Description));
-                        return AppResponses.Failure<VerifyOtpResponse>($"Could not enable two-factor authentication: {errors}");
+                        return AppResponses.Failure<VerifyOtpResponse>(tempSecretDecryption.Message!);
                     }
 
-                    ServiceLogDefinitions.LogOtpEnabled(logger, user.Id);
+                    verification = VerifyTotp(tempSecretDecryption.Secret!, request.Code)
+                        ? TotpVerificationResult.Valid()
+                        : TotpVerificationResult.Invalid();
+
+                    if (verification.IsValid)
+                    {
+                        await iamUnitOfWork.AppUserTotpSecretRepository.DeactivateUserSecretsAsync(user.Id).ConfigureAwait(false);
+
+                        var newSecret = AppUserTotpSecret.Create(
+                            user.Id,
+                            tempSecret.EncryptedSecret,
+                            user.Id);
+
+                        await iamUnitOfWork.AppUserTotpSecretRepository.CreateAsync(newSecret, cancellationToken).ConfigureAwait(false);
+                        await iamUnitOfWork.TempTotpSecretRepository.DeleteAsync(tempSecret.Id, cancellationToken).ConfigureAwait(false);
+
+                        var enableResult = await userManager.SetTwoFactorEnabledAsync(user, true).ConfigureAwait(false);
+                        if (!enableResult.Succeeded)
+                        {
+                            var errors = string.Join("; ", enableResult.Errors.Select(static error => error.Description));
+                            return AppResponses.Failure<VerifyOtpResponse>($"Could not enable two-factor authentication: {errors}");
+                        }
+
+                        ServiceLogDefinitions.LogOtpEnabled(logger, user.Id);
+                    }
                 }
-            }
-            else
-            {
-                verification = await VerifyUserTotpAsync(user, request.Code, cancellationToken).ConfigureAwait(false);
-                if (verification.IsUnavailable)
+                else
                 {
-                    return AppResponses.Failure<VerifyOtpResponse>(verification.Message!);
+                    verification = await VerifyUserTotpAsync(user, request.Code, attempts, cancellationToken).ConfigureAwait(false);
+                    recordFailedAttempt = !verification.IsValid && !verification.IsUnavailable && attempts < 3;
+                    if (verification.IsUnavailable)
+                    {
+                        return AppResponses.Failure<VerifyOtpResponse>(verification.Message!);
+                    }
                 }
-            }
 
-            if (!verification.IsValid)
-            {
-                ServiceLogDefinitions.LogInvalidOtpCode(logger, request.UserId);
-                return AppResponses.Failure<VerifyOtpResponse>("Invalid verification code. Please try again.");
-            }
+                if (!verification.IsValid)
+                {
+                    ServiceLogDefinitions.LogInvalidOtpCode(logger, request.UserId);
+                    return AppResponses.Failure<VerifyOtpResponse>("Invalid verification code. Please try again.");
+                }
 
-            var requestedSessionId = Guid.CreateVersion7();
-            var sessionCreation = await sessionService.CreateSessionAsync(
-                user.Id,
-                requestedSessionId,
-                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
-                httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
-                request.DeviceFingerprint ?? "unknown",
-                cancellationToken).ConfigureAwait(false);
-
-            if (!sessionCreation.IsSuccess || sessionCreation.Data == Guid.Empty)
-            {
-                ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
-                return AppResponses.Failure<VerifyOtpResponse>("Could not establish a user session.");
-            }
-
-            var activeSessionId = sessionCreation.Data;
-            var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
-            if (!userClaims.Any())
-            {
-                return AppResponses.Failure<VerifyOtpResponse>("Could not retrieve user claims");
-            }
-
-            var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
-            var tokenExpiry = jwtService.GetTokenExpiry(tokenResponse);
-            var refreshToken = jwtService.CreateRefreshToken();
-            var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
-                user.Id,
-                refreshToken,
-                DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
-                user.Id,
-                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
-
-            user.RecordSuccessfulLogin();
-            await userManager.UpdateAsync(user).ConfigureAwait(false);
-            await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
-                await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-                return true;
-            }, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (request.RememberDevice)
-                await signInManager.RememberTwoFactorClientAsync(user).ConfigureAwait(false);
-
-            await signInManager.SignInAsync(user, request.RememberMe).ConfigureAwait(false);
-
-            var roles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-            var twoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false);
-
-            var appUserResponse = new AppUserResponse(
-                user.Id,
-                user.UserName ?? string.Empty,
-                user.FirstName,
-                user.LastName,
-                $"{user.FirstName} {user.LastName}".Trim(),
-                user.PhoneNumber,
-                user.NationalId,
-                user.Email ?? string.Empty,
-                user.Gender.ToDisplayString(),
-                ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
-                user.IsActive,
-                twoFactorEnabled,
-                user.RequirePasswordChange,
-                user.CreatedAt,
-                user.LastLoginAt,
-                [.. roles],
-                user.TenantId,
-                user.EmployeeId,
-                user.MemberId
-            );
-
-            var claimsResponse = userClaims.Select(c => new UserClaimsResponse
-            {
-                Type = c.Type,
-                Value = c.Value,
-                ValueType = c.ValueType,
-                Issuer = c.Issuer,
-                OriginalIssuer = c.OriginalIssuer,
-                Properties = c.Properties.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
-            }).ToList();
-
-            return AppResponses.Success("OTP verification successful",
-                new VerifyOtpResponse(
-                    tokenResponse,
-                    refreshToken ?? string.Empty,
+                var requestedSessionId = Guid.CreateVersion7();
+                var sessionCreation = await sessionService.StageSessionAsync(
                     user.Id,
-                    activeSessionId.ToString(),
-                    true,
-                    tokenExpiry,
-                    appUserResponse,
-                    claimsResponse));
+                    requestedSessionId,
+                    httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
+                    httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
+                    request.DeviceFingerprint ?? "unknown",
+                    cancellationToken).ConfigureAwait(false);
+
+                if (!sessionCreation.IsSuccess || sessionCreation.Data == Guid.Empty)
+                {
+                    ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
+                    return AppResponses.Failure<VerifyOtpResponse>("Could not establish a user session.");
+                }
+
+                var activeSessionId = sessionCreation.Data;
+                var userClaims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
+                if (!userClaims.Any())
+                {
+                    return AppResponses.Failure<VerifyOtpResponse>("Could not retrieve user claims");
+                }
+
+                var tokenResponse = await jwtService.CreateTokenAsync(userClaims).ConfigureAwait(false);
+                var tokenExpiry = jwtService.GetTokenExpiry(tokenResponse);
+                var refreshToken = jwtService.CreateRefreshToken();
+                var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
+                    user.Id,
+                    refreshToken,
+                    DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
+                    user.Id,
+                    httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
+
+                user.RecordSuccessfulLogin();
+                if (!(await userManager.UpdateAsync(user).ConfigureAwait(false)).Succeeded)
+                    return AppResponses.Failure<VerifyOtpResponse>("Could not complete login.");
+                await iamUnitOfWork.TokenRepository.CreateAsync(refreshTokenEntity, cancellationToken).ConfigureAwait(false);
+            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id, cancellationToken).ConfigureAwait(false);
+
+                var roles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+                var twoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false);
+
+                var appUserResponse = new AppUserResponse(
+                    user.Id,
+                    user.UserName ?? string.Empty,
+                    user.FirstName,
+                    user.LastName,
+                    $"{user.FirstName} {user.LastName}".Trim(),
+                    user.PhoneNumber,
+                    user.NationalId,
+                    user.Email ?? string.Empty,
+                    user.Gender.ToDisplayString(),
+                    ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
+                    user.IsActive,
+                    twoFactorEnabled,
+                    user.RequirePasswordChange,
+                    user.CreatedAt,
+                    user.LastLoginAt,
+                    [.. roles],
+                    user.TenantId,
+                    user.EmployeeId,
+                    user.MemberId
+                );
+
+                var claimsResponse = userClaims.Select(c => new UserClaimsResponse
+                {
+                    Type = c.Type,
+                    Value = c.Value,
+                    ValueType = c.ValueType,
+                    Issuer = c.Issuer,
+                    OriginalIssuer = c.OriginalIssuer,
+                    Properties = c.Properties.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                }).ToList();
+
+                return AppResponses.Success("OTP verification successful",
+                    new VerifyOtpResponse(
+                        tokenResponse,
+                        refreshToken ?? string.Empty,
+                        user.Id,
+                        activeSessionId.ToString(),
+                        true,
+                        tokenExpiry,
+                        appUserResponse,
+                        claimsResponse));
+            }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+
+            if (result.IsSuccess)
+            {
+                await cache.RemoveAsync(attemptKey, cancellationToken).ConfigureAwait(false);
+                if (request.RememberDevice)
+                    await signInManager.RememberTwoFactorClientAsync(user!).ConfigureAwait(false);
+                await signInManager.SignInAsync(user!, request.RememberMe).ConfigureAwait(false);
+            }
+            else if (recordFailedAttempt)
+            {
+                await cache.SetStringAsync(attemptKey, (attempts + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) }, cancellationToken).ConfigureAwait(false);
+            }
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -213,13 +229,9 @@ internal sealed class VerifyTotpCode(
         }
     }
 
-    private async Task<TotpVerificationResult> VerifyUserTotpAsync(AppUser user, string code, CancellationToken ct)
+    private async Task<TotpVerificationResult> VerifyUserTotpAsync(AppUser user, string code, int attempts, CancellationToken ct)
     {
         var userId = user.Id;
-        var attemptKey = CacheKeys.TotpAttempts(userId);
-        var attemptsStr = await cache.GetStringAsync(attemptKey, ct).ConfigureAwait(false);
-        var attempts = int.TryParse(attemptsStr, out var a) ? a : 0;
-
         if (attempts >= 3)
             return TotpVerificationResult.Invalid();
 
@@ -233,20 +245,12 @@ internal sealed class VerifyTotpCode(
             return TotpVerificationResult.Unavailable(secretDecryption.Message!);
         }
 
-        var isValid = VerifyTotp(secretDecryption.Secret!, code);
-
-        if (!isValid)
-        {
-            attempts++;
-            await cache.SetStringAsync(attemptKey, attempts.ToString(System.Globalization.CultureInfo.InvariantCulture), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) }, ct).ConfigureAwait(false);
+        if (!VerifyTotp(secretDecryption.Secret!, code))
             return TotpVerificationResult.Invalid();
-        }
 
-        await cache.RemoveAsync(attemptKey, ct).ConfigureAwait(false);
         secretEntity.MarkAsUsed();
 
         await iamUnitOfWork.AppUserTotpSecretRepository.UpdateAsync(secretEntity, ct).ConfigureAwait(false);
-        await iamUnitOfWork.CompleteAsync(ct).ConfigureAwait(false);
 
         return TotpVerificationResult.Valid();
     }

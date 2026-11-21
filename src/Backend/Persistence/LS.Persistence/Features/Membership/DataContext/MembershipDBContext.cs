@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace LS.Persistence.Features.Membership.DataContext;
 
-public class MembershipDBContext : DbContext, ITenantFilteredDBContext
+public class MembershipDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

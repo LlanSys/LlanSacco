@@ -336,6 +336,9 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
 
                     b.HasIndex("TellerTillId");
 
+                    b.HasIndex("TenantId", "Reference")
+                        .IsUnique();
+
                     b.ToTable("FosaTransactions", (string)null);
                 });
 

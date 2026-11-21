@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Persistence.Features.HR.DataContext;
 
-public class HrDBContext : DbContext, ITenantFilteredDBContext
+public class HrDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

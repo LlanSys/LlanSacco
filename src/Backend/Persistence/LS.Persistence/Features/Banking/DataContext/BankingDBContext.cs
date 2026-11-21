@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 
 namespace LS.Persistence.Features.Banking.DataContext;
 
-public class BankingDBContext : DbContext, ITenantFilteredDBContext
+public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

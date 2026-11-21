@@ -35,64 +35,76 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
     {
         if (request.Amount <= 0 || decimal.Round(request.Amount, 2) != request.Amount
             || request.TransactionType is not (OtcTransactionType.CashDeposit or OtcTransactionType.CashWithdrawal)
-            || string.IsNullOrWhiteSpace(request.Reference))
+            || string.IsNullOrWhiteSpace(request.Reference) || request.Reference.Length > 100)
             return AppResponses.Failure<bool>(AppError.BusinessRule("Provide a positive cash amount with at most two decimal places, a supported transaction type and a reference."));
-        var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
-        if (till is null || till.Status != TillStatus.Open)
+        return await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
         {
-            return AppResponses.Failure<bool>("Teller till is invalid or not open.");
-        }
-
-        var account = await unitOfWork.FosaAccounts.FindByIdAsync(request.FosaAccountId, cancellationToken).ConfigureAwait(false);
-        if (account is null || !account.IsActive)
-        {
-            return AppResponses.Failure<bool>("FOSA account is invalid or inactive.");
-        }
-
-        if (request.TransactionType == OtcTransactionType.CashWithdrawal)
-        {
-            if (account.Balance + account.OverdraftLimit < request.Amount)
+            var existing = await unitOfWork.FosaTransactions.ListAsync(
+                q => q.Where(transaction => transaction.Reference == request.Reference).Take(2), cancellationToken).ConfigureAwait(false);
+            if (existing.Count != 0)
             {
-                return AppResponses.Failure<bool>("Insufficient funds in FOSA account.");
-            }
-            
-            if (till.CurrentBalance < request.Amount)
-            {
-                return AppResponses.Failure<bool>("Teller till does not have enough cash for this withdrawal.");
+                var prior = existing[0];
+                return existing.Count == 1 && prior.FosaAccountId == request.FosaAccountId
+                    && prior.TellerTillId == request.TellerTillId && prior.Type == request.TransactionType && prior.Amount == request.Amount
+                    ? AppResponses.Success("Over the counter transaction already processed.", true)
+                    : AppResponses.Failure<bool>(AppError.BusinessRule("The cash transaction reference is already in use."));
             }
 
-            account.Balance -= request.Amount;
-            till.CurrentBalance -= request.Amount;
-        }
-        else if (request.TransactionType == OtcTransactionType.CashDeposit)
-        {
-            account.Balance += request.Amount;
-            till.CurrentBalance += request.Amount;
-            
-            if (till.CurrentBalance > till.MaxLimit)
+            var till = await unitOfWork.TellerTills.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
+            if (till is null || till.Status != TillStatus.Open)
             {
-                // We could block it, or just allow it and let the UI warn the teller to do a Vault Drop.
-                // For simplicity, we just allow the deposit but this is where an alert would trigger.
+                return AppResponses.Failure<bool>("Teller till is invalid or not open.");
             }
-        }
 
-        var transaction = FosaTransaction.Create(
-            request.FosaAccountId,
-            request.TellerTillId,
-            request.TransactionType,
-            request.Amount,
-            request.Reference,
-            actorProvider.ActorId
-        );
+            var account = await unitOfWork.FosaAccounts.FindByIdAsync(request.FosaAccountId, cancellationToken).ConfigureAwait(false);
+            if (account is null || !account.IsActive)
+            {
+                return AppResponses.Failure<bool>("FOSA account is invalid or inactive.");
+            }
 
-        await unitOfWork.FosaTransactions.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
-        
-        await unitOfWork.FosaAccounts.UpdateAsync(account, cancellationToken).ConfigureAwait(false);
-        await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+            if (request.TransactionType == OtcTransactionType.CashWithdrawal)
+            {
+                if (account.Balance + account.OverdraftLimit < request.Amount)
+                {
+                    return AppResponses.Failure<bool>("Insufficient funds in FOSA account.");
+                }
 
-        await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);
+                if (till.CurrentBalance < request.Amount)
+                {
+                    return AppResponses.Failure<bool>("Teller till does not have enough cash for this withdrawal.");
+                }
 
-        return AppResponses.Success<bool>("Over the counter transaction processed successfully.", true);
+                account.Balance -= request.Amount;
+                till.CurrentBalance -= request.Amount;
+            }
+            else if (request.TransactionType == OtcTransactionType.CashDeposit)
+            {
+                account.Balance += request.Amount;
+                till.CurrentBalance += request.Amount;
+
+                if (till.CurrentBalance > till.MaxLimit)
+                {
+                    // We could block it, or just allow it and let the UI warn the teller to do a Vault Drop.
+                    // For simplicity, we just allow the deposit but this is where an alert would trigger.
+                }
+            }
+
+            var transaction = FosaTransaction.Create(
+                request.FosaAccountId,
+                request.TellerTillId,
+                request.TransactionType,
+                request.Amount,
+                request.Reference,
+                actorProvider.ActorId
+            );
+
+            await unitOfWork.FosaTransactions.CreateAsync(transaction, cancellationToken).ConfigureAwait(false);
+
+            await unitOfWork.FosaAccounts.UpdateAsync(account, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.TellerTills.UpdateAsync(till, cancellationToken).ConfigureAwait(false);
+
+            return AppResponses.Success<bool>("Over the counter transaction processed successfully.", true);
+        }, cancellationToken: cancellationToken, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
     }
 }
 

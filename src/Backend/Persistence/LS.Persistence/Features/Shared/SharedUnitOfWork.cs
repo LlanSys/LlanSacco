@@ -26,9 +26,7 @@ public sealed class SharedUnitOfWork(
     ILogger<SharedUnitOfWork> logger
 ) : BaseUnitOfWork<SharedDBContext>(context, publisher, logger), ISharedUnitOfWork
 {
-    private readonly SharedDBContext _sharedContext = context;
     private readonly IPublisher _publisher = publisher;
-    private readonly ILogger<SharedUnitOfWork> _logger = logger;
 
     public IEmailTemplateRepository EmailTemplateRepository { get; } = emailTemplateRepository;
     public IFailedMessageRepository FailedMessageRepository { get; } = failedMessageRepository;
@@ -37,33 +35,14 @@ public sealed class SharedUnitOfWork(
 
     public async Task<int> CompleteWithEventsAsync(List<IIntegrationEvent>? appEvents = null, CancellationToken ct = default)
     {
-        var transaction = await _sharedContext.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-        await using var configuredTransaction = transaction.ConfigureAwait(false);
+        if (Context.Database.CurrentTransaction is not null)
+            throw new InvalidOperationException("CompleteWithEventsAsync must own the commit.");
 
-        try
-        {
-            var result = await _sharedContext.SaveChangesAsync(ct).ConfigureAwait(false);
-            var domainEvents = _sharedContext.GetCollectedDomainEvents() ?? Array.Empty<IDomainEvent>();
+        var count = await CompleteAsync(ct).ConfigureAwait(false);
+        if (appEvents is not null)
+            foreach (var appEvent in appEvents)
+                await _publisher.Publish(appEvent, ct).ConfigureAwait(false);
 
-            foreach (var domainEvent in domainEvents)
-                await _publisher.Publish(domainEvent, ct).ConfigureAwait(false);
-
-            if (appEvents != null)
-                foreach (var appEvent in appEvents)
-                    await _publisher.Publish(appEvent, ct).ConfigureAwait(false);
-
-            await transaction.CommitAsync(ct).ConfigureAwait(false);
-            _sharedContext.ClearCollectedDomainEvents();
-
-            PersistenceLogDefinitions.LogEventsPublished(_logger, domainEvents.Count);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            PersistenceLogDefinitions.LogCompleteWithEventsRollback(_logger, ex);
-            await transaction.RollbackAsync(ct).ConfigureAwait(false);
-            _sharedContext.ClearCollectedDomainEvents();
-            throw;
-        }
+        return count;
     }
 }

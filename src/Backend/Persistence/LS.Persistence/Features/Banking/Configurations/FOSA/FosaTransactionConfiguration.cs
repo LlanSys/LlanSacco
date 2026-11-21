@@ -30,5 +30,6 @@ public class FosaTransactionConfiguration : IEntityTypeConfiguration<FosaTransac
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.Reference);
+        builder.HasIndex(x => new { x.TenantId, x.Reference }).IsUnique();
     }
 }

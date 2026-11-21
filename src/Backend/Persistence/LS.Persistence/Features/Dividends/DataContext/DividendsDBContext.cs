@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace LS.Persistence.Features.Dividends.DataContext;
 
-public class DividendsDBContext : DbContext, ITenantFilteredDBContext
+public class DividendsDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuffer
 {
     private readonly ICurrentTenantProvider? _tenantProvider;
     private readonly ICurrentActorProvider? _actorProvider;

@@ -71,7 +71,9 @@ internal sealed class VerifyEmailOtp(
             if (!user.EmailConfirmed)
             {
                 user.EmailConfirmed = true;
-                await userManager.UpdateAsync(user).ConfigureAwait(false);
+                var confirmation = await userManager.UpdateAsync(user).ConfigureAwait(false);
+                if (!confirmation.Succeeded)
+                    return AppResponses.Failure<VerifyEmailOtpResponse>("Could not confirm email.");
                 ServiceLogDefinitions.LogEmailConfirmedViaOtp(logger, user.Id);
             }
             return AppResponses.Success("Email confirmed",
@@ -90,75 +92,87 @@ internal sealed class VerifyEmailOtp(
                 new VerifyEmailOtpResponse(string.Empty, string.Empty, user.Id, null, true, DateTimeOffset.UtcNow, null!, []));
         }
 
-        var requestedSessionId = Guid.CreateVersion7();
-        var sessionCreation = await sessionService.CreateSessionAsync(
-            user.Id,
-            requestedSessionId,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
-            httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
-            string.IsNullOrWhiteSpace(req.DeviceFingerprint) ? "unknown" : req.DeviceFingerprint,
-            ct).ConfigureAwait(false);
-
-        if (!sessionCreation.IsSuccess || sessionCreation.Data == Guid.Empty)
+        var securityStamp = user.SecurityStamp;
+        var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
         {
-            ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
-            return AppResponses.Failure<VerifyEmailOtpResponse>("Could not establish a user session.");
+            user = await userManager.FindByIdAsync(req.UserId).ConfigureAwait(false);
+            if (user is null || !user.IsActive || user.IsDeleted
+                || !string.Equals(user.SecurityStamp, securityStamp, StringComparison.Ordinal))
+                return AppResponses.Failure<VerifyEmailOtpResponse>("Could not complete login. Please sign in again.");
+            var requestedSessionId = Guid.CreateVersion7();
+            var sessionCreation = await sessionService.StageSessionAsync(
+                user.Id,
+                requestedSessionId,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown",
+                httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "unknown",
+                string.IsNullOrWhiteSpace(req.DeviceFingerprint) ? "unknown" : req.DeviceFingerprint,
+                ct).ConfigureAwait(false);
+
+            if (!sessionCreation.IsSuccess || sessionCreation.Data == Guid.Empty)
+            {
+                ServiceLogDefinitions.LogFailedToCreateUserSession(logger, user.Id);
+                return AppResponses.Failure<VerifyEmailOtpResponse>("Could not establish a user session.");
+            }
+
+            var activeSessionId = sessionCreation.Data;
+            var claims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
+            var token = await jwtService.CreateTokenAsync(claims).ConfigureAwait(false);
+            var refreshToken = jwtService.CreateRefreshToken();
+            var expiry = jwtService.GetTokenExpiry(token);
+            var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
+                user.Id,
+                refreshToken,
+                DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
+                user.Id,
+                httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
+
+            user.RecordSuccessfulLogin();
+            var updated = await userManager.UpdateAsync(user).ConfigureAwait(false);
+            if (!updated.Succeeded)
+                return AppResponses.Failure<VerifyEmailOtpResponse>("Could not complete login.");
+            await iamUnitOfWork.TokenRepository.CreateAsync(refreshTokenEntity, ct).ConfigureAwait(false);
+            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id, ct).ConfigureAwait(false);
+
+            var roles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+            var twoFactor = await userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false);
+
+            var appUser = new AppUserResponse(
+                user.Id, user.UserName ?? "", user.FirstName, user.LastName,
+                $"{user.FirstName} {user.LastName}".Trim(), user.PhoneNumber, user.NationalId,
+                user.Email ?? "", user.Gender.ToDisplayString(), ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
+                user.IsActive, twoFactor, user.RequirePasswordChange, user.CreatedAt,
+                user.LastLoginAt, [.. roles], user.TenantId, user.EmployeeId, user.MemberId);
+
+            var claimsResp = claims.Select(c => new UserClaimsResponse
+            {
+                Type = c.Type,
+                Value = c.Value,
+                ValueType = c.ValueType,
+                Issuer = c.Issuer,
+                OriginalIssuer = c.OriginalIssuer,
+                Properties = c.Properties.ToDictionary(k => k.Key, v => v.Value)
+
+            }).ToList();
+
+            return AppResponses.Success("Email OTP verified", new VerifyEmailOtpResponse(
+                token,
+                refreshToken ?? "",
+                user.Id,
+                activeSessionId.ToString(),
+                true,
+                expiry,
+                appUser,
+                claimsResp));
+        }, cancellationToken: ct, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+
+        if (result.IsSuccess)
+        {
+            if (req.RememberDevice)
+                await signInManager.RememberTwoFactorClientAsync(user!).ConfigureAwait(false);
+            await signInManager.SignInAsync(user!, req.RememberMe).ConfigureAwait(false);
         }
 
-        var activeSessionId = sessionCreation.Data;
-        var claims = await claimsService.GetUserClaimsAsync(user, activeSessionId).ConfigureAwait(false);
-        var token = await jwtService.CreateTokenAsync(claims).ConfigureAwait(false);
-        var refreshToken = jwtService.CreateRefreshToken();
-        var expiry = jwtService.GetTokenExpiry(token);
-        var refreshTokenEntity = LS.Domain.Features.IAM.Users.Entities.RefreshToken.Create(
-            user.Id,
-            refreshToken,
-            DateTimeOffset.UtcNow.AddHours(_jwtSettings.RefreshTokenExpiryHours),
-            user.Id,
-            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString());
-
-        user.RecordSuccessfulLogin();
-        await userManager.UpdateAsync(user).ConfigureAwait(false);
-        await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-        {
-            await iamUnitOfWork.TokenRepository.AddRefreshTokenAsync(refreshTokenEntity).ConfigureAwait(false);
-            await iamUnitOfWork.TokenRepository.CleanupExpiredTokensAsync(user.Id).ConfigureAwait(false);
-            return true;
-        }, cancellationToken: ct).ConfigureAwait(false);
-
-        if (req.RememberDevice) await signInManager.RememberTwoFactorClientAsync(user).ConfigureAwait(false);
-        await signInManager.SignInAsync(user, req.RememberMe).ConfigureAwait(false);
-
-        var roles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-        var twoFactor = await userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false);
-
-        var appUser = new AppUserResponse(
-            user.Id, user.UserName ?? "", user.FirstName, user.LastName,
-            $"{user.FirstName} {user.LastName}".Trim(), user.PhoneNumber, user.NationalId,
-            user.Email ?? "", user.Gender.ToDisplayString(), ProfilePictureUrlMapping.ToCurrentUserRoute(user.ProfilePictureUrl),
-            user.IsActive, twoFactor, user.RequirePasswordChange, user.CreatedAt,
-            user.LastLoginAt, [.. roles], user.TenantId, user.EmployeeId, user.MemberId);
-
-        var claimsResp = claims.Select(c => new UserClaimsResponse
-        {
-            Type = c.Type,
-            Value = c.Value,
-            ValueType = c.ValueType,
-            Issuer = c.Issuer,
-            OriginalIssuer = c.OriginalIssuer,
-            Properties = c.Properties.ToDictionary(k => k.Key, v => v.Value)
-
-        }).ToList();
-
-        return AppResponses.Success("Email OTP verified", new VerifyEmailOtpResponse(
-            token,
-            refreshToken ?? "",
-            user.Id,
-            activeSessionId.ToString(),
-            true,
-            expiry,
-            appUser,
-            claimsResp));
+        return result;
     }
 
     private static string HashCode(string userId, string code, string purpose)

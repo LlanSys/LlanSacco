@@ -4,6 +4,7 @@ using LS.Application.Features.IAM.Users.Mappings;
 using LS.Application.Features.Shared.EmailTemplates.Mappings;
 using LS.Domain.Features.HR.Contracts;
 using LS.Domain.Features.IAM.Contracts;
+using LS.Domain.Features.Membership.Contracts;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Features.HR.Employees.Entities;
@@ -23,6 +24,7 @@ namespace LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers;
 internal sealed class CreateAppUser(
     UserManager<AppUser> userManager,
     IHrUnitOfWork hrUnitOfWork,
+    IMembershipUnitOfWork membershipUnitOfWork,
     IIamUnitOfWork iamUnitOfWork,
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider,
@@ -63,10 +65,13 @@ internal sealed class CreateAppUser(
                         return AppResponses.Failure<AppUserResponse>("A user account already exists for this employee.");
                 }
 
-                // TODO: Member lookup will be implemented when the Membership bounded context is built.
-                // For now, MemberId linking is accepted but not validated against a Member entity.
-                if (req.MemberId.HasValue)
+                if (req.MemberId is Guid memberId)
                 {
+                    var tenantId = tenantProvider.TenantId;
+                    if (!await membershipUnitOfWork.MemberRepository.AnyAsync(
+                        member => member.Id == memberId && member.TenantId == tenantId, ct).ConfigureAwait(false))
+                        return AppResponses.NotFound<AppUserResponse>("The specified member does not exist.");
+
                     var alreadyLinked = await userManager.Users
                         .AsNoTracking()
                         .AnyAsync(u => u.MemberId == req.MemberId.Value, ct)
@@ -152,6 +157,7 @@ internal sealed class CreateAppUser(
                     .CreateOrUpdateAsync(appUser.Id, profile, ct)
                     .ConfigureAwait(false);
 
+                appUser.RaiseAppUserCreatedEvent();
                 createdUser = appUser;
                 return AppResponses.Success("User created successfully.", appUser.ToAppUserResponse());
 
@@ -159,8 +165,7 @@ internal sealed class CreateAppUser(
 
             if (result.IsSuccess)
             {
-                createdUser!.RaiseAppUserCreatedEvent();
-                ServiceLogDefinitions.LogAppUserCreated(logger, createdUser.Id, createdUser.Email ?? string.Empty);
+                ServiceLogDefinitions.LogAppUserCreated(logger, createdUser!.Id, createdUser.Email ?? string.Empty);
             }
             return result;
         }

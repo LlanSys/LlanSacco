@@ -121,9 +121,9 @@ Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved 
 - [x] Commit password-login session changes, login metadata and refresh tokens together; issue the authentication cookie after commit with the password authentication claim. Verify failure, retry, cancellation, JWT rejection, MFA and wrong-password cases on both providers.
 - [x] Make standalone session replacement atomic so a failed replacement preserves previous active sessions; expose an explicitly staged device-session operation for callers that own the transaction.
 - [x] Stage logout session and refresh-token revocation under one commit, constrain session lookup to its authenticated owner, and defer cookie sign-out until persistence succeeds. Initial 12 provider cases passed; the final notification adjustment still needs the rerun below.
-- [ ] Re-run the final logout provider cases (including verified-session notification payload) and full integration suite when Docker connectivity is restored.
+- [x] Verify logout, including the verified-session notification, in the successful GitHub integration and Required / Remediation checks for 207207b.
 - [ ] Finish the wider IAM and cross-context mutation audit: email-OTP/TOTP completion, SSO and passkey transaction boundaries, member-link validation and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
-- [ ] Settle and test generic/Shared domain-event commit semantics. Financial outboxes do not settle every domain-event helper.
+- [ ] Verify generic/Shared post-commit event delivery and rollback cleanup on both providers. The implementation and provider cases are in the closure candidate.
 - [x] Add separate provider migrations to rebuild the three accounting unique indexes. Upgrade tests reproduce existing non-unique indexes, prove successful repair and confirm duplicate journals cause rollback without data loss. No deployed database was migrated.
 
 Gate: focused unit plus PostgreSQL and SQL Server integration tests prove saved state, rollback, idempotency, future-configuration exclusion, and bounded query counts. If an environment is unavailable, retain an explicit verification gap.

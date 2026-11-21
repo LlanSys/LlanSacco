@@ -226,8 +226,8 @@ public static class DependencyInjection
         
         services.AddFido2(options =>
         {
-            options.ServerDomain = "localhost";
-            options.ServerName = "LlanSacco";
+            options.RPID = "localhost";
+            options.RPName = "LlanSacco";
             options.Origins = new HashSet<string> { "https://localhost:7049", "https://localhost:7129", "http://localhost:5157", "http://localhost:5106" };
         });
         
@@ -304,8 +304,8 @@ public static class DependencyInjection
             {
                 services.AddFido2(options =>
                 {
-                    options.ServerDomain = passkeySettings.ServerDomain;
-                    options.ServerName = passkeySettings.ServerName;
+                    options.RPID = passkeySettings.ServerDomain;
+                    options.RPName = passkeySettings.ServerName;
                     options.Origins = new System.Collections.Generic.HashSet<string>(passkeySettings.Origins);
                     options.TimestampDriftTolerance = 300000;
                 });

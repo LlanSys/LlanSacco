@@ -42,7 +42,7 @@ public class TellersController(IMediator mediator) : ControllerBase
             request.Note1000Count, request.Note500Count, request.Note200Count, request.Note100Count, request.Note50Count,
             request.Coin20Count, request.Coin10Count, request.Coin5Count, request.Coin1Count);
             
-        var command = new VaultTransferCommand(request.TellerTillId, request.VaultId, breakdown, request.Remarks);
+        var command = new VaultTransferCommand(request.TellerTillId, request.VaultId, breakdown, request.Remarks, request.RequestId);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return response.IsSuccess ? Ok(response) : BadRequest(response);
     }

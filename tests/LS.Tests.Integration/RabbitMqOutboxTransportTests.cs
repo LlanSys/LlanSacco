@@ -15,6 +15,8 @@ public sealed class RabbitMqOutboxTransportTests
     public async Task Ef_outbox_should_deliver_message_to_real_rabbitmq_consumer()
     {
         var hostName = GetRequiredEnvironmentVariable("BT_RABBITMQ_HOST");
+        var port = ushort.TryParse(Environment.GetEnvironmentVariable("BT_RABBITMQ_PORT"), out var configuredPort)
+            ? configuredPort : (ushort)5672;
         var virtualHost = GetRequiredEnvironmentVariable("BT_RABBITMQ_VIRTUAL_HOST");
         var username = GetRequiredEnvironmentVariable("BT_RABBITMQ_USERNAME");
         var password = GetRequiredEnvironmentVariable("BT_RABBITMQ_PASSWORD");
@@ -40,7 +42,7 @@ public sealed class RabbitMqOutboxTransportTests
 
             configurator.UsingRabbitMq((context, rabbit) =>
             {
-                rabbit.Host(hostName, virtualHost, host =>
+                rabbit.Host(hostName, port, virtualHost, host =>
                 {
                     host.Username(username);
                     host.Password(password);

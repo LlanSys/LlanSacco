@@ -573,6 +573,7 @@ internal static partial class DependencyInjection
             }
         });
 
+        LS.Infrastructure.Messaging.TenantOutboxDeliveryExtensions.RouteEntityFrameworkOutboxDeliveryByTenant(services);
         return services;
     }
 

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$SkipStart)
 
 $ErrorActionPreference = 'Stop'
 
@@ -25,11 +25,19 @@ foreach ($required in @('RABBITMQ_USER', 'RABBITMQ_PASSWORD')) {
     }
 }
 
-& docker compose --env-file $envFile -f $composeFile up -d --wait rabbitmq
-if ($LASTEXITCODE -ne 0) {
-    throw "RabbitMQ startup failed with exit code $LASTEXITCODE."
+if (-not $SkipStart) {
+    & (Join-Path $PSScriptRoot 'check-local-endpoints.ps1') -ComposeFiles $composeFile
+    & docker compose --env-file $envFile -f $composeFile up -d --wait rabbitmq
+    if ($LASTEXITCODE -ne 0) {
+        throw "RabbitMQ startup failed with exit code $LASTEXITCODE."
+    }
 }
 
+$endpoint = docker compose --env-file $envFile -f $composeFile port rabbitmq 5672
+if ($LASTEXITCODE -ne 0 -or $endpoint -notmatch ':(\d+)$') {
+    throw 'The LlanSacco RabbitMQ port is unavailable.'
+}
+$env:BT_RABBITMQ_PORT = $matches[1]
 $env:BT_RUN_RABBITMQ_TESTS = 'true'
 $env:BT_RABBITMQ_HOST = 'localhost'
 $env:BT_RABBITMQ_VIRTUAL_HOST = '/'
@@ -44,6 +52,7 @@ try {
 }
 finally {
     Remove-Item Env:BT_RUN_RABBITMQ_TESTS -ErrorAction SilentlyContinue
+    Remove-Item Env:BT_RABBITMQ_PORT -ErrorAction SilentlyContinue
     Remove-Item Env:BT_RABBITMQ_HOST -ErrorAction SilentlyContinue
     Remove-Item Env:BT_RABBITMQ_VIRTUAL_HOST -ErrorAction SilentlyContinue
     Remove-Item Env:BT_RABBITMQ_USERNAME -ErrorAction SilentlyContinue

@@ -1,6 +1,6 @@
 # Phase 2 Persistence Correctness
 
-Status: Phase 2 in progress. The latest dated section records outbox, payment replay, accounting replay and background-scope corrections; earlier sections are historical evidence. Phase 1 parent: cbf373b. This record distinguishes implemented work from verified closure.
+Status 2026-11-21. Phase 2 acceptance checks are complete for review in [draft PR #3](https://github.com/LlanSys/LlanSacco/pull/3). Earlier dated sections record the evidence available at each checkpoint.
 
 ## First implementation slice
 
@@ -181,3 +181,17 @@ GitHub Required / Remediation and the full integration check passed on 207207b, 
 - FOSA cash postings detect matching and conflicting references before mutating balances. Separate SQL Server and PostgreSQL migrations add a unique tenant/reference index. An existing duplicate reference stops the upgrade without deleting records. Vault transfer still has no stable request reference.
 
 The original workspace dependency changes stay outside this candidate. Docker Desktop could not open the Linux engine pipe when querying the existing cg-llansacco group. The focused provider run hit the same fixture initialization failure, so GitHub CI is needed to verify the candidate's database checks. Phase 2 remains open pending review of the remaining checklist items and results.
+
+
+## Phase 2 acceptance verification — 2026-11-21
+
+The authentication and financial replay commit `4a41e27` passed GitHub Required / Remediation with 143 integration tests passed and one opt-in broker test skipped. The final work extends that checkpoint:
+
+- The CheckOff test commits dispatch to its EF outbox, recovers the event from a replacement host and interrupts the worker after Banking commits. Competing deliveries then replay the original reference and produce one credit and a Posted batch. This runs with PostgreSQL and SQL Server and an in-memory transport.
+- Outbox delivery agents poll tenant databases on the host stamp. The Banking regression starts the recovery host with an empty fallback database and verifies committed messages are recovered from a dedicated database on each provider. Recurring interest schedules active tenants on the host stamp, then rechecks tenant eligibility and establishes tenant and system-actor scope before resolving Banking persistence.
+- FOSA replays require a matching reference and posting details. Vault transfers record a durable history and accept an optional stable `RequestId` for retries. Existing callers can omit it and each call is a new transfer. Separate Banking migrations for PostgreSQL and SQL Server add reference uniqueness and transfer history. Full migration chains were applied to disposable databases. An upgrade with duplicate FOSA references requires reconciliation before adding the unique index.
+- Provider cases verify that IAM OTP, TOTP, SSO and passkey failures roll back staged session and token writes. MFA removal and employee access mutations also use the IAM transaction. Login cookies, SSO exchange publication and notification email run after commit. Generic and Shared in-process domain notifications dispatch after commit and discard rolled-back events. Durable financial delivery uses context-owned outboxes.
+
+The isolated branch passed the API build, 84 architecture tests, 43 unit tests and 161 integration tests. The ordinary suite skipped the opt-in RabbitMQ test. It passed in a separate run against the existing `cg-llansacco` broker on host port `5673`, which was already running. The RabbitMQ case verifies the outbox transport using a temporary SQLite database. The PostgreSQL and SQL Server cases use disposable databases and exercise provider persistence and recovery.
+
+The original workspace's uncommitted package, historical migration and UI edits are excluded from these results. The package edits still require version alignment to resolve the recorded NU1605 errors. Passkey coverage substitutes the verifier. Live external identity providers, Azure Service Bus and a signed-in browser walkthrough were outside this verification. Application identities and deployment settings were preserved. The phase is held for review on draft PR #3 before Phase 3 begins.

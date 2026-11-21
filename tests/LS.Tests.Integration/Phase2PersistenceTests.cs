@@ -107,6 +107,10 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         {
             var implementation = typeof(BankingDBContext).Assembly.GetTypes()
                 .Single(t => t.IsClass && !t.IsAbstract && typeof(IBankingUnitOfWork).IsAssignableFrom(t));
+            var transferRepository = typeof(LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository);
+            var transferImplementation = typeof(BankingDBContext).Assembly.GetTypes()
+                .Single(t => t.IsClass && !t.IsAbstract && transferRepository.IsAssignableFrom(t));
+            services.AddScoped(transferRepository, sp => ActivatorUtilities.CreateInstance(sp, transferImplementation));
             services.AddScoped(typeof(IBankingUnitOfWork), sp => ActivatorUtilities.CreateInstance(sp, implementation));
             if (failSavingsPublication)
                 services.AddTransient<INotificationHandler<SavingsDepositedIntegrationEvent>, RejectSavingsPublication>();
@@ -337,8 +341,19 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     [InlineData("jwt-rejection")]
     [InlineData("mfa")]
     [InlineData("wrong-password")]
-    public async Task Password_login_commits_session_and_token_before_issuing_cookie(string mode)
+    [InlineData("email:success")]
+    [InlineData("email:failure")]
+    [InlineData("totp:success")]
+    [InlineData("totp:failure")]
+    [InlineData("sso:success")]
+    [InlineData("sso:failure")]
+    [InlineData("passkey:success")]
+    [InlineData("passkey:failure")]
+    public async Task Login_completion_commits_session_and_token_before_issuing_credentials(string scenario)
     {
+        var parts = scenario.Split(':', 2);
+        var method = parts.Length == 1 ? "password" : parts[0];
+        var mode = parts[^1];
         var tenant = new Tenant();
         using var cancellation = new CancellationTokenSource();
         var fault = new LoginTokenFault(mode, cancellation);
@@ -351,6 +366,18 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddAuthentication();
         services.AddHttpContextAccessor();
+        services.AddDistributedMemoryCache();
+        services.AddSingleton<ICurrentTenantProvider>(tenant);
+        services.Configure<LS.Infrastructure.Configuration.EntraIdSettings>(_ => { });
+        var encryption = Substitute.For<LS.Application.Contracts.Interfaces.Common.IEncryptionService>();
+        var totpSecret = OtpNet.Base32Encoding.ToString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(20));
+        encryption.Decrypt("test-encrypted-secret").Returns(totpSecret);
+        services.AddSingleton(encryption);
+        var passkeyVerifier = Substitute.For<LS.Application.Features.IAM.Users.Contracts.Interfaces.IPasskeyService>();
+        passkeyVerifier.MakeAssertionAsync(Arg.Any<LS.Domain.Features.IAM.Users.Entities.AppUser>(),
+            Arg.Any<System.Text.Json.JsonElement>(), Arg.Any<System.Text.Json.JsonElement>(), Arg.Any<byte[]>(),
+            Arg.Any<uint>(), Arg.Any<CancellationToken>()).Returns((uint?)2);
+        services.AddSingleton(passkeyVerifier);
         services.AddIdentityCore<LS.Domain.Features.IAM.Users.Entities.AppUser>()
             .AddRoles<LS.Domain.Features.IAM.Users.Entities.AppRole>()
             .AddEntityFrameworkStores<LS.Persistence.Features.IAM.DataContext.IamDBContext>().AddSignInManager();
@@ -375,7 +402,13 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         var cookies = 0;
         auth.When(a => a.SignInAsync(Arg.Any<Microsoft.AspNetCore.Http.HttpContext>(), Arg.Any<string>(),
             Arg.Any<System.Security.Claims.ClaimsPrincipal>(), Arg.Any<Microsoft.AspNetCore.Authentication.AuthenticationProperties>()))
-            .Do(call => { Assert.Null(db.Database.CurrentTransaction); Assert.True(call.Arg<System.Security.Claims.ClaimsPrincipal>().HasClaim("amr", "pwd")); cookies++; });
+            .Do(call =>
+            {
+                Assert.Null(db.Database.CurrentTransaction);
+                if (method == "password")
+                    Assert.True(call.Arg<System.Security.Claims.ClaimsPrincipal>().HasClaim("amr", "pwd"));
+                cookies++;
+            });
         services.AddSingleton(auth);
         var claims = Substitute.For<LS.Application.Features.IAM.Users.Contracts.Interfaces.IClaimsService>();
         claims.GetUserClaimsAsync(Arg.Any<LS.Domain.Features.IAM.Users.Entities.AppUser>(), Arg.Any<Guid?>())
@@ -403,22 +436,89 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.True((await manager.CreateAsync(user, "Login-Test-Password1!")).Succeeded);
         var oldSession = LS.Domain.Features.IAM.Users.Entities.AppUserSession.Create(Guid.CreateVersion7(), user.Id, "127.0.0.1", "test", DateTimeOffset.UtcNow.AddHours(1), user.Id, "old-device");
         db.Add(oldSession);
+        byte[] credentialId = [1, 2, 3, 4];
+        if (method == "passkey")
+            db.Add(new LS.Domain.Features.IAM.Users.Entities.Fido2Credential
+            {
+                UserId = user.Id, CredentialId = credentialId, PublicKey = [1],
+                SignatureCounter = 1, CredType = "public-key", RegDate = DateTimeOffset.UtcNow,
+                CreatedBy = user.Id
+            });
+        if (method == "totp")
+            db.Add(LS.Domain.Features.IAM.Users.Entities.TempTotpSecret.Create(user.Id, "test-encrypted-secret", DateTimeOffset.UtcNow.AddHours(1), user.Id));
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
-        var handlerType = typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType("LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.Login")!;
-        var handler = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.LoginCommand, AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.LoginResponse>>)ActivatorUtilities.CreateInstance(provider, handlerType);
-        var command = new LS.Application.Features.IAM.Users.Commands.LoginCommand(new PersistenceLoginRequest(mode == "wrong-password" ? "Wrong-Password!" : "Login-Test-Password1!"));
-        if (mode == "failure") await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command, cancellation.Token));
-        else if (mode == "cancel") await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(command, cancellation.Token));
-        else Assert.Equal(mode is "success" or "retry" or "mfa", (await handler.Handle(command, cancellation.Token)).IsSuccess);
+        object CreateHandler(string name) => ActivatorUtilities.CreateInstance(provider,
+            typeof(LS.Infrastructure.Features.IAM.Extensions.IamModuleDI).Assembly.GetType(
+                $"LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.{name}")!);
+
+        async Task<bool> Authenticate()
+        {
+            switch (method)
+            {
+                case "email":
+                    const string code = "135791";
+                    var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{user.Id}:Login:{code}"));
+                    var cache = provider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>();
+                    await Microsoft.Extensions.Caching.Distributed.DistributedCacheExtensions.SetStringAsync(cache,
+                        LS.Application.Utilities.CacheKeys.EmailOtp(user.Id), Convert.ToBase64String(hash), cancellation.Token);
+                    var email = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.VerifyEmailOtpCommand,
+                        AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.VerifyEmailOtpResponse>>)CreateHandler("VerifyEmailOtp");
+                    return (await email.Handle(new(new() { UserId = user.Id, Code = code, DeviceFingerprint = "new-device" }), cancellation.Token)).IsSuccess;
+                case "totp":
+                    var totp = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.VerifyOtpCommand,
+                        AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.VerifyOtpResponse>>)CreateHandler("VerifyTotpCode");
+                    var totpCode = new OtpNet.Totp(OtpNet.Base32Encoding.ToBytes(totpSecret)).ComputeTotp();
+                    return (await totp.Handle(new(new() { UserId = user.Id, Code = totpCode, DeviceFingerprint = "new-device" }), cancellation.Token)).IsSuccess;
+                case "sso":
+                    var sso = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.ProcessSsoLoginCommand,
+                        AppResponse<string>>)CreateHandler("ProcessSsoLogin");
+                    var result = await sso.Handle(new(user.Email!, user.FirstName, user.LastName, "test-provider", "test-provider-key"), cancellation.Token);
+                    if (result.IsSuccess)
+                        Assert.NotNull(await provider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>()
+                            .GetAsync($"SSO_Exchange_{result.Data}"));
+                    return result.IsSuccess;
+                case "passkey":
+                    var correlationId = Guid.CreateVersion7();
+                    await Microsoft.Extensions.Caching.Distributed.DistributedCacheExtensions.SetStringAsync(
+                        provider.GetRequiredService<Microsoft.Extensions.Caching.Distributed.IDistributedCache>(),
+                        $"Fido2AssertionOptions:{correlationId}", "{}", cancellation.Token);
+                    var assertion = System.Text.Json.JsonSerializer.SerializeToElement(new
+                    {
+                        id = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(credentialId)
+                    });
+                    var passkey = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.LoginWithPasskeyCommand,
+                        AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.LoginResponse>>)CreateHandler("LoginWithPasskey");
+                    return (await passkey.Handle(new(user.UserName, correlationId, assertion), cancellation.Token)).IsSuccess;
+                default:
+                    var password = (IRequestHandler<LS.Application.Features.IAM.Users.Commands.LoginCommand,
+                        AppResponse<LS.SharedKernel.Features.IAM.Users.Dtos.LoginResponse>>)CreateHandler("Login");
+                    return (await password.Handle(new(new PersistenceLoginRequest(mode == "wrong-password" ? "Wrong-Password!" : "Login-Test-Password1!")), cancellation.Token)).IsSuccess;
+            }
+        }
+
+        if (mode == "failure") await Assert.ThrowsAsync<InvalidOperationException>(Authenticate);
+        else if (mode == "cancel") await Assert.ThrowsAnyAsync<OperationCanceledException>(Authenticate);
+        else Assert.Equal(mode is "success" or "retry" or "mfa", await Authenticate());
+
         var committed = mode is "success" or "retry";
-        Assert.Equal(committed ? 1 : 0, cookies);
+        Assert.Equal(committed && method is not ("sso" or "passkey") ? 1 : 0, cookies);
         Assert.Equal(mode == "retry" ? 2 : mode is "success" or "failure" or "cancel" ? 1 : 0, fault.Attempts);
         await using var verify = new LS.Persistence.Features.IAM.DataContext.IamDBContext(Options<LS.Persistence.Features.IAM.DataContext.IamDBContext>(), tenant, new Actor());
         Assert.Equal(!committed, (await verify.AppUserSessions.SingleAsync(s => s.Id == oldSession.Id)).IsActive);
         Assert.Equal(committed ? 2 : 1, await verify.AppUserSessions.CountAsync(s => s.AppUserId == user.Id));
         Assert.Equal(committed ? 1 : 0, await verify.RefreshTokens.CountAsync(t => t.AppUserId == user.Id));
-        Assert.Equal(committed, (await verify.Users.SingleAsync(u => u.Id == user.Id)).LastLoginAt.HasValue);
+        var savedUser = await verify.Users.SingleAsync(u => u.Id == user.Id);
+        Assert.Equal(committed, savedUser.LastLoginAt.HasValue);
+        if (method == "totp")
+        {
+            Assert.Equal(committed, savedUser.TwoFactorEnabled);
+            Assert.Equal(!committed, await verify.Set<LS.Domain.Features.IAM.Users.Entities.TempTotpSecret>().AnyAsync());
+        }
+        if (method == "sso")
+            Assert.Equal(committed ? 1 : 0, await verify.UserLogins.CountAsync(login => login.UserId == user.Id));
+        if (method == "passkey")
+            Assert.Equal(committed ? 2u : 1u, (await verify.Set<LS.Domain.Features.IAM.Users.Entities.Fido2Credential>().SingleAsync()).SignatureCounter);
     }
     private sealed class RejectRoleAssignment : IUserValidator<LS.Domain.Features.IAM.Users.Entities.AppUser>
     {
@@ -815,7 +915,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         var employer = Employer.Create(tenant.TenantId, "Employer", "Contact", "employer@example.test", "+254700000000", new Actor().ActorId);
         var member = Member.Create(tenant.TenantId, "M1", "One", "Member", "m1@example.test", "+254700000001", "ID1", new DateOnly(1990, 1, 1), default, new Actor().ActorId);
         var batch = CheckoffBatch.Create(tenant.TenantId, employer.Id, "POST", DateTime.UtcNow, 100, new Actor().ActorId);
-        batch.Status = CheckoffBatchStatus.Posting;
+        batch.Status = CheckoffBatchStatus.Validated;
         var row = CheckoffStagingRow.Create(tenant.TenantId, batch.Id, "E1", "One", 100, 0, 0, new Actor().ActorId);
         row.ResolvedMemberId = member.Id;
         row.Status = CheckoffRowStatus.Validated;
@@ -833,6 +933,58 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             await setup.SaveChangesAsync();
         }
 
+        var dispatched = new TaskCompletionSource<LS.Application.Features.CheckOff.IntegrationEvents.CheckoffPostingRequested>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        IHost BuildDispatchHost()
+        {
+            LogContext.ConfigureCurrentLogContext(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+            var builder = Host.CreateApplicationBuilder();
+            builder.Services.AddSingleton<ICurrentTenantProvider>(tenant);
+            builder.Services.AddSingleton<ICurrentActorProvider>(new Actor());
+            builder.Services.AddScoped(_ => new CheckOffDBContext(checkoffOptions, tenant, new Actor()));
+            builder.Services.AddScoped<ICheckOffUnitOfWork, CheckOffUnitOfWork>();
+            builder.Services.AddScoped<IContextEventPublisher<ICheckOffUnitOfWork>,
+                LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<ICheckOffUnitOfWork, CheckOffDBContext>>();
+            builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<PostCheckoffBatchCommand>());
+            builder.Services.AddMassTransit(bus =>
+            {
+                bus.AddEntityFrameworkOutbox<CheckOffDBContext>(outbox =>
+                {
+                    if (fixture is PostgreSqlDbFixture) outbox.UsePostgres(false); else outbox.UseSqlServer(false);
+                    outbox.UseBusOutbox();
+                    outbox.QueryDelay = TimeSpan.FromMilliseconds(100);
+                });
+                bus.UsingInMemory((_, cfg) => cfg.ReceiveEndpoint("checkoff-phase2", endpoint =>
+                    endpoint.Handler<LS.Application.Features.CheckOff.IntegrationEvents.CheckoffPostingRequested>(context =>
+                    {
+                        dispatched.TrySetResult(context.Message);
+                        return Task.CompletedTask;
+                    })));
+            });
+            return builder.Build();
+        }
+
+        using (var writer = BuildDispatchHost())
+        {
+            await using var scope = writer.Services.CreateAsyncScope();
+            var outcome = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new PostCheckoffBatchCommand(batch.Id));
+            Assert.True(outcome.IsSuccess, outcome.Error?.Message);
+        }
+
+        await using (var saved = new CheckOffDBContext(checkoffOptions, tenant, new Actor()))
+        {
+            Assert.Equal(CheckoffBatchStatus.Posting, (await saved.CheckoffBatches.SingleAsync()).Status);
+            Assert.Single(await saved.Set<OutboxMessage>().ToListAsync());
+        }
+
+        using var recovery = BuildDispatchHost();
+        await recovery.StartAsync();
+        LS.Application.Features.CheckOff.IntegrationEvents.CheckoffPostingRequested dispatch;
+        try { dispatch = await dispatched.Task.WaitAsync(TimeSpan.FromSeconds(30)); }
+        finally { await recovery.StopAsync(); }
+        Assert.Equal(tenant.TenantId, dispatch.TenantId);
+        Assert.Equal(batch.Id, dispatch.BatchId);
+
         async Task Deliver(bool interrupt)
         {
             await using var checkoff = new CheckOffDBContext(checkoffOptions, tenant, new Actor());
@@ -842,7 +994,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             var checkoffUow = checkoffServices.GetRequiredService<ICheckOffUnitOfWork>();
             var child = new ChildCheckoffChunkJob(checkoffUow, bankingServices.GetRequiredService<IBankingUnitOfWork>(),
                 Substitute.For<ILoansUnitOfWork>(), new RealCheckoffPaymentSender(bankingOptions, tenant, interrupt), tenant);
-            await new MasterCheckoffBatchJob(checkoffUow, child, tenant).ExecuteAsync(batch.Id, CancellationToken.None);
+            await new MasterCheckoffBatchJob(checkoffUow, child, tenant).ExecuteAsync(dispatch.BatchId, CancellationToken.None);
         }
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Deliver(true));
@@ -995,8 +1147,12 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             Assert.True((await sender.Send(withdrawal)).IsSuccess);
             Assert.False((await sender.Send(withdrawal with { Amount = 101 })).IsSuccess);
             db.ChangeTracker.Clear();
-            Assert.True((await sender.Send(new LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand(till.Id, vault.Id,
-                new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(0, 0, 1, 0, 0, 0, 0, 0, 0), "vault transfer"))).IsSuccess);
+            var transfer = new LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand(till.Id, vault.Id,
+                new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(0, 0, 1, 0, 0, 0, 0, 0, 0), "vault transfer", Guid.CreateVersion7());
+            Assert.True((await sender.Send(transfer)).IsSuccess);
+            db.ChangeTracker.Clear();
+            Assert.True((await sender.Send(transfer)).IsSuccess);
+            Assert.False((await sender.Send(transfer with { Remarks = "changed" })).IsSuccess);
         }
         staleAccount.Balance -= 500;
         staleTill.CurrentBalance -= 500;
@@ -1005,6 +1161,9 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.Equal(900, (await verify.FosaAccounts.SingleAsync(a => a.Id == account.Id)).Balance);
         Assert.Equal(700, (await verify.TellerTills.SingleAsync(t => t.Id == till.Id)).CurrentBalance);
         Assert.Equal(200, (await verify.Vaults.SingleAsync(v => v.Id == vault.Id)).CurrentBalance);
+        var vaultRecord = await verify.Set<LS.Domain.Features.Banking.FOSA.Entities.VaultTransfer>().SingleAsync();
+        Assert.Equal(200m, vaultRecord.Amount);
+        Assert.Equal(vault.Id, vaultRecord.VaultId);
         var transaction = await verify.FosaTransactions.SingleAsync();
         Assert.Equal(100, transaction.Amount);
         Assert.Equal(new Actor().ActorId, transaction.CreatedBy);
@@ -1151,21 +1310,56 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         Assert.Equal(1, await verify.Set<SavingsTransaction>().CountAsync());
         Assert.Equal(1, await verify.Set<LS.Domain.Features.Banking.Shares.Entities.ShareTransaction>().CountAsync());
     }
-    [Fact]
-    public async Task Banking_outbox_rolls_back_and_recovers_committed_messages_after_host_restart()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Banking_outbox_rolls_back_and_recovers_committed_messages_after_host_restart(bool tenantRouting)
     {
         var tenant = new Tenant();
         var options = Options<BankingDBContext>();
+        var defaultOptions = Options<BankingDBContext>(suffix: "_default");
+        var defaultTenant = new Tenant();
+        if (tenantRouting)
+        {
+            await using var fallback = new BankingDBContext(defaultOptions, defaultTenant, new Actor());
+            await fallback.Database.EnsureCreatedAsync();
+        }
         await using (var setup = new BankingDBContext(options, tenant, new Actor()))
             await setup.Database.EnsureCreatedAsync();
         var received = new System.Collections.Concurrent.ConcurrentDictionary<Guid, bool>();
-        IHost CreateHost()
+        IHost CreateHost(bool writerHost)
         {
             LogContext.ConfigureCurrentLogContext(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
             var builder = Host.CreateApplicationBuilder();
             builder.Services.AddSingleton<ICurrentTenantProvider>(tenant);
             builder.Services.AddSingleton<ICurrentActorProvider>(new Actor());
-            builder.Services.AddScoped(_ => new BankingDBContext(options, tenant, new Actor()));
+            builder.Services.AddScoped<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>();
+            builder.Services.AddScoped(sp =>
+            {
+                var selected = sp.GetRequiredService<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>().TenantId;
+                return !tenantRouting || writerHost || selected == tenant.TenantId
+                    ? new BankingDBContext(options, tenant, new Actor())
+                    : new BankingDBContext(defaultOptions, defaultTenant, new Actor());
+            });
+            if (tenantRouting && !writerHost)
+            {
+                var stampId = Guid.CreateVersion7();
+                var catalog = Substitute.For<LS.Domain.Features.ControlPlane.Contracts.IControlPlaneUnitOfWork>();
+                var tenants = Substitute.For<LS.Domain.Features.ControlPlane.Tenants.Contracts.Repositories.ITenantRepository>();
+                catalog.Tenants.Returns(tenants);
+                var hostTenant = new LS.Domain.Features.ControlPlane.Tenants.Entities.Tenant
+                {
+                    Id = defaultTenant.TenantId, DeploymentStampId = stampId, Identifier = "host",
+                    DisplayName = "Host", HostName = "host.example.test", CreatedBy = new Actor().ActorId
+                };
+                tenants.FindByIdAsync(defaultTenant.TenantId, Arg.Any<CancellationToken>()).Returns(hostTenant);
+                tenants.ListAsync(Arg.Any<Func<IQueryable<LS.Domain.Features.ControlPlane.Tenants.Entities.Tenant>, IQueryable<Guid>>>(), Arg.Any<CancellationToken>())
+                    .Returns(new List<Guid> { tenant.TenantId });
+                builder.Services.AddSingleton(catalog);
+                builder.Services.Configure<LS.Infrastructure.Configuration.OrgSettings>(_ => { });
+                builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(
+                    new LS.Infrastructure.Configuration.OrgSettings { DefaultTenantId = defaultTenant.TenantId }));
+            }
             builder.Services.AddMassTransit(bus =>
             {
                 bus.AddEntityFrameworkOutbox<BankingDBContext>(outbox =>
@@ -1181,13 +1375,15 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
                         return Task.CompletedTask;
                     })));
             });
+            if (tenantRouting && !writerHost)
+                LS.Infrastructure.Messaging.TenantOutboxDeliveryExtensions.RouteEntityFrameworkOutboxDeliveryByTenant(builder.Services);
             return builder.Build();
         }
         SavingsDepositedIntegrationEvent Message(Guid id) => new(Guid.CreateVersion7(), Guid.CreateVersion7(),
             Guid.CreateVersion7(), 100m, "outbox-test") { TenantId = tenant.TenantId, TransactionId = id, OccurredAt = DateTimeOffset.UtcNow };
         var rejectedId = Guid.CreateVersion7();
         var committedIds = new[] { Guid.CreateVersion7(), Guid.CreateVersion7() };
-        using (var writer = CreateHost())
+        using (var writer = CreateHost(writerHost: true))
         {
             await using (var scope = writer.Services.CreateAsyncScope())
             {
@@ -1215,7 +1411,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             Assert.Equal(2, await verify.Set<OutboxMessage>().CountAsync());
             Assert.Empty(received);
         }
-        using var recovery = CreateHost();
+        using var recovery = CreateHost(writerHost: false);
         await recovery.StartAsync();
         try
         {

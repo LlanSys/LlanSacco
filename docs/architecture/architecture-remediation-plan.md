@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed: 2026-11-21, including the logout transaction follow-up documented in phase-2-verification.md. Phases 0 and 1 complete; Phase 2 partially complete; Phases 3-7 pending. Checklists below distinguish completed work from outstanding phase gates.
+Status reviewed 2026-11-21. Phases 0–2 are complete for review. Phase 3 follows review of Phase 2. Phases 3–7 remain pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -87,13 +87,13 @@ Gate met: 84 architecture tests, negative controls and exact debt-growth/stale-e
 
 ### Phase 2 - Persistence And Financial Correctness
 
-**In progress.** Evidence: [Phase 2 verification](phase-2-verification.md), including the password-reset, accounting-index and FOSA follow-up. Items 2.1, 2.2 and 2.4 are complete. Items 2.3 and 2.5 have substantial completed work, but their full scope and gate remain open.
+**Complete for review.** The [Phase 2 verification report](phase-2-verification.md) records the acceptance checks for items 2.1–2.5.
 
 - [x] **2.1** Stage check-off batch/row mutations correctly and prove committed state using a fresh DBContext.
 - [x] **2.2** Replace per-row employment lookups with a filtered batch query and deterministic in-memory mapping. Define duplicate payroll-number handling and validate it.
-- [ ] **2.3** Make job dispatch durable relative to commit, preferably through the established outbox/dispatcher mechanism. Prove rollback does not release work, retries do not double-post, and recovery covers commit-to-dispatch failures.
+- [x] **2.3** Make job dispatch durable relative to commit, preferably through the established outbox/dispatcher mechanism. Prove rollback does not release work, retries do not double-post, and recovery covers commit-to-dispatch failures.
 - [x] **2.4** Fix payroll effective configuration selection using a database-side effective-date predicate and deterministic ordering. Push period/status filters into queries, batch related data, and review payroll deletion/re-run semantics rather than preserving destructive behavior blindly.
-- [ ] **2.5** Audit every mutation through generic no-tracking methods, transaction entry point, and background job for the same defects. Review transaction failure results, cancellation, domain-event dispatch, retries, and cross-context writes. Do not wrap all requests in a new transaction behavior indiscriminately.
+- [x] **2.5** Audit every mutation through generic no-tracking methods, transaction entry point, and background job for the same defects. Review transaction failure results, cancellation, domain-event dispatch, retries, and cross-context writes. Do not wrap all requests in a new transaction behavior indiscriminately.
 
 Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved CheckOff diagnostics, bounded employment lookups and deterministic rejection of duplicate/ambiguous payroll numbers. Payroll tests prove effective-date cutoff, batched inputs, atomic persistence, preservation of earlier payslips and rejection of competing/rerun processing. Main corrections began in 50bdc46/6476ac8; later provider and retry coverage is recorded in the phase report.
 
@@ -103,8 +103,8 @@ Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved 
 - [x] Correct workers to consume Validated rows, check downstream results, process shares and mark the batch Posted only after successful row processing; provider tests prove rejected rows remain retryable (4b43a47).
 - [x] Use stable payment references and verify matching/conflicting savings, share, loan and journal replays on both providers (4b43a47).
 - [x] Prove EF outbox rollback, successive commits in one scope and delivery by a new host after the writer is disposed (4b43a47). This uses in-memory transport; it does not certify RabbitMQ connectivity.
-- [ ] Prove combined CheckOff dispatch-to-payment recovery across contexts, including competing deliveries. Worker-state and receiver-replay tests currently cover these parts separately.
-- [ ] Complete tenant/database selection for recurring interest jobs and outbox delivery in dedicated tenant databases.
+- [x] Prove combined CheckOff recovery on both providers. A replacement host recovers the committed dispatch; competing workers replay the same payment after an interruption and leave one credit and a Posted batch.
+- [x] Route recurring savings interest and outbox delivery within the host stamp. Verify that an outbox recovery host reads the dedicated Banking database on both providers while its fallback database is empty.
 
 **2.5 - Mutation and transaction audit detail**
 
@@ -122,13 +122,14 @@ Completion notes for 2.1, 2.2 and 2.4: fresh-context provider tests prove saved 
 - [x] Make standalone session replacement atomic so a failed replacement preserves previous active sessions; expose an explicitly staged device-session operation for callers that own the transaction.
 - [x] Stage logout session and refresh-token revocation under one commit, constrain session lookup to its authenticated owner, and defer cookie sign-out until persistence succeeds. Initial 12 provider cases passed; the final notification adjustment still needs the rerun below.
 - [x] Verify logout, including the verified-session notification, in the successful GitHub integration and Required / Remediation checks for 207207b.
-- [ ] Finish the wider IAM and cross-context mutation audit: email-OTP/TOTP completion, SSO and passkey transaction boundaries, member-link validation and remaining FOSA/background writer recovery. These targeted fixes do not close the whole audit.
-- [ ] Verify generic/Shared post-commit event delivery and rollback cleanup on both providers. The implementation and provider cases are in the closure candidate.
+- [x] Complete IAM transaction boundaries for email OTP, TOTP, SSO and passkeys. Validate tenant membership links, and group MFA removal and employee-access changes with their IAM writes.
+- [x] Verify generic and Shared post-commit event delivery and rollback cleanup on both providers.
+- [x] Verify FOSA reference replay, vault transfer history, conflicting requests and balance conservation on both providers. Separate SQL Server and PostgreSQL migrations cover reference uniqueness and transfer history.
 - [x] Add separate provider migrations to rebuild the three accounting unique indexes. Upgrade tests reproduce existing non-unique indexes, prove successful repair and confirm duplicate journals cause rollback without data loss. No deployed database was migrated.
 
 Gate: focused unit plus PostgreSQL and SQL Server integration tests prove saved state, rollback, idempotency, future-configuration exclusion, and bounded query counts. If an environment is unavailable, retain an explicit verification gap.
 
-**Gate remains open** because the unchecked recovery/audit items above remain. Verified checkpoint 4b43a47 passed API/Blazor builds, 84 architecture tests, 43 unit tests and 69 integration tests; the external RabbitMQ test was skipped. Its GitHub Required / Remediation check also passed. Follow-up 06b9edf passed API, 43 unit and 84 architecture checks plus two additional provider claim tests. This records exact test evidence rather than assuming one combined 71-test run. The later follow-up passed 89 integration tests with the same one RabbitMQ skip, including actual accounting upgrades and Identity failure-result rollback. PR #3 remains draft; no merge or deployment is implied.
+**Acceptance checks passed in the isolated review branch.** The API build, 84 architecture tests, 43 unit tests and 161 integration tests passed. The opt-in RabbitMQ test passed separately against the existing LlanSacco Compose broker. [Draft PR #3](https://github.com/LlanSys/LlanSacco/pull/3) carries the required CI gate and is held for review.
 
 ### Phase 3 - Repository And Unit Of Work Alignment
 
@@ -217,7 +218,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 
 - [x] Phase 0: Git bootstrap and baseline (PR #1; failing source baseline captured, merge gate verified)
 - [x] Phase 1: Standards and regression controls (all four items complete; see [Phase 1 evidence](phase-1-verification.md). Legacy remediation remains assigned to later phases.)
-- [ ] Phase 2: Persistence/financial correctness (2.1, 2.2 and 2.4 complete; 2.3 and 2.5 partially complete. See the detailed checked/unchecked items above.)
+- [x] Phase 2: Persistence/financial correctness (all five items complete; see [Phase 2 evidence](phase-2-verification.md).)
 - [ ] Phase 3: Repository/UoW alignment
 - [ ] Phase 4: AppResponse alignment
 - [ ] Phase 5: Behaviours and caching

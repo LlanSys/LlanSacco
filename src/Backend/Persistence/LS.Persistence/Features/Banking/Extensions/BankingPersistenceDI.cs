@@ -60,6 +60,7 @@ public static class BankingPersistenceDI
             services.AddDbContext<BankingDBContext, BankingSqlServerDBContext>(ConfigureDbContextOptions);
         }
 
+        services.AddScoped<LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository, Repositories.FOSA.VaultTransferRepository>();
         services.AddScoped<IBankingUnitOfWork, BankingUnitOfWork>();
 
         return services;

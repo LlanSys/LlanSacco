@@ -14,4 +14,4 @@ public record VaultTransferRequest(
     int Coin10Count,
     int Coin5Count,
     int Coin1Count,
-    string Remarks);
+    string Remarks, Guid? RequestId = null);

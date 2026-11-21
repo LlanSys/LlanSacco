@@ -498,6 +498,62 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     b.ToTable("Vaults", (string)null);
                 });
 
+            modelBuilder.Entity("LS.Domain.Features.Banking.FOSA.Entities.VaultTransfer", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Denominations")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Remarks")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasDefaultValue(new byte[0]);
+
+                    b.Property<Guid>("TellerTillId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VaultId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TellerTillId");
+
+                    b.HasIndex("VaultId");
+
+                    b.ToTable("VaultTransfers", (string)null);
+                });
+
             modelBuilder.Entity("LS.Domain.Features.Banking.Savings.Entities.SavingsAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1163,6 +1219,21 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                         .IsRequired();
 
                     b.Navigation("TellerTill");
+                });
+
+            modelBuilder.Entity("LS.Domain.Features.Banking.FOSA.Entities.VaultTransfer", b =>
+                {
+                    b.HasOne("LS.Domain.Features.Banking.FOSA.Entities.TellerTill", null)
+                        .WithMany()
+                        .HasForeignKey("TellerTillId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LS.Domain.Features.Banking.FOSA.Entities.Vault", null)
+                        .WithMany()
+                        .HasForeignKey("VaultId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LS.Domain.Features.Banking.Savings.Entities.SavingsAccount", b =>

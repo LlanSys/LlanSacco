@@ -162,7 +162,7 @@ Run the real RabbitMQ round-trip test from the repository root:
 ./scripts/test-local-messaging.ps1
 ```
 
-The script reads generated RabbitMQ credentials from the ignored local environment file without printing them, ensures RabbitMQ is healthy, and runs the `ExternalRabbitMq` integration test. The test:
+Use `./scripts/test-local-messaging.ps1 -SkipStart` when the `cg-llansacco` Compose group is already running. The script reads credentials from the ignored local environment file without printing them, detects the published RabbitMQ port, and runs the `ExternalRabbitMq` integration test. The test performs these steps.
 
 1. Starts MassTransit against the Docker RabbitMQ broker.
 2. Publishes a uniquely identified event through the EF Core bus outbox.

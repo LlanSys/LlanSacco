@@ -26,4 +26,5 @@ public interface IBankingUnitOfWork : ITransactionalUnitOfWork
     IRepository<LS.Domain.Features.Banking.FOSA.Entities.Vault> Vaults { get; }
     IRepository<LS.Domain.Features.Banking.FOSA.Entities.TillBalancingRecord> TillBalancingRecords { get; }
     IRepository<LS.Domain.Features.Banking.FOSA.Entities.FosaTransaction> FosaTransactions { get; }
+    LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository VaultTransferRepository { get; }
 }

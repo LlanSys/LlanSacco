@@ -12,10 +12,13 @@ namespace LS.Persistence.Features.Banking;
 
 internal sealed class BankingUnitOfWork(
     BankingDBContext context,
+    LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository vaultTransferRepository,
     IPublisher publisher,
     ILogger<BankingUnitOfWork> logger
 ) : BaseUnitOfWork<BankingDBContext>(context, publisher, logger), IBankingUnitOfWork
 {
+    public LS.Domain.Features.Banking.FOSA.Contracts.Repositories.IVaultTransferRepository VaultTransferRepository { get; } = vaultTransferRepository;
+
     public IRepository<ShareProduct> ShareProducts => new Repository<ShareProduct>(Context);
     public IRepository<ShareAccount> ShareAccounts => new Repository<ShareAccount>(Context);
     public IRepository<ShareTransaction> ShareTransactions => new Repository<ShareTransaction>(Context);

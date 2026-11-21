@@ -35,7 +35,7 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -58,7 +58,7 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -81,7 +81,7 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "text", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: new byte[0])
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {

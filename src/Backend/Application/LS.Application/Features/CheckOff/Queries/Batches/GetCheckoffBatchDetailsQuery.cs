@@ -28,7 +28,7 @@ internal sealed class GetCheckoffBatchDetailsQueryHandler(
             b => b.Id == request.BatchId, cancellationToken);
 
         if (batch == null)
-            return AppResponses.NotFound<CheckoffBatchDetailsResponse>($"Batch with ID '{request.BatchId}' not found.");
+            return AppResponses.NotFound<CheckoffBatchDetailsResponse>("Batch not found.");
 
         var employer = await unitOfWork.EmployerRepository.FirstOrDefaultAsync(
             e => e.Id == batch.EmployerId, cancellationToken);

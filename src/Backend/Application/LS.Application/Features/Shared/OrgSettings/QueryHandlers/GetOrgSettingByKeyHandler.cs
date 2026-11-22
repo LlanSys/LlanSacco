@@ -19,7 +19,7 @@ internal sealed class GetOrgSettingByKeyHandler(
         
         if (setting == null)
         {
-            return AppResponses.Failure<OrgSettingResponse>("Tenant setting not found.");
+            return AppResponses.NotFound<OrgSettingResponse>("Tenant setting not found.");
         }
 
         var response = setting.ToResponse();

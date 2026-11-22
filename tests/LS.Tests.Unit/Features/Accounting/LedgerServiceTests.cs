@@ -1,132 +1,63 @@
-using LS.SharedKernel.Features.Accounting.Dtos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Features.Accounting.Services;
 using LS.Domain.Features.Accounting.Contracts;
-
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Shared.Contracts.Common;
+using LS.SharedKernel.Features.Accounting.Dtos;
+using LS.SharedKernel.Features.Shared.Common.Enums;
 using NSubstitute;
-using Xunit;
+using System.Linq.Expressions;
 
 namespace LS.Tests.Unit.Features.Accounting;
 
 public class LedgerServiceTests
 {
-    private readonly IAccountingUnitOfWork _uow;
-    private readonly ICurrentTenantProvider _tenantProvider;
-    private readonly LedgerService _service;
+    private readonly IAccountingUnitOfWork _uow = Substitute.For<IAccountingUnitOfWork>();
+    private readonly ICurrentTenantProvider _tenantProvider = Substitute.For<ICurrentTenantProvider>();
 
-    public LedgerServiceTests()
-    {
-        _uow = Substitute.For<IAccountingUnitOfWork>();
-        _tenantProvider = Substitute.For<ICurrentTenantProvider>();
-        _tenantProvider.TenantId.Returns(Guid.NewGuid());
-
-        _service = new LedgerService(_uow, _tenantProvider);
-    }
+    public LedgerServiceTests() => _tenantProvider.TenantId.Returns(Guid.CreateVersion7());
 
     [Fact]
-    public async Task PostJournalAsync_ValidBalancedEntry_Succeeds()
+    public async Task Balanced_journal_is_saved_once()
     {
-        // Arrange
-        var accountId1 = Guid.NewGuid();
-        var accountId2 = Guid.NewGuid();
-        var entries = new List<CreateJournalEntryDto>
-        {
-            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 0, Description = "Debit entry" },
-            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = 100, Description = "Credit entry" }
-        };
+        _uow.AccountRepository.CountAsync(Arg.Any<Expression<Func<Account, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(2);
+        var service = new LedgerService(_uow, _tenantProvider);
+        var result = await service.PostJournalAsync("REF-001", "Test journal", DateTimeOffset.UtcNow,
+            [new() { AccountId = Guid.CreateVersion7(), Debit = 100 }, new() { AccountId = Guid.CreateVersion7(), Credit = 100 }],
+            ICurrentActorProvider.SystemActor);
 
-        // Act
-        var journalId = await _service.PostJournalAsync(
-            "REF-001",
-            "Test Journal",
-            DateTimeOffset.UtcNow,
-            entries,
-            "TestUser",
-            CancellationToken.None);
-
-        // Assert
-        Assert.NotEqual(Guid.Empty, journalId);
+        Assert.True(result.IsSuccess);
+        Assert.NotEqual(Guid.Empty, result.Data);
         await _uow.JournalRepository.Received(1).CreateAsync(Arg.Any<Journal>(), Arg.Any<CancellationToken>());
         await _uow.Received(1).CompleteAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task PostJournalAsync_UnbalancedEntry_ThrowsInvalidOperationException()
+    [Theory]
+    [InlineData("unbalanced", ErrorType.BusinessRule)]
+    [InlineData("zero", ErrorType.BusinessRule)]
+    [InlineData("negative", ErrorType.Validation)]
+    [InlineData("both-sides", ErrorType.Validation)]
+    [InlineData("missing-account", ErrorType.NotFound)]
+    public async Task Expected_journal_rejection_does_not_stage_or_commit_a_write(string scenario, ErrorType expected)
     {
-        // Arrange
-        var accountId1 = Guid.NewGuid();
-        var accountId2 = Guid.NewGuid();
-        var entries = new List<CreateJournalEntryDto>
+        var id = Guid.CreateVersion7();
+        CreateJournalEntryDto[] entries = scenario switch
         {
-            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 0, Description = "Debit entry" },
-            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = 90, Description = "Credit entry" }
+            "unbalanced" => [new() { AccountId = id, Debit = 100 }, new() { AccountId = id, Credit = 90 }],
+            "zero" => [],
+            "negative" => [new() { AccountId = id, Debit = -100 }, new() { AccountId = id, Credit = -100 }],
+            "both-sides" => [new() { AccountId = id, Debit = 100, Credit = 100 }],
+            _ => [new() { AccountId = id, Debit = 100 }, new() { AccountId = Guid.CreateVersion7(), Credit = 100 }]
         };
+        var service = new LedgerService(_uow, _tenantProvider);
+        var result = await service.PostJournalAsync("REF-001", "Test journal", DateTimeOffset.UtcNow,
+            entries, ICurrentActorProvider.SystemActor);
 
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.PostJournalAsync(
-                "REF-001",
-                "Test Journal",
-                DateTimeOffset.UtcNow,
-                entries,
-                "TestUser",
-                CancellationToken.None));
-
-        Assert.Contains("unbalanced", ex.Message);
-    }
-
-    [Fact]
-    public async Task PostJournalAsync_NegativeValues_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var accountId1 = Guid.NewGuid();
-        var accountId2 = Guid.NewGuid();
-        var entries = new List<CreateJournalEntryDto>
-        {
-            new CreateJournalEntryDto { AccountId = accountId1, Debit = -100, Credit = 0, Description = "Debit entry" },
-            new CreateJournalEntryDto { AccountId = accountId2, Debit = 0, Credit = -100, Description = "Credit entry" }
-        };
-
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.PostJournalAsync(
-                "REF-001",
-                "Test Journal",
-                DateTimeOffset.UtcNow,
-                entries,
-                "TestUser",
-                CancellationToken.None));
-
-        Assert.Contains("positive non-zero", ex.Message);
-    }
-
-    [Fact]
-    public async Task PostJournalAsync_BothDebitAndCreditOnSameLine_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var accountId1 = Guid.NewGuid();
-        var entries = new List<CreateJournalEntryDto>
-        {
-            new CreateJournalEntryDto { AccountId = accountId1, Debit = 100, Credit = 100, Description = "Both entry" },
-        };
-
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _service.PostJournalAsync(
-                "REF-001",
-                "Test Journal",
-                DateTimeOffset.UtcNow,
-                entries,
-                "TestUser",
-                CancellationToken.None));
-
-        Assert.Contains("cannot have both a debit and a credit", ex.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(expected, result.Error?.Type);
+        if (expected == ErrorType.Validation)
+            Assert.Contains(nameof(CreateJournalRequest.Entries), result.Error!.ValidationErrors!);
+        await _uow.JournalRepository.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _uow.DidNotReceiveWithAnyArgs().CompleteAsync();
     }
 }

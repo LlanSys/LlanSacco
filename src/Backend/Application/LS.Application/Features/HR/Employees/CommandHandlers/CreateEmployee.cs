@@ -39,7 +39,7 @@ internal sealed class CreateEmployeeCommandHandler(
             if (duplicateEmail)
             {
                 LogDefinitions.LogEmployeeDuplicateRegistration(logger, request.Email);
-                return AppResponses.Failure<EmployeeResponse>("An employee with this email already exists.");
+                return AppResponses.Conflict<EmployeeResponse>("An employee with this email already exists.");
             }
 
             var result = await unitOfWork.ExecuteInTransactionWithRetryAsync(async () =>

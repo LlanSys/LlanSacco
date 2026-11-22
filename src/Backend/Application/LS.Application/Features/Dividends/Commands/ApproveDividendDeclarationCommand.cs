@@ -19,7 +19,7 @@ internal class ApproveDividendDeclarationCommandHandler(
         var declaration = await uow.DividendDeclarationRepository.FindByIdAsync(request.DeclarationId, cancellationToken);
         
         if (declaration == null)
-            return AppResponses.Failure<bool>("Declaration not found.");
+            return AppResponses.NotFound<bool>("Declaration not found.");
 
         if (declaration.Status != DividendStatus.Calculated)
             return AppResponses.Failure<bool>($"Cannot approve a declaration in {declaration.Status} status. Must be {DividendStatus.Calculated}.");

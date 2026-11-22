@@ -27,7 +27,7 @@ public sealed class EmployeeController(ISender sender) : BaseController
         ArgumentNullException.ThrowIfNull(userId, nameof(userId));
 
         var response = await sender.Send(new SearchEmployeesQuery(request, userId)).ConfigureAwait(false);
-        return !response.IsSuccess ? BadRequest(response) : Ok(response);
+        return HandleResponse(response);
     }
 
     [HttpGet("{id:guid}")]
@@ -39,7 +39,7 @@ public sealed class EmployeeController(ISender sender) : BaseController
         ArgumentNullException.ThrowIfNull(userId, nameof(userId));
 
         var response = await sender.Send(new GetEmployeeByIdQuery(id, userId)).ConfigureAwait(false);
-        return !response.IsSuccess ? NotFound(response) : Ok(response);
+        return HandleResponse(response);
     }
 
     [HttpPost]
@@ -55,7 +55,7 @@ public sealed class EmployeeController(ISender sender) : BaseController
         var command = new CreateEmployeeCommand(request, userId);
 
         var response = await sender.Send(command).ConfigureAwait(false);
-        return !response.IsSuccess ? BadRequest(response) : Ok(response);
+        return HandleResponse(response);
     }
 
     [HttpPut("{id:guid}")]
@@ -69,7 +69,7 @@ public sealed class EmployeeController(ISender sender) : BaseController
         ArgumentNullException.ThrowIfNull(userId, nameof(userId));
 
         var response = await sender.Send(new UpdateEmployeeCommand(id, request with { Id = id }, userId)).ConfigureAwait(false);
-        return !response.IsSuccess ? BadRequest(response) : Ok(response);
+        return HandleResponse(response);
     }
 
     [HttpDelete("{id:guid}")]
@@ -81,6 +81,6 @@ public sealed class EmployeeController(ISender sender) : BaseController
         ArgumentNullException.ThrowIfNull(userId, nameof(userId));
 
         var response = await sender.Send(new DeleteEmployeeCommand(id, userId)).ConfigureAwait(false);
-        return !response.IsSuccess ? BadRequest(response) : Ok(response);
+        return HandleResponse(response);
     }
 }

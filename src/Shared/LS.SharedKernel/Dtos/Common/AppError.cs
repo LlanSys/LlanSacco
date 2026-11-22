@@ -32,6 +32,12 @@ public sealed record AppError(ErrorType Type, string Code, string Message, IRead
             ErrorCodes.NotFound,
             message);
 
+    public static AppError Conflict(string message) =>
+        new(ErrorType.Conflict, ErrorCodes.Conflict, message);
+
+    public static AppError Unauthorized(string message) =>
+        new(ErrorType.Unauthorized, ErrorCodes.Unauthorized, message);
+
     public static AppError Forbidden(string message) =>
         new(
             ErrorType.Forbidden,

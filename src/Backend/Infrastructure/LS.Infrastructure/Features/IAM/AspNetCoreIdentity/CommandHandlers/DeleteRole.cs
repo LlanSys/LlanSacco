@@ -20,7 +20,7 @@ internal sealed class DeleteRole(RoleManager<AppRole> roleManager, IamDBContext 
             var role = await roleManager.FindByIdAsync(command.RoleId).ConfigureAwait(false);
             if (role is null)
             {
-                return AppResponses.Failure<bool>("Role not found.");
+                return AppResponses.NotFound<bool>("Role not found.");
             }
 
             var assignedUserCount = await context.UserRoles

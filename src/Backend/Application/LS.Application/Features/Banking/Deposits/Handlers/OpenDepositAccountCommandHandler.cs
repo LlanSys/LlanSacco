@@ -23,7 +23,7 @@ internal class OpenDepositAccountCommandHandler(
         var product = await unitOfWork.DepositProductRepository.FindByIdAsync(request.DepositProductId, cancellationToken);
         if (product == null)
         {
-            return AppResponses.NotFound<DepositAccountResponse>($"Deposit product with ID {request.DepositProductId} not found.");
+            return AppResponses.NotFound<DepositAccountResponse>("Deposit product not found.");
         }
 
         if (!product.IsActive)

@@ -37,7 +37,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
                 return AppResponses.NotFound<bool>("Batch not found.");
 
             if (batch.Status != CheckoffBatchStatus.Staged)
-                return AppResponses.Failure<bool>($"Batch is in status '{batch.Status}', cannot validate.");
+                return AppResponses.Conflict<bool>("Only a staged batch can be validated.");
 
             var rows = await unitOfWork.CheckoffStagingRowRepository.ListAsync(
                 q => q.Where(r => r.CheckoffBatchId == batch.Id && r.TenantId == tenantProvider.TenantId), cancellationToken);
@@ -78,7 +78,7 @@ internal sealed class ValidateCheckoffBatchCommandHandler(
             await unitOfWork.CheckoffStagingRowRepository.UpdateRangeAsync(new Collection<CheckoffStagingRow>(rows), cancellationToken);
             await unitOfWork.CheckoffBatchRepository.UpdateAsync(batch, cancellationToken);
             // Validation itself succeeded; Data reports validity and the persisted row diagnostics explain failures.
-            return new AppResponse<bool>(invalidCount == 0, $"Batch validation completed. {invalidCount} invalid rows.");
+            return AppResponses.Success($"Batch validation completed. {invalidCount} invalid rows.", invalidCount == 0);
         }, cancellationToken);
     }
 }

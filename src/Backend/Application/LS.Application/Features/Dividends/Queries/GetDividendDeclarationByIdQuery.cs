@@ -18,7 +18,7 @@ internal class GetDividendDeclarationByIdQueryHandler(
         var declaration = await uow.DividendDeclarationRepository.FindByIdAsync(request.Id, cancellationToken);
         if (declaration == null)
         {
-            return AppResponses.Failure<DividendDeclarationDto>("Declaration not found.");
+            return AppResponses.NotFound<DividendDeclarationDto>("Declaration not found.");
         }
 
         var dto = new DividendDeclarationDto

@@ -220,7 +220,7 @@ public sealed class AuthController(ISender sender) : BaseController
 
         if (!response.IsSuccess)
         {
-            return BadRequest(response.Message);
+            return HandleResponse(response);
         }
 
         await HttpContext.SignOutAsync(Microsoft.AspNetCore.Identity.IdentityConstants.ExternalScheme).ConfigureAwait(false);

@@ -21,7 +21,7 @@ internal sealed class UpdateAdminUser(UserManager<AppUser> userManager, ILogger<
             var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
             if (user is null)
             {
-                return AppResponses.Failure<AdminUserListResponse>("User not found.");
+                return AppResponses.NotFound<AdminUserListResponse>("User not found.");
             }
 
             var gender = Enum.TryParse<Gender>(req.Gender, true, out var parsedGender) ? parsedGender : Gender.Other;

@@ -19,7 +19,7 @@ internal sealed class DeleteEmployeeCommandHandler(IHrUnitOfWork unitOfWork, ILo
             var employee = await unitOfWork.EmployeeRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (employee is null)
             {
-                return AppResponses.Failure<bool>($"Employee {command.Id} not found.");
+                return AppResponses.NotFound<bool>("Employee not found.");
             }
 
             await unitOfWork.EmployeeRepository.SoftDeleteAsync(command.Id, cancellationToken).ConfigureAwait(false);

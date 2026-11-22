@@ -31,14 +31,14 @@ public class UpdateDeploymentStampCommandHandler(
 
         if (stamp == null)
         {
-            return AppResponses.Failure<DeploymentStampResponse>("Deployment stamp not found.");
+            return AppResponses.NotFound<DeploymentStampResponse>("Deployment stamp not found.");
         }
 
         var duplicateName = await _unitOfWork.DeploymentStampRepository.AnyAsync(s => s.Name == request.Request.Name && s.Id != request.Id, cancellationToken).ConfigureAwait(false);
 
         if (duplicateName)
         {
-            return AppResponses.Failure<DeploymentStampResponse>("Another deployment stamp with this name already exists.");
+            return AppResponses.Conflict<DeploymentStampResponse>("Another deployment stamp with this name already exists.");
         }
 
         IsolationTier parsedTier;

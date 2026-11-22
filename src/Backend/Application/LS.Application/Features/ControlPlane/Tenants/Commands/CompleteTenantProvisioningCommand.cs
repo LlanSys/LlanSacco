@@ -41,7 +41,9 @@ internal sealed partial class CompleteTenantProvisioningCommandHandler(
         if (tenant == null || tenant.Status != TenantStatus.Provisioning)
         {
             LogTenantNotFoundOrNotProvisioning(request.TenantId);
-            return AppResponses.Failure<bool>("Tenant not found or not in provisioning state.");
+            return tenant is null
+                ? AppResponses.NotFound<bool>("Tenant not found.")
+                : AppResponses.Conflict<bool>("The tenant is not in the provisioning state.");
         }
 
         tenant.DatabaseConnectionString = _encryptionService.Encrypt(request.DatabaseConnectionString);

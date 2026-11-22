@@ -19,7 +19,7 @@ internal sealed class UpdateOrgSettingHandler(
         
         if (setting == null)
         {
-            return AppResponses.Failure<OrgSettingResponse>("Tenant setting not found.");
+            return AppResponses.NotFound<OrgSettingResponse>("Tenant setting not found.");
         }
 
         // Check if the key was changed and if it conflicts with an existing one
@@ -28,7 +28,7 @@ internal sealed class UpdateOrgSettingHandler(
             var existingWithKey = await unitOfWork.OrgSettingRepository.FirstOrDefaultAsync(x => x.Key == request.Request.Key && x.Id != request.Request.Id, cancellationToken).ConfigureAwait(false);
             if (existingWithKey != null)
             {
-                return AppResponses.Failure<OrgSettingResponse>($"A setting with key '{request.Request.Key}' already exists.");
+                return AppResponses.Conflict<OrgSettingResponse>($"A setting with key '{request.Request.Key}' already exists.");
             }
             setting.Key = request.Request.Key;
         }

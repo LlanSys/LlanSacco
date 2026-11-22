@@ -42,7 +42,7 @@ internal class DeclareDividendsCommandHandler(
             
         if (existing != null)
         {
-            return AppResponses.Failure<Guid>($"A dividend declaration for the financial year {request.FinancialYear} already exists.");
+            return AppResponses.Conflict<Guid>($"A dividend declaration for the financial year {request.FinancialYear} already exists.");
         }
 
         var declaration = DividendDeclaration.Create(

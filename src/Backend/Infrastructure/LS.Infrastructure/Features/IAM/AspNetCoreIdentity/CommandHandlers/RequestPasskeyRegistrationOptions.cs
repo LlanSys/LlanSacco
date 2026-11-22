@@ -34,7 +34,7 @@ internal sealed class RequestPasskeyRegistrationOptions(
 
         if (user == null)
         {
-            return AppResponses.Failure<JsonElement>("User not found.");
+            return AppResponses.NotFound<JsonElement>("User not found.");
         }
 
         var options = await passkeyService.RequestNewCredentialAsync(user, user.Fido2Credentials, cancellationToken).ConfigureAwait(false);

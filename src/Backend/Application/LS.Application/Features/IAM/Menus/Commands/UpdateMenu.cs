@@ -30,7 +30,7 @@ internal sealed class UpdateMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogge
             var menu = await unitOfWork.MenuRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (menu is null)
             {
-                return AppResponses.Failure<MenuResponse>($"Menu {command.Id} not found.");
+                return AppResponses.NotFound<MenuResponse>("Menu not found.");
             }
 
             if (request.ParentId == command.Id)
@@ -43,7 +43,7 @@ internal sealed class UpdateMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogge
                 var parent = await unitOfWork.MenuRepository.FindByIdAsync(request.ParentId.Value, cancellationToken).ConfigureAwait(false);
                 if (parent is null)
                 {
-                    return AppResponses.Failure<MenuResponse>("Parent menu not found.");
+                    return AppResponses.NotFound<MenuResponse>("Parent menu not found.");
                 }
 
                 if (!string.Equals(parent.Placement, request.Placement, StringComparison.OrdinalIgnoreCase)

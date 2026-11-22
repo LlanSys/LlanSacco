@@ -33,7 +33,7 @@ public class CreateDeploymentStampCommandHandler(
 
         if (existingStamp)
         {
-            return AppResponses.Failure<DeploymentStampResponse>("A deployment stamp with this name already exists.");
+            return AppResponses.Conflict<DeploymentStampResponse>("A deployment stamp with this name already exists.");
         }
 
         IsolationTier parsedTier;

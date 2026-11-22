@@ -15,7 +15,7 @@ internal sealed class GetUserPermissions(UserManager<AppUser> userManager)
         var user = await userManager.FindByIdAsync(request.UserId).ConfigureAwait(false);
         if (user is null)
         {
-            return AppResponses.Failure<UserPermissionsResponse>("User not found.");
+            return AppResponses.NotFound<UserPermissionsResponse>("User not found.");
         }
 
         var permissions = (await userManager.GetClaimsAsync(user).ConfigureAwait(false))

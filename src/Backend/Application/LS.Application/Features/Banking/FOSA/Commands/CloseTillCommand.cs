@@ -28,7 +28,7 @@ internal class CloseTillCommandHandler(IBankingUnitOfWork unitOfWork) : IRequest
         var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
         if (till is null)
         {
-            return AppResponses.Failure<Guid>("Teller till not found.");
+            return AppResponses.NotFound<Guid>("Teller till not found.");
         }
 
         if (till.Status != TillStatus.Open)

@@ -26,7 +26,7 @@ public class GetDeploymentStampByIdQueryHandler(IControlPlaneUnitOfWork unitOfWo
 
         if (stamp == null)
         {
-            return AppResponses.Failure<DeploymentStampResponse>("Deployment stamp not found.");
+            return AppResponses.NotFound<DeploymentStampResponse>("Deployment stamp not found.");
         }
 
         var response = new DeploymentStampResponse

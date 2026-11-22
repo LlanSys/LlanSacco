@@ -38,7 +38,7 @@ internal sealed partial class ProcessRepaymentCommandHandler(
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken).ConfigureAwait(false);
         if (loan == null || loan.TenantId != tenantId)
         {
-            return AppResponses.Failure<Guid>("Loan application not found.");
+            return AppResponses.NotFound<Guid>("Loan application not found.");
         }
 
         if (loan.Status != LoanStatus.Disbursed && loan.Status != LoanStatus.Defaulted && loan.Status != LoanStatus.Active)

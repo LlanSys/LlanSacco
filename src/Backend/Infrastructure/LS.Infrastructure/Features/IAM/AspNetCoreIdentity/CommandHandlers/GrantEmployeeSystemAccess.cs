@@ -57,7 +57,7 @@ internal sealed class GrantEmployeeSystemAccess(
 
                     if (employee is null)
                     {
-                        return AppResponses.Failure<bool>("Employee record was not found.");
+                        return AppResponses.NotFound<bool>("Employee record was not found.");
                     }
 
                     user = AppUser.CreateForEmployee(

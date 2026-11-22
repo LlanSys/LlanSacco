@@ -20,7 +20,7 @@ internal class GetPayrollConfigurationQueryHandler(IHrUnitOfWork unitOfWork) : I
 
         if (config == null)
         {
-            return new AppResponse<PayrollStatutoryConfigurationResponse> { IsSuccess = false, Message = "No payroll statutory configuration found." };
+            return AppResponses.NotFound<PayrollStatutoryConfigurationResponse>("No payroll statutory configuration found.");
         }
 
         var dto = new PayrollStatutoryConfigurationResponse(

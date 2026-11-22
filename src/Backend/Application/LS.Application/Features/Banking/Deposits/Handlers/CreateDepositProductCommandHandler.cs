@@ -25,7 +25,7 @@ internal class CreateDepositProductCommandHandler(
             
         if (exists)
         {
-            return AppResponses.Failure<DepositProductResponse>($"A deposit product with code '{request.Code}' already exists.");
+            return AppResponses.Conflict<DepositProductResponse>($"A deposit product with code '{request.Code}' already exists.");
         }
 
         var productType = Enum.Parse<DepositType>(request.Type, true);

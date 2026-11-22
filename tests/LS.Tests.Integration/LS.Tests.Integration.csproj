@@ -45,6 +45,7 @@
     <ProjectReference Include="..\..\src\Backend\Application\LS.Application\LS.Application.csproj" />
     <ProjectReference Include="..\..\src\Backend\Infrastructure\LS.Infrastructure\LS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Backend\Api\LS.Api\LS.Api.csproj" />
+    <ProjectReference Include="..\..\src\Frontend\Web\LS.UI.Blazor\LS.UI.Blazor.csproj" Aliases="Blazor" />
   </ItemGroup>
 
   <ItemGroup>

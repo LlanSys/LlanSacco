@@ -23,7 +23,7 @@ internal sealed class UpdateEmployeeCommandHandler(IHrUnitOfWork unitOfWork, ILo
             var employee = await unitOfWork.EmployeeRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (employee is null)
             {
-                return AppResponses.Failure<EmployeeResponse>($"Employee {command.Id} not found.");
+                return AppResponses.NotFound<EmployeeResponse>("Employee not found.");
             }
 
             var duplicateEmail = await unitOfWork.EmployeeRepository

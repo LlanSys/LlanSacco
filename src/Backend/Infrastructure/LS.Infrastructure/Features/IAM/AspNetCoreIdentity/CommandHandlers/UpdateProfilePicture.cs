@@ -37,7 +37,7 @@ internal sealed class UpdateProfilePicture(
             var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
             if (user is null)
             {
-                return AppResponses.Failure<ProfilePictureResponse>("User account was not found.");
+                return AppResponses.NotFound<ProfilePictureResponse>("User account was not found.");
             }
 
             var profilePictureUrl = await storage

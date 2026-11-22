@@ -29,7 +29,7 @@ internal sealed class StartImpersonationCommandHandler(
         var tenant = await unitOfWork.TenantRepository.FindByIdAsync(request.TargetTenantId, cancellationToken).ConfigureAwait(false);
         if (tenant == null)
         {
-            return AppResponses.Failure<ImpersonationRecordResponse>("Tenant not found");
+            return AppResponses.NotFound<ImpersonationRecordResponse>("Tenant not found");
         }
 
         var expiryTime = timeProvider.GetUtcNow().AddHours(request.DurationHours);

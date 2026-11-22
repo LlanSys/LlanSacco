@@ -39,7 +39,7 @@ internal sealed class PostCheckoffBatchCommandHandler(
                 b => b.TenantId == tenantId && b.Id == request.BatchId, cancellationToken);
 
             if (batch == null)
-                return AppResponses.NotFound<bool>($"Batch with ID '{request.BatchId}' not found.");
+                return AppResponses.NotFound<bool>("Batch not found.");
 
             if (batch.Status is CheckoffBatchStatus.Posting or CheckoffBatchStatus.Posted)
                 return AppResponses.Success("Batch posting has already been accepted.", true);

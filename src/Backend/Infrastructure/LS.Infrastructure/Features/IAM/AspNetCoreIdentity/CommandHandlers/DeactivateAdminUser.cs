@@ -18,7 +18,7 @@ internal sealed class DeactivateAdminUser(UserManager<AppUser> userManager, ILog
             var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
             if (user is null)
             {
-                return AppResponses.Failure<bool>("User not found.");
+                return AppResponses.NotFound<bool>("User not found.");
             }
 
             if (!user.IsActive)

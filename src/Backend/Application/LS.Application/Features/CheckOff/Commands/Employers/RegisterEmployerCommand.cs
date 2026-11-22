@@ -39,7 +39,7 @@ internal sealed class RegisterEmployerCommandHandler(
 
             if (existingEmployer != null)
             {
-                return AppResponses.Failure<Guid>($"An employer with name '{request.Name}' already exists.");
+                return AppResponses.Conflict<Guid>($"An employer with name '{request.Name}' already exists.");
             }
 
             var employer = Employer.Create(

@@ -1,3 +1,4 @@
+using LS.Api.Common.Controllers;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,22 +14,23 @@ namespace LS.Api.Features.Banking.FOSA.Controllers;
 [ApiController]
 [Route("api/banking/fosa/accounts")]
 [Authorize]
-public class FosaAccountsController(IMediator mediator) : ControllerBase
+public class FosaAccountsController(IMediator mediator) : BaseController
 {
     [HttpPost("open")]
     public async Task<IActionResult> OpenAccount([FromBody] OpenFosaAccountRequest request, CancellationToken cancellationToken)
     {
         var command = new OpenFosaAccountCommand(request.MemberId);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return response.IsSuccess ? Ok(response) : BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpPost("transactions/otc")]
     public async Task<IActionResult> ProcessOtcTransaction([FromBody] OtcTransactionRequest request, CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType>(request.TransactionType, true, out var transactionType))
+        if (!Enum.TryParse<LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType>(request.TransactionType, true, out var transactionType) || !Enum.IsDefined(transactionType))
         {
-            return BadRequest(AppResponses.Failure<Guid>("Invalid Transaction Type."));
+            return HandleResponse(AppResponses.Failure<Guid>(AppError.Validation(
+                new Dictionary<string, string[]> { [nameof(request.TransactionType)] = ["Select a valid transaction type."] })));
         }
 
         var command = new OverTheCounterTransactionCommand(
@@ -39,6 +41,6 @@ public class FosaAccountsController(IMediator mediator) : ControllerBase
             request.Reference);
             
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return response.IsSuccess ? Ok(response) : BadRequest(response);
+        return HandleResponse(response);
     }
 }

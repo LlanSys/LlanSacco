@@ -50,7 +50,7 @@ internal class WithdrawSavingsCommandHandler(
             
             if (alreadyProcessed)
             {
-                return AppResponses.Failure<SavingsAccountResponse>($"A withdrawal with the external reference ID '{request.ExternalReferenceId}' has already been processed.");
+                return AppResponses.Failure<SavingsAccountResponse>("A withdrawal with this reference has already been processed.");
             }
         }
 
@@ -58,7 +58,7 @@ internal class WithdrawSavingsCommandHandler(
 
         if (product == null)
         {
-            return AppResponses.NotFound<SavingsAccountResponse>($"Savings product '{request.SavingsProductId}' not found.");
+            return AppResponses.NotFound<SavingsAccountResponse>("Savings product not found.");
         }
 
         if (!product.IsActive)

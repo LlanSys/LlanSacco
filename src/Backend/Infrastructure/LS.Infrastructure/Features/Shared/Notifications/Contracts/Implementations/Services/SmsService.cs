@@ -13,7 +13,7 @@ using Twilio.Rest.Api.V2010.Account;
 
 namespace LS.Infrastructure.Features.Shared.Notifications.Contracts.Implementations.Services;
 
-internal sealed class SmsService(
+internal sealed partial class SmsService(
     IOptions<SmsSettings> smsSettings,
     IApiService apiService,
     IHttpClientFactory httpClientFactory,
@@ -46,10 +46,12 @@ internal sealed class SmsService(
 
             ).ConfigureAwait(false);
 
-            // Check the status provided by Twilio
-            return result.ErrorCode == null
-                ? AppResponses.Success("SMS queued successfully", true)
-                : AppResponses.Failure<bool>($"Failed to deliver SMS: {result.ErrorMessage}");
+            if (result.ErrorCode is int errorCode)
+            {
+                LogSmsRejected(_logger, errorCode);
+                return AppResponses.Failure<bool>(AppError.DependencyUnavailable("The SMS provider could not deliver the message."));
+            }
+            return AppResponses.Success("SMS queued successfully", true);
         }
         catch (Exception ex)
         {
@@ -57,6 +59,9 @@ internal sealed class SmsService(
             throw;
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "SMS provider rejected delivery with code {ErrorCode}")]
+    private static partial void LogSmsRejected(ILogger logger, int errorCode);
 
     private static string StandardizePhoneNumber(string number)
     {

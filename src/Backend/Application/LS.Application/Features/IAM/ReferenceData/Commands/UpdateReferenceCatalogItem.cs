@@ -42,7 +42,7 @@ internal sealed class UpdateReferenceCatalogItemCommandHandler(IIamUnitOfWork un
 
             if (response is null)
             {
-                return AppResponses.Failure<ReferenceCatalogItemResponse>("Reference catalog item was not found.");
+                return AppResponses.NotFound<ReferenceCatalogItemResponse>("Reference catalog item was not found.");
             }
 
             var saved = await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false) > 0;

@@ -37,7 +37,7 @@ internal sealed class LinkMemberToEmployerCommandHandler(
 
             if (employer == null)
             {
-                return AppResponses.NotFound<Guid>($"Employer with ID '{request.EmployerId}' not found.");
+                return AppResponses.NotFound<Guid>("Employer not found.");
             }
 
             var existingLink = await unitOfWork.MemberEmploymentRepository.FirstOrDefaultAsync(

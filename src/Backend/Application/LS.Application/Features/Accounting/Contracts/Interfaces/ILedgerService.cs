@@ -1,3 +1,4 @@
+using LS.SharedKernel.Dtos.Common;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -11,7 +12,7 @@ public interface ILedgerService
     /// <summary>
     /// Posts a double-entry journal ensuring debits equal credits.
     /// </summary>
-    Task<Guid> PostJournalAsync(
+    Task<AppResponse<Guid>> PostJournalAsync(
         string referenceNumber,
         string description,
         DateTimeOffset transactionDate,

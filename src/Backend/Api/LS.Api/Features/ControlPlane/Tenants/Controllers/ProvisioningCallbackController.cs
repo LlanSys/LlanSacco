@@ -1,3 +1,4 @@
+using LS.Api.Common.Controllers;
 using System;
 using System.Threading.Tasks;
 using LS.Application.Features.ControlPlane.Tenants.Commands;
@@ -13,7 +14,7 @@ namespace LS.Api.Features.ControlPlane.Tenants.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/controlplane/webhooks/provisioning-completed")]
-public class ProvisioningCallbackController(IMediator mediator) : ControllerBase
+public class ProvisioningCallbackController(IMediator mediator) : BaseController
 {
     private readonly IMediator _mediator = mediator;
 
@@ -26,7 +27,8 @@ public class ProvisioningCallbackController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CompleteProvisioning(
         [FromRoute] Guid tenantId, 
-        [FromBody] CompleteTenantProvisioningRequest request)
+        [FromBody] CompleteTenantProvisioningRequest request,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request, nameof(request));
 
@@ -35,13 +37,8 @@ public class ProvisioningCallbackController(IMediator mediator) : ControllerBase
             request.DatabaseConnectionString, 
             request.ApplicationInsightsKey);
 
-        var result = await _mediator.Send(command).ConfigureAwait(false);
+        var result = await _mediator.Send(command, cancellationToken).ConfigureAwait(false);
 
-        if (!result.IsSuccess)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
+        return HandleResponse(result);
     }
 }

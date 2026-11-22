@@ -49,7 +49,7 @@ internal class DepositSavingsCommandHandler(
             {
                 var priorAccount = await unitOfWork.SavingsAccountRepository.FirstOrDefaultAsync(a => a.TenantId == tenantId && a.Id == prior.SavingsAccountId, cancellationToken);
                 if (priorAccount is null || priorAccount.MemberId != request.MemberId || priorAccount.SavingsProductId != request.SavingsProductId || prior.Amount != request.Amount)
-                    return AppResponses.Failure<SavingsAccountResponse>("This payment reference is already associated with different deposit details.");
+                    return AppResponses.Conflict<SavingsAccountResponse>("This payment reference is already associated with different deposit details.");
                 var priorProduct = await unitOfWork.SavingsProductRepository.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == priorAccount.SavingsProductId, cancellationToken);
                 if (priorProduct is null) return AppResponses.NotFound<SavingsAccountResponse>("Savings product not found.");
                 return AppResponses.Success("Deposit already processed.", new SavingsAccountResponse(priorAccount.Id, priorAccount.MemberId,
@@ -62,7 +62,7 @@ internal class DepositSavingsCommandHandler(
 
         if (product == null)
         {
-            return AppResponses.NotFound<SavingsAccountResponse>($"Savings product '{request.SavingsProductId}' not found.");
+            return AppResponses.NotFound<SavingsAccountResponse>("Savings product not found.");
         }
 
         if (!product.IsActive)

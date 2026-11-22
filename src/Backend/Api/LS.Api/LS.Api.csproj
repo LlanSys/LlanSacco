@@ -52,4 +52,8 @@
   <ItemGroup>
     <Folder Include="Logs\" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="LS.Tests.Integration" />
+  </ItemGroup>
+
 </Project>

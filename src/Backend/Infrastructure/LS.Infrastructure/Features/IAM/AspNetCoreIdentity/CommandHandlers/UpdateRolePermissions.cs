@@ -25,7 +25,7 @@ internal sealed class UpdateRolePermissions(
             var role = await roleManager.FindByIdAsync(command.RoleId).ConfigureAwait(false);
             if (role is null)
             {
-                return AppResponses.Failure<RolePermissionsResponse>("Role not found.");
+                return AppResponses.NotFound<RolePermissionsResponse>("Role not found.");
             }
 
             var requestedKeys = command.Request.PermissionKeys

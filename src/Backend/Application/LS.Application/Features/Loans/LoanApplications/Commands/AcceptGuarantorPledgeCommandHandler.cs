@@ -24,14 +24,14 @@ internal sealed partial class AcceptGuarantorPledgeCommandHandler(
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken).ConfigureAwait(false);
         if (loan == null)
         {
-            return AppResponses.Failure<bool>("Loan application not found.");
+            return AppResponses.NotFound<bool>("Loan application not found.");
         }
 
         // Check if the guarantor exists on the application
         var guarantor = loan.Guarantors.FirstOrDefault(g => g.GuarantorMemberId == request.GuarantorMemberId);
         if (guarantor == null)
         {
-             return AppResponses.Failure<bool>("Guarantor not found on this loan application.");
+             return AppResponses.NotFound<bool>("Guarantor not found on this loan application.");
         }
 
         if (guarantor.Status == GuarantorStatus.Accepted)

@@ -1,5 +1,7 @@
 using LS.SharedKernel.Features.Shared.Common.Enums;
+using System.Net;
 using System.Net.Http.Headers;
+using LS.SharedKernel.Dtos.Utilities;
 using System.Net.Http.Json;
 using System.Text.Json;
 using LS.SharedKernel.Dtos.Common;
@@ -22,6 +24,7 @@ internal sealed class BackendApiClient(
     {
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
     };
+
     private readonly BackendApiSettings _apiSettings = apiSettings.Value;
 
     public async Task<AppResponse<T>> SendAsync<T>(
@@ -38,9 +41,11 @@ internal sealed class BackendApiClient(
 
         string? accessToken = null;
         string? sessionId = null;
+
         if (requiresAuthentication)
         {
             (accessToken, _, sessionId) = await storage.GetAsync().ConfigureAwait(false);
+
             if (string.IsNullOrWhiteSpace(accessToken))
             {
                 return AppResponses.Failure<T>("Please sign in to continue.");
@@ -57,6 +62,7 @@ internal sealed class BackendApiClient(
             if (requiresAuthentication)
             {
                 message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
                 if (!string.IsNullOrWhiteSpace(sessionId))
                 {
                     message.Headers.TryAddWithoutValidation("X-Session-Id", sessionId);
@@ -107,12 +113,14 @@ internal sealed class BackendApiClient(
         if (requiresAuthentication)
         {
             var (accessToken, _, sessionId) = await storage.GetAsync().ConfigureAwait(false);
+
             if (string.IsNullOrWhiteSpace(accessToken))
             {
                 return AppResponses.Failure<T>("Please sign in to continue.");
             }
 
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
                 message.Headers.TryAddWithoutValidation("X-Session-Id", sessionId);
@@ -146,15 +154,18 @@ internal sealed class BackendApiClient(
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
 
         using var message = new HttpRequestMessage(HttpMethod.Get, endpoint);
+
         if (requiresAuthentication)
         {
             var (accessToken, _, sessionId) = await storage.GetAsync().ConfigureAwait(false);
+
             if (string.IsNullOrWhiteSpace(accessToken))
             {
                 return AppResponses.Failure<FileContentResponse>("Please sign in to continue.");
             }
 
             message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
                 message.Headers.TryAddWithoutValidation("X-Session-Id", sessionId);
@@ -166,20 +177,12 @@ internal sealed class BackendApiClient(
             using var response = await httpClient.SendAsync(
                 message,
                 HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken)
+                .ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {
-                var userMessage = UserMessageSanitizer.Normalize(
-                    await ReadErrorMessageAsync(response, cancellationToken).ConfigureAwait(false),
-                    "The profile picture could not be loaded.");
-
-                return response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? AppResponses.Failure<FileContentResponse>(new AppError(
-                        ErrorType.Unauthorized,
-                        "UNAUTHORIZED",
-                        userMessage))
-                    : AppResponses.Failure<FileContentResponse>(userMessage);
+                return await ReadAppResponseAsync<FileContentResponse>(response, endpoint, cancellationToken).ConfigureAwait(false);
             }
 
             var content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
@@ -207,149 +210,139 @@ internal sealed class BackendApiClient(
     private static bool ShouldRetryTransportFailure(int attempt, int maxAttempts, CancellationToken cancellationToken)
         => attempt < maxAttempts && !cancellationToken.IsCancellationRequested;
 
-    private async Task<AppResponse<T>> ReadAppResponseAsync<T>(HttpResponseMessage response, string endpoint, CancellationToken cancellationToken)
-    {
-        var appResponse = await TryReadAppResponseAsync<T>(response, endpoint, cancellationToken).ConfigureAwait(false);
-        if (appResponse is not null)
-        {
-            return appResponse with
-            {
-                Message = response.IsSuccessStatusCode
-                    ? UserMessageSanitizer.NormalizeNullable(appResponse.Message, "Operation completed.")
-                    : UserMessageSanitizer.Normalize(
-                        appResponse.Message,
-                        "The request could not be completed. Please try again or contact support if the problem persists.")
-            };
-        }
+    private const string RejectedMessage = "The request could not be completed. Please try again or contact support if the problem persists.";
 
-        return AppResponses.Failure<T>(
-            response.IsSuccessStatusCode
-                ? "The backend service returned an empty response."
-                : UserMessageSanitizer.Normalize(
-                    await ReadErrorMessageAsync(response, cancellationToken).ConfigureAwait(false),
-                    "The request could not be completed. Please try again or contact support if the problem persists."));
-    }
-
-    private async Task<AppResponse<T>?> TryReadAppResponseAsync<T>(HttpResponseMessage response, string endpoint, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                return null;
-            }
-
-            using var document = JsonDocument.Parse(content);
-            if (!document.RootElement.TryGetProperty("isSuccess", out _) &&
-                !document.RootElement.TryGetProperty("successful", out _))
-            {
-                return null;
-            }
-
-            return JsonSerializer.Deserialize<AppResponse<T>>(content, JsonOptions);
-        }
-        catch (JsonException ex)
-        {
-            BackendApiLogDefinitions.LogUnreadableResponse(logger, response.StatusCode.ToString(), endpoint, ex);
-            return null;
-        }
-    }
-
-    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    private async Task<AppResponse<T>> ReadAppResponseAsync<T>(
+        HttpResponseMessage response, string endpoint, CancellationToken cancellationToken)
     {
         var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(content))
+
+        if (!string.IsNullOrWhiteSpace(content))
         {
-            return "The backend service rejected the request.";
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(content);
-            var root = document.RootElement;
-
-            var validationErrors = TryGetValidationErrors(root);
-            if (!string.IsNullOrWhiteSpace(validationErrors))
+            try
             {
-                return validationErrors;
-            }
+                using var document = JsonDocument.Parse(content);
+                var root = document.RootElement;
 
-            // If it's a Validation problem, we should prioritize the specific field errors.
-            // Prioritized list of common error keys
-            ReadOnlySpan<string> errorKeys = ["message", "detail", "title", "error"];
-            foreach (var key in errorKeys)
-            {
-                var value = TryGetString(root, key);
-                if (!string.IsNullOrWhiteSpace(value))
+                if (root.ValueKind == JsonValueKind.Object)
                 {
-                    return value;
+                    var envelope = root.TryGetProperty("isSuccess", out var flag)
+                        && flag.ValueKind is JsonValueKind.True or JsonValueKind.False
+                        ? root.Deserialize<AppResponse<T>>(JsonOptions)
+                        : null;
+
+                    if (response.IsSuccessStatusCode && envelope is { IsSuccess: true })
+                    {
+                        return envelope with
+                        {
+                            Message = UserMessageSanitizer.NormalizeNullable(envelope.Message, "Operation completed.")
+                        };
+                    }
+
+                    return ReadFailure(response.StatusCode, root, envelope);
                 }
             }
+            catch (JsonException ex)
+            {
+                BackendApiLogDefinitions.LogUnreadableResponse(logger, response.StatusCode.ToString(), endpoint, ex);
+            }
+        }
 
-            return TryGetSessionInvalidMessage(root) ?? "The backend service rejected the request.";
-        }
-        catch (JsonException)
-        {
-            return content.Length <= 200
-                ? UserMessageSanitizer.Normalize(content, "The backend service rejected the request.")
-                : "The backend service rejected the request.";
-        }
+        return response.IsSuccessStatusCode
+            ? AppResponses.Failure<T>(AppError.Unexpected()) with { Message = "The backend service returned an unreadable response." }
+            : ReadFailure<T>(response.StatusCode, default, null);
     }
 
-    private static string? TryGetString(JsonElement element, string propertyName)
-        => element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-
-    private static string? TryGetSessionInvalidMessage(JsonElement element)
+    private static AppResponse<T> ReadFailure<T>(HttpStatusCode status, JsonElement problem, AppResponse<T>? envelope)
     {
-        var code = TryGetString(element, "code");
-        if (!string.Equals(code, "SESSION_INVALID", StringComparison.OrdinalIgnoreCase))
+        var (type, defaultCode, fallback) = status switch
         {
-            return null;
+            HttpStatusCode.BadRequest => (ErrorType.Validation, ErrorCodes.Validation, "Check the information you entered."),
+            HttpStatusCode.Unauthorized => (ErrorType.Unauthorized, ErrorCodes.Unauthorized, "Please sign in to continue."),
+            HttpStatusCode.Forbidden => (ErrorType.Forbidden, ErrorCodes.Forbidden, "You are not allowed to perform this action."),
+            HttpStatusCode.NotFound => (ErrorType.NotFound, ErrorCodes.NotFound, "The requested item could not be found."),
+            HttpStatusCode.Conflict => (ErrorType.Conflict, ErrorCodes.Conflict, "The request conflicts with the current state."),
+            HttpStatusCode.UnprocessableEntity => (ErrorType.BusinessRule, ErrorCodes.BusinessRule, RejectedMessage),
+            HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout =>
+                (ErrorType.DependencyUnavailable, ErrorCodes.DependencyUnavailable, "The backend service is temporarily unavailable."),
+            _ => (ErrorType.Unexpected, ErrorCodes.Unexpected, RejectedMessage)
+        };
+
+        if ((int)status >= 500 || (int)status < 300 && envelope is not { IsSuccess: false })
+        {
+            return AppResponses.Failure<T>(new AppError(type, defaultCode, fallback)) with { Message = fallback };
         }
 
-        var reason = TryGetString(element, "reason");
-        return string.IsNullOrWhiteSpace(reason)
-            ? "Your session has expired. Please sign in again."
-            : $"Your session has expired: {reason}. Please sign in again.";
+        var legacy = envelope is { IsSuccess: false } ? envelope.Error : null;
+        var code = legacy?.Code ?? TryGetString(problem, "code") ?? defaultCode;
+        if (status == HttpStatusCode.UnprocessableEntity && string.Equals(code, ErrorCodes.Validation, StringComparison.Ordinal))
+        {
+            type = ErrorType.Validation;
+        }
+
+        var errors = ReadValidationErrors(problem, legacy);
+        var fields = errors is null ? null : string.Join("; ", errors.Values.SelectMany(values => values));
+        var detail = !string.IsNullOrEmpty(fields) ? fields
+            : envelope is { IsSuccess: false } ? legacy?.Message ?? envelope.Message
+            : TryGetString(problem, "detail") ?? TryGetString(problem, "message") ?? TryGetString(problem, "title");
+
+        if (string.Equals(code, "SESSION_INVALID", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(detail))
+        {
+            detail = "Your session has expired. Please sign in again.";
+        }
+
+        var message = UserMessageSanitizer.Normalize(detail, fallback);
+        type = legacy?.Type ?? ((int)status < 300 ? ErrorType.BusinessRule : type);
+
+        if ((int)status < 300 && legacy is null)
+        {
+            code = ErrorCodes.BusinessRule;
+        }
+
+        return AppResponses.Failure<T>(new AppError(type, code, message, errors)) with
+        {
+            Message = message,
+            Data = envelope is { IsSuccess: false } ? envelope.Data : default
+        };
     }
 
-    private static string? TryGetValidationErrors(JsonElement element)
+    private static IReadOnlyDictionary<string, string[]>? ReadValidationErrors(JsonElement problem, AppError? legacy)
     {
-        if (!element.TryGetProperty("errors", out var errors))
+        var fields = new Dictionary<string, string[]>();
+
+        if (problem.ValueKind == JsonValueKind.Object && problem.TryGetProperty("errors", out var errors))
         {
-            return null;
+            if (errors.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var field in errors.EnumerateObject())
+                {
+                    fields[field.Name] = ReadMessages(field.Value);
+                }
+            }
+            else if (errors.ValueKind == JsonValueKind.Array)
+            {
+                fields[string.Empty] = ReadMessages(errors);
+            }
         }
 
-        if (errors.ValueKind == JsonValueKind.Array)
+        if (legacy?.ValidationErrors is { } legacyFields)
         {
-            var messages = errors
-                .EnumerateArray()
-                .Where(static error => error.ValueKind == JsonValueKind.String)
-                .Select(static error => error.GetString())
-                .Where(static error => !string.IsNullOrWhiteSpace(error));
-
-            return string.Join("; ", messages);
+            foreach (var field in legacyFields)
+            {
+                fields[field.Key] = field.Value.Select(message => UserMessageSanitizer.Normalize(message, "Invalid value.")).ToArray();
+            }
         }
 
-        if (errors.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        var keyedMessages = errors
-            .EnumerateObject()
-            .SelectMany(static property => property.Value.EnumerateArray())
-            .Where(static error => error.ValueKind == JsonValueKind.String)
-            .Select(static error => error.GetString())
-            .Where(static error => !string.IsNullOrWhiteSpace(error));
-
-        return string.Join("; ", keyedMessages);
+        return fields.Count == 0 ? null : fields;
     }
+
+    private static string[] ReadMessages(JsonElement element)
+        => element.ValueKind != JsonValueKind.Array ? [] : element.EnumerateArray()
+            .Where(value => value.ValueKind == JsonValueKind.String)
+            .Select(value => UserMessageSanitizer.Normalize(value.GetString(), "Invalid value."))
+            .ToArray();
+
+    private static string? TryGetString(JsonElement element, string name)
+        => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() : null;
 }
-
-
-
-

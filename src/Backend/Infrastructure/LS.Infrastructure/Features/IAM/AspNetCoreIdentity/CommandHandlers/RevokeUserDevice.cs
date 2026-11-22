@@ -21,7 +21,7 @@ internal sealed class RevokeUserDevice(IamDBContext context, ILogger<RevokeUserD
 
             if (device is null)
             {
-                return AppResponses.Failure<bool>("User device not found.");
+                return AppResponses.NotFound<bool>("User device not found.");
             }
 
             device.RevokeTrust(command.RevokedBy);

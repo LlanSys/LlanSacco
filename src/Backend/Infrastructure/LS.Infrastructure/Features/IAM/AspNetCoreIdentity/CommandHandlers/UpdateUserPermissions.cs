@@ -25,7 +25,7 @@ internal sealed class UpdateUserPermissions(
             var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
             if (user is null)
             {
-                return AppResponses.Failure<UserPermissionsResponse>("User not found.");
+                return AppResponses.NotFound<UserPermissionsResponse>("User not found.");
             }
 
             var requestedKeys = command.Request.PermissionKeys

@@ -23,7 +23,7 @@ internal sealed class CreateRole(RoleManager<AppRole> roleManager, ILogger<Creat
 
             if (await roleManager.RoleExistsAsync(roleName).ConfigureAwait(false))
             {
-                return AppResponses.Failure<AdminRoleListResponse>("A role with this name already exists.");
+                return AppResponses.Conflict<AdminRoleListResponse>("A role with this name already exists.");
             }
 
             var role = new AppRole { Name = roleName, DepartmentId = command.Request.DepartmentId };

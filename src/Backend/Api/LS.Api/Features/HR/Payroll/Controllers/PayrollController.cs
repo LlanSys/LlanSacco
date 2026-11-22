@@ -24,8 +24,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> RunPayroll([FromBody] RunPayrollRequest request, CancellationToken cancellationToken)
     {
         var response = await sender.Send(new RunPayrollCommand(request.PayrollPeriodId), cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpGet("/api/v{version:apiVersion}/hr/dashboard-stats")]
@@ -34,7 +33,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> GetDashboardStats(CancellationToken cancellationToken)
     {
         var response = await sender.Send(new GetHrDashboardStatsQuery(), cancellationToken);
-        return Ok(response);
+        return HandleResponse(response);
     }
 
     [HttpPost("close-period")]
@@ -44,8 +43,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> ClosePayrollPeriod([FromBody] ClosePayrollPeriodRequest request, CancellationToken cancellationToken)
     {
         var response = await sender.Send(new ClosePayrollPeriodCommand(request.PayrollPeriodId), cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpGet("periods")]
@@ -55,8 +53,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> GetPayrollPeriods([FromQuery] GetPayrollPeriodsRequest request, CancellationToken cancellationToken)
     {
         var response = await sender.Send(new GetPayrollPeriodsQuery(), cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpGet("configuration")]
@@ -66,8 +63,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> GetConfiguration(CancellationToken cancellationToken)
     {
         var response = await sender.Send(new GetPayrollConfigurationQuery(), cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpPost("configuration")]
@@ -87,8 +83,7 @@ public sealed class PayrollController(ISender sender) : BaseController
             User.Identity?.Name ?? "Admin"
         );
         var response = await sender.Send(command, cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpGet("periods/{id}/payslips")]
@@ -98,8 +93,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     public async Task<IActionResult> GetPayslips(Guid id, CancellationToken cancellationToken)
     {
         var response = await sender.Send(new GetPayslipsByPeriodQuery(id), cancellationToken);
-        if (response.IsSuccess) return Ok(response);
-        return BadRequest(response);
+        return HandleResponse(response);
     }
 }
 

@@ -1,51 +1,29 @@
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.CheckOff.Dtos;
 using LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces;
-using System.Net.Http.Json;
+using LS.UI.Blazor.Features.Shared.BackendApi.Contracts.Interfaces;
 
 namespace LS.UI.Blazor.Features.CheckOff.Contracts.Implementations;
 
-internal sealed class CheckOffService(HttpClient httpClient) : ICheckOffService
+internal sealed class CheckOffService(IBackendApiClient apiClient) : ICheckOffService
 {
-    public async Task<AppResponse<List<EmployerResponse>>> GetEmployersAsync()
-    {
-        var response = await httpClient.GetAsync("api/checkoff/employers");
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<List<EmployerResponse>>>();
-        return result ?? new AppResponse<List<EmployerResponse>> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    private const string BaseUrl = "api/checkoff";
 
-    public async Task<AppResponse<List<CheckoffBatchResponse>>> GetBatchesAsync()
-    {
-        var response = await httpClient.GetAsync("api/checkoff/batches");
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<List<CheckoffBatchResponse>>>();
-        return result ?? new AppResponse<List<CheckoffBatchResponse>> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    public Task<AppResponse<List<EmployerResponse>>> GetEmployersAsync()
+        => apiClient.SendAsync<List<EmployerResponse>>(HttpMethod.Get, $"{BaseUrl}/employers");
 
-    public async Task<AppResponse<CheckoffBatchDetailsResponse>> GetBatchDetailsAsync(Guid batchId)
-    {
-        var response = await httpClient.GetAsync($"api/checkoff/batches/{batchId}");
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<CheckoffBatchDetailsResponse>>();
-        return result ?? new AppResponse<CheckoffBatchDetailsResponse> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    public Task<AppResponse<List<CheckoffBatchResponse>>> GetBatchesAsync()
+        => apiClient.SendAsync<List<CheckoffBatchResponse>>(HttpMethod.Get, $"{BaseUrl}/batches");
 
-    public async Task<AppResponse<Guid>> UploadBatchAsync(UploadCheckoffBatchRequest request)
-    {
-        var response = await httpClient.PostAsJsonAsync("api/checkoff/batches/upload", request);
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<Guid>>();
-        return result ?? new AppResponse<Guid> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    public Task<AppResponse<CheckoffBatchDetailsResponse>> GetBatchDetailsAsync(Guid batchId)
+        => apiClient.SendAsync<CheckoffBatchDetailsResponse>(HttpMethod.Get, $"{BaseUrl}/batches/{batchId}");
 
-    public async Task<AppResponse<bool>> ValidateBatchAsync(Guid batchId)
-    {
-        var response = await httpClient.PostAsync($"api/checkoff/batches/{batchId}/validate", null);
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<bool>>();
-        return result ?? new AppResponse<bool> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    public Task<AppResponse<Guid>> UploadBatchAsync(UploadCheckoffBatchRequest request)
+        => apiClient.SendAsync<Guid>(HttpMethod.Post, $"{BaseUrl}/batches/upload", request);
 
-    public async Task<AppResponse<bool>> PostBatchAsync(Guid batchId)
-    {
-        var response = await httpClient.PostAsync($"api/checkoff/batches/{batchId}/post", null);
-        var result = await response.Content.ReadFromJsonAsync<AppResponse<bool>>();
-        return result ?? new AppResponse<bool> { IsSuccess = false, Error = AppError.Unexpected(), Message = "Failed to deserialize response." };
-    }
+    public Task<AppResponse<bool>> ValidateBatchAsync(Guid batchId)
+        => apiClient.SendAsync<bool>(HttpMethod.Post, $"{BaseUrl}/batches/{batchId}/validate");
+
+    public Task<AppResponse<bool>> PostBatchAsync(Guid batchId)
+        => apiClient.SendAsync<bool>(HttpMethod.Post, $"{BaseUrl}/batches/{batchId}/post");
 }

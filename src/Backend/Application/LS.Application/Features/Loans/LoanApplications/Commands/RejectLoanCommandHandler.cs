@@ -21,7 +21,7 @@ internal sealed partial class RejectLoanCommandHandler(
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken);
         if (loan == null)
         {
-            return AppResponses.Failure<bool>("Loan application not found.");
+            return AppResponses.NotFound<bool>("Loan application not found.");
         }
 
         if (loan.Status != LoanStatus.Submitted)

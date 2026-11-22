@@ -47,7 +47,7 @@ internal class OverTheCounterTransactionCommandHandler(IBankingUnitOfWork unitOf
                 return existing.Count == 1 && prior.FosaAccountId == request.FosaAccountId
                     && prior.TellerTillId == request.TellerTillId && prior.Type == request.TransactionType && prior.Amount == request.Amount
                     ? AppResponses.Success("Over the counter transaction already processed.", true)
-                    : AppResponses.Failure<bool>(AppError.BusinessRule("The cash transaction reference is already in use."));
+                    : AppResponses.Conflict<bool>("The cash transaction reference is already in use.");
             }
 
             var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);

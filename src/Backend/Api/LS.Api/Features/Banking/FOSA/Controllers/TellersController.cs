@@ -1,3 +1,4 @@
+using LS.Api.Common.Controllers;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,14 +14,14 @@ namespace LS.Api.Features.Banking.FOSA.Controllers;
 [ApiController]
 [Route("api/banking/fosa/tellers")]
 [Authorize]
-public class TellersController(IMediator mediator) : ControllerBase
+public class TellersController(IMediator mediator) : BaseController
 {
     [HttpPost("open")]
     public async Task<IActionResult> OpenTill([FromBody] OpenTillRequest request, CancellationToken cancellationToken)
     {
         var command = new OpenTillCommand(request.TellerTillId, request.TellerUserId);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return response.IsSuccess ? Ok(response) : BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpPost("close")]
@@ -32,7 +33,7 @@ public class TellersController(IMediator mediator) : ControllerBase
         
         var command = new CloseTillCommand(request.TellerTillId, breakdown, request.Remarks);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return response.IsSuccess ? Ok(response) : BadRequest(response);
+        return HandleResponse(response);
     }
 
     [HttpPost("vault-transfer")]
@@ -44,6 +45,6 @@ public class TellersController(IMediator mediator) : ControllerBase
             
         var command = new VaultTransferCommand(request.TellerTillId, request.VaultId, breakdown, request.Remarks, request.RequestId);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
-        return response.IsSuccess ? Ok(response) : BadRequest(response);
+        return HandleResponse(response);
     }
 }

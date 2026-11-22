@@ -2520,38 +2520,6 @@
     "Phase": 6
   },
   {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Commands/ClosePayrollPeriodCommandHandler.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Commands.ClosePayrollPeriodCommandHandler.Handle(LS.Application.Features.HR.Payroll.Commands.ClosePayrollPeriodCommand, System.Threading.CancellationToken)",
-    "Line": 23,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<bool>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"Payroll period not found.\"\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Commands/ClosePayrollPeriodCommandHandler.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Commands.ClosePayrollPeriodCommandHandler.Handle(LS.Application.Features.HR.Payroll.Commands.ClosePayrollPeriodCommand, System.Threading.CancellationToken)",
-    "Line": 39,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<bool>\r\n{\r\n    IsSuccess = false,\r\n    Message = ex.Message\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Queries/GetPayrollConfigurationQuery.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Queries.GetPayrollConfigurationQueryHandler.Handle(LS.Application.Features.HR.Payroll.Queries.GetPayrollConfigurationQuery, System.Threading.CancellationToken)",
-    "Line": 23,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<PayrollStatutoryConfigurationResponse>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"No payroll statutory configuration found.\"\r\n}",
-    "Phase": 4
-  },
-  {
-    "Rule": "ERR001",
-    "Path": "src/Backend/Application/LS.Application/Features/HR/Payroll/Queries/GetPayslipsByPeriodQuery.cs",
-    "Symbol": "LS.Application.Features.HR.Payroll.Queries.GetPayslipsByPeriodQueryHandler.Handle(LS.Application.Features.HR.Payroll.Queries.GetPayslipsByPeriodQuery, System.Threading.CancellationToken)",
-    "Line": 22,
-    "Detail": "Failure initializer lacks a typed Error: new AppResponse<IEnumerable<PayslipResponse>>\r\n{\r\n    IsSuccess = false,\r\n    Message = \"Payroll period not found.\"\r\n}",
-    "Phase": 4
-  },
-  {
     "Rule": "LAY001",
     "Path": "src/Backend/Application/LS.Application/Features/Accounting/Commands/CreateJournalCommand.cs",
     "Symbol": "LS.Application.Features.Accounting.Commands.CreateJournalCommand",

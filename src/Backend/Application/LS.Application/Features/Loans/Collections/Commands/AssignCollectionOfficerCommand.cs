@@ -22,7 +22,7 @@ internal class AssignCollectionOfficerCommandHandler(
     {
         var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
-            return AppResponses.Failure<bool>(AppError.BusinessRule("Collection case not found"));
+            return AppResponses.NotFound<bool>("Collection case not found");
 
         if (collectionCase.Status != Domain.Features.Loans.Collections.Enums.CollectionCaseStatus.Open)
             return AppResponses.Failure<bool>(AppError.BusinessRule($"Cannot assign officer to case in {collectionCase.Status} status"));

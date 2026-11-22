@@ -1,3 +1,5 @@
+using LS.Domain.Shared.Exceptions;
+using LS.SharedKernel.Dtos.Utilities;
 using LS.Application.Exceptions;
 using LS.Domain.Exceptions;
 using FluentValidation;
@@ -12,7 +14,7 @@ using DataAnnotationsValidationException = System.ComponentModel.DataAnnotations
 
 namespace LS.Api.Middleware;
 
-internal sealed class ApiExceptionHandler : IExceptionHandler
+internal sealed partial class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
@@ -38,6 +40,7 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
                 detail = "We could not sign you in. Please check your account status or contact support.";
                 break;
 
+            case TenantNotResolvedException:
             case UnauthorizedAccessException:
                 status = (int)HttpStatusCode.Forbidden;
                 title = "Forbidden";
@@ -59,20 +62,20 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             case ServiceUnavailableException:
                 status = (int)HttpStatusCode.ServiceUnavailable;
                 title = "Service Unavailable";
-                detail = exception.Message;
+                detail = "The requested operation could not be completed.";
                 break;
 
             case ResourceNotFoundException:
             case KeyNotFoundException:
                 status = (int)HttpStatusCode.NotFound;
                 title = "Resource Not Found";
-                detail = exception.Message;
+                detail = "The requested operation could not be completed.";
                 break;
 
             case DataAnnotationsValidationException validationException:
                 status = (int)HttpStatusCode.UnprocessableEntity;
                 title = "Validation Error";
-                detail = validationException.ValidationResult?.ErrorMessage ?? exception.Message;
+                detail = "One or more validation errors occurred.";
 
                 var errors = new Dictionary<string, string[]>();
                 foreach (var memberName in validationException.ValidationResult?.MemberNames ?? [])
@@ -100,9 +103,7 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             case CreatingDuplicateException:
                 status = StatusCodes.Status409Conflict;
                 title = "Conflict";
-                detail = string.IsNullOrWhiteSpace(exception.Message)
-                    ? "A resource with the same identifier already exists."
-                    : exception.Message;
+                detail = "A resource with the same identifier already exists.";
                 break;
 
             case DomainException:
@@ -110,13 +111,13 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
             case FormatException:
                 status = (int)HttpStatusCode.BadRequest;
                 title = "Bad Request";
-                detail = exception.Message;
+                detail = "The requested operation could not be completed.";
                 break;
 
             case CustomException customException:
                 status = (int)customException.StatusCode;
                 title = customException.StatusCode.ToString();
-                detail = customException.Message;
+                detail = "The requested operation could not be completed.";
 
                 if (customException.ErrorMessages is { Count: > 0 })
                 {
@@ -150,14 +151,29 @@ internal sealed class ApiExceptionHandler : IExceptionHandler
         problemDetails.Detail = detail;
         problemDetails.Type = $"https://httpstatuses.com/{status}";
         problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
+        problemDetails.Extensions["code"] = status switch
+        {
+            StatusCodes.Status401Unauthorized => ErrorCodes.Unauthorized,
+            StatusCodes.Status403Forbidden => ErrorCodes.Forbidden,
+            StatusCodes.Status404NotFound => ErrorCodes.NotFound,
+            StatusCodes.Status409Conflict => ErrorCodes.Conflict,
+            StatusCodes.Status400BadRequest or StatusCodes.Status422UnprocessableEntity => ErrorCodes.Validation,
+            StatusCodes.Status503ServiceUnavailable or StatusCodes.Status504GatewayTimeout => ErrorCodes.DependencyUnavailable,
+            _ => ErrorCodes.Unexpected
+        };
+
+        if (status >= StatusCodes.Status500InternalServerError)
+        {
+            LogServerError(logger, httpContext.TraceIdentifier, exception);
+        }
 
         httpContext.Response.StatusCode = problemDetails.Status.Value;
 
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await httpContext.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: "application/problem+json", cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return true;
     }
 
-
+    [LoggerMessage(Level = LogLevel.Error, Message = "Request failed with trace identifier {TraceId}")]
+    private static partial void LogServerError(ILogger logger, string traceId, Exception exception);
 }
-

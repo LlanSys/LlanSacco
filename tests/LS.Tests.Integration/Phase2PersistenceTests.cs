@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using NSubstitute;
 using LS.SharedKernel.Dtos.Common;
+using LS.SharedKernel.Features.Shared.Common.Enums;
 using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Features.CheckOff.Jobs;
 using LS.Domain.Features.Accounting.Contracts;
@@ -44,6 +45,7 @@ using LS.Domain.Features.HR.Contracts;
 using LS.Domain.Features.HR.Departments.Entities;
 using LS.Domain.Features.HR.Employees.Entities;
 using LS.Domain.Features.HR.Payroll.Entities;
+using LS.Domain.Features.HR.Payroll.Enums;
 using LS.Domain.Features.HR.Payroll.Services;
 using LS.Domain.Features.Membership.Entities;
 using LS.Domain.Features.Membership.Enums;
@@ -1081,14 +1083,19 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             await using var db = new AccountingDBContext(options, tenant, new Actor());
             await using var services = Services(db, tenant);
             var ledger = new LedgerService(services.GetRequiredService<IAccountingUnitOfWork>(), tenant);
-            Task<Guid> Post() => ledger.PostJournalAsync("replay", "test", date,
+            Task<AppResponse<Guid>> Post() => ledger.PostJournalAsync("replay", "test", date,
                 [new CreateJournalEntryDto { AccountId = debit.Id, Debit = amount }, new CreateJournalEntryDto { AccountId = credit.Id, Credit = amount }], new Actor().ActorId);
-            if (amount == 90m) await Assert.ThrowsAsync<InvalidOperationException>(Post);
+            var result = await Post();
+            if (amount == 90m)
+            {
+                Assert.False(result.IsSuccess);
+                Assert.Equal(LS.SharedKernel.Features.Shared.Common.Enums.ErrorType.Conflict, result.Error?.Type);
+            }
             else
             {
-                var id = await Post();
-                if (journalId is not null) Assert.Equal(journalId, id);
-                journalId = id;
+                Assert.True(result.IsSuccess);
+                if (journalId is not null) Assert.Equal(journalId, result.Data);
+                journalId = result.Data;
             }
         }
         await using var verify = new AccountingDBContext(options, tenant, new Actor());
@@ -1876,6 +1883,39 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     }
 
     [Fact]
+    public async Task Close_payroll_persists_then_reports_conflict_and_missing_period()
+    {
+        var tenant = new Tenant();
+        var actor = new Actor();
+        var options = Options<HrDBContext>();
+        var period = PayrollPeriod.Create(2025, 1, actor.ActorId);
+        await using (var setup = new HrDBContext(options, tenant, actor))
+        {
+            await setup.Database.EnsureCreatedAsync();
+            setup.Add(period);
+            await setup.SaveChangesAsync();
+        }
+
+        await using (var context = new HrDBContext(options, tenant, actor))
+        {
+            await using var services = Services(context, tenant);
+            var response = await services.GetRequiredService<ISender>().Send(new ClosePayrollPeriodCommand(period.Id));
+            Assert.True(response.IsSuccess, response.Error?.Message);
+            Assert.True(response.Data);
+        }
+
+        await using var fresh = new HrDBContext(options, tenant, actor);
+        Assert.Equal(PayrollPeriodStatus.Closed, (await fresh.PayrollPeriods.SingleAsync()).Status);
+        await using var verification = Services(fresh, tenant);
+        var sender = verification.GetRequiredService<ISender>();
+        var repeated = await sender.Send(new ClosePayrollPeriodCommand(period.Id));
+        var missing = await sender.Send(new ClosePayrollPeriodCommand(Guid.CreateVersion7()));
+
+        Assert.Equal(ErrorType.Conflict, repeated.Error?.Type);
+        Assert.Equal(ErrorType.NotFound, missing.Error?.Type);
+    }
+
+    [Fact]
     public async Task Transaction_rollback_discards_staged_mutations_even_when_context_is_reused()
     {
         var tenant = new Tenant();
@@ -1931,7 +1971,10 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             reads.Count = 0;
             Assert.True((await sender.Send(new ValidateCheckoffBatchCommand(validId))).Data);
             Assert.InRange(reads.Count, 1, 3);
-            Assert.False((await sender.Send(new ValidateCheckoffBatchCommand(invalidId))).Data);
+            var rejected = await sender.Send(new ValidateCheckoffBatchCommand(invalidId));
+            Assert.True(rejected.IsSuccess);
+            Assert.False(rejected.Data);
+            Assert.Null(rejected.Error);
         }
         await using (var fresh = new CheckOffDBContext(options, tenant, new Actor()))
         {

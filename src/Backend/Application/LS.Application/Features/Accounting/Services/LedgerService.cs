@@ -1,24 +1,16 @@
-using LS.Domain.Features.Accounting.Contracts;
 using LS.Application.Features.Accounting.Contracts.Interfaces;
-using LS.SharedKernel.Features.Accounting.Dtos;
+using LS.Domain.Features.Accounting.Contracts;
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Features.Accounting.Enums;
-using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Shared.Contracts.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using LS.SharedKernel.Dtos.Common;
+using LS.SharedKernel.Features.Accounting.Dtos;
 
 namespace LS.Application.Features.Accounting.Services;
 
 public class LedgerService(IAccountingUnitOfWork uow, ICurrentTenantProvider tenantProvider) : ILedgerService
 {
-    private readonly IAccountingUnitOfWork _uow = uow;
-    private readonly ICurrentTenantProvider _tenantProvider = tenantProvider;
-
-    public async Task<Guid> PostJournalAsync(
+    public async Task<AppResponse<Guid>> PostJournalAsync(
         string referenceNumber,
         string description,
         DateTimeOffset transactionDate,
@@ -26,74 +18,116 @@ public class LedgerService(IAccountingUnitOfWork uow, ICurrentTenantProvider ten
         string createdBy,
         CancellationToken cancellationToken = default)
     {
-        var tenantId = _tenantProvider.TenantId;
+        var tenantId = tenantProvider.TenantId;
 
-        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        if (tenantId == Guid.Empty)
+        {
+            return AppResponses.Failure<Guid>(AppError.Forbidden("A tenant is required to post a journal."));
+        }
+
         ArgumentNullException.ThrowIfNull(entries);
+
+        if (string.IsNullOrWhiteSpace(referenceNumber) || referenceNumber.Length > 100)
+        {
+            return Invalid(nameof(CreateJournalRequest.ReferenceNumber), "Provide a journal reference of at most 100 characters.");
+        }
+
+        if (string.IsNullOrWhiteSpace(description) || description.Length > 500)
+        {
+            return Invalid(nameof(CreateJournalRequest.Description), "Provide a journal description of at most 500 characters.");
+        }
+
         var lines = entries.ToList();
-        var existing = await _uow.JournalRepository.FirstOrDefaultAsync(q => q
-            .Where(j => j.TenantId == tenantId && j.ReferenceNumber == referenceNumber)
-            .Select(j => new Journal
-            {
-                Id = j.Id, CreatedBy = j.CreatedBy, ReferenceNumber = j.ReferenceNumber, Description = j.Description,
-                Status = j.Status, TransactionDate = j.TransactionDate, Lines = j.Lines.ToList()
-            }), cancellationToken);
+        var existing = await uow.JournalRepository.FirstOrDefaultAsync(
+            q => q
+                .Where(j => j.TenantId == tenantId && j.ReferenceNumber == referenceNumber)
+                .Select(j => new Journal
+                {
+                    Id = j.Id,
+                    CreatedBy = j.CreatedBy,
+                    ReferenceNumber = j.ReferenceNumber,
+                    Description = j.Description,
+                    Status = j.Status,
+                    TransactionDate = j.TransactionDate,
+                    Lines = j.Lines.ToList()
+                }),
+            cancellationToken)
+            .ConfigureAwait(false);
+
         if (existing is not null)
         {
             var expected = lines.Select(e => (e.AccountId, e.BranchId, e.CostCenterId, e.Debit, e.Credit)).Order().ToArray();
             var actual = existing.Lines.Select(e => (e.AccountId, e.BranchId, e.CostCenterId, e.Debit, e.Credit)).Order().ToArray();
-            if (existing.Status != JournalStatus.Posted || existing.TransactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond != transactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond || !actual.SequenceEqual(expected))
-                throw new InvalidOperationException("The journal reference is already associated with different posting details.");
-            return existing.Id;
+
+            if (existing.Status != JournalStatus.Posted
+                || existing.TransactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond != transactionDate.UtcTicks / TimeSpan.TicksPerMicrosecond
+                || !actual.SequenceEqual(expected))
+            {
+                return AppResponses.Conflict<Guid>("The journal reference is already associated with different posting details.");
+            }
+
+            return AppResponses.Success(existing.Id);
         }
 
-        // Ensure double-entry validity
-        var totalDebit = lines.Sum(e => e.Debit);
-        var totalCredit = lines.Sum(e => e.Credit);
-
-        if (totalDebit != totalCredit)
+        if (lines.Any(line => line.Debit < 0 || line.Credit < 0))
         {
-            throw new InvalidOperationException($"Journal is unbalanced. Total Debits: {totalDebit}, Total Credits: {totalCredit}");
+            return Invalid(nameof(CreateJournalRequest.Entries), "Debit and credit values cannot be negative.");
+        }
+
+        if (lines.Any(line => line.Debit > 0 && line.Credit > 0))
+        {
+            return Invalid(nameof(CreateJournalRequest.Entries), "A journal line cannot have both a debit and a credit.");
+        }
+
+        if (lines.Any(line => line.Description?.Length > 500))
+        {
+            return Invalid(nameof(CreateJournalRequest.Entries), "Journal line descriptions must have at most 500 characters.");
+        }
+
+        var totalDebit = lines.Sum(line => line.Debit);
+
+        if (totalDebit != lines.Sum(line => line.Credit))
+        {
+            return AppResponses.Failure<Guid>(AppError.BusinessRule("Journal debits and credits must balance."));
         }
 
         if (totalDebit <= 0)
         {
-            throw new InvalidOperationException("Journal must have a positive non-zero value.");
+            return AppResponses.Failure<Guid>(AppError.BusinessRule("A journal must have a positive non-zero value."));
+        }
+
+        var accountIds = lines.Select(line => line.AccountId).Distinct().ToArray();
+        var accountsFound = await uow.AccountRepository.CountAsync(
+            account => account.TenantId == tenantId && accountIds.Contains(account.Id), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (accountsFound != accountIds.Length)
+        {
+            return AppResponses.NotFound<Guid>("One or more journal accounts could not be found.");
         }
 
         var journal = Journal.Create(tenantId, referenceNumber, description, transactionDate, createdBy);
 
         foreach (var entry in lines)
         {
-            if (entry.Debit < 0 || entry.Credit < 0)
-            {
-                throw new InvalidOperationException("Debit and Credit values cannot be negative.");
-            }
-
-            if (entry.Debit > 0 && entry.Credit > 0)
-            {
-                throw new InvalidOperationException("A single journal line cannot have both a debit and a credit.");
-            }
-
-            var line = JournalLine.Create(
-                tenantId: tenantId,
-                journalId: journal.Id,
-                accountId: entry.AccountId,
-                description: entry.Description,
-                debit: entry.Debit,
-                credit: entry.Credit,
-                createdBy: createdBy,
-                branchId: entry.BranchId,
-                costCenterId: entry.CostCenterId);
-
-            journal.Lines.Add(line);
+            journal.Lines.Add(JournalLine.Create(
+                tenantId,
+                journal.Id,
+                entry.AccountId,
+                entry.Description,
+                entry.Debit,
+                entry.Credit,
+                createdBy,
+                entry.BranchId,
+                entry.CostCenterId));
         }
 
         journal.Status = JournalStatus.Posted;
-
-        await _uow.JournalRepository.CreateAsync(journal, cancellationToken);
-        await _uow.CompleteAsync(cancellationToken);
-
-        return journal.Id;
+        await uow.JournalRepository.CreateAsync(journal, cancellationToken).ConfigureAwait(false);
+        await uow.CompleteAsync(cancellationToken).ConfigureAwait(false);
+        return AppResponses.Success(journal.Id);
     }
+
+    private static AppResponse<Guid> Invalid(string field, string message)
+        => AppResponses.Failure<Guid>(AppError.Validation(new Dictionary<string, string[]> { [field] = [message] }));
 }

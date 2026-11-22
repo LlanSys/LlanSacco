@@ -16,13 +16,8 @@ using LS.SharedKernel.Extensions;
 namespace LS.Application.Features.Shared.Dashboard.QueryHandlers;
 
 
-public record GetDashboardSummaryQuery(string UserId, string? RoleScope = null) : IRequest<AppResponse<DashboardSummaryResponse>>, ICachableRequest
-    
+public record GetDashboardSummaryQuery(string UserId, string? RoleScope = null) : IRequest<AppResponse<DashboardSummaryResponse>>, IUncachedQuery
 {
-    public string CacheGroup => "dashboard";
-    public string Discriminator => CacheKeys.Discriminator(new { RoleScope });
-    public string? CacheUserId => null;
-    public bool IsVersioned => true;
-    public TimeSpan? Expiration => TimeSpan.FromMinutes(5); 
+    string IUncachedQuery.CacheBypassReason => "Dashboard data depends on live financial and operational state across contexts.";
 }
 

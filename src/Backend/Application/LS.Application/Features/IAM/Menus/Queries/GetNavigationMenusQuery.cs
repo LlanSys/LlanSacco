@@ -11,11 +11,8 @@ namespace LS.Application.Features.IAM.Menus.Queries;
 
 
 public sealed record GetNavigationMenusQuery(string Placement, IReadOnlyList<string> PermissionKeys, string UserId, bool HasFullAccess = false)
-    : IRequest<AppResponse<IReadOnlyList<MenuResponse>>>, ICachableRequest
+    : IRequest<AppResponse<IReadOnlyList<MenuResponse>>>, IUncachedQuery
 {
-    public string CacheGroup => "menus";
-    public string Discriminator => CacheKeys.Discriminator(new { Placement, HasFullAccess, Permissions = PermissionKeys.Order(StringComparer.OrdinalIgnoreCase) });
-    public string? CacheUserId => UserId;
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Navigation reflects current grants, menu assignments and access policy.";
 }
 

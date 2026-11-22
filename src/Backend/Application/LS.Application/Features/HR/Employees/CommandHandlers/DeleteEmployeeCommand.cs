@@ -1,5 +1,3 @@
-using LS.Application.Contracts.Interfaces.Common;
-using LS.Application.Utilities;
 using LS.Domain.Features.HR.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
@@ -9,10 +7,5 @@ namespace LS.Application.Features.HR.Employees.CommandHandlers;
 
 
 public sealed record DeleteEmployeeCommand(Guid Id, string UserId)
-    : IRequest<AppResponse<bool>>, ICacheInvalidatorRequest
-{
-    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("employees", Id.ToString())];
-
-    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("employees")];
-}
+    : IRequest<AppResponse<bool>>;
 

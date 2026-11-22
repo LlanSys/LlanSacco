@@ -6,10 +6,7 @@ using MediatR;
 
 namespace LS.Application.Features.ControlPlane.Tenants.Queries;
 
-public record GetTenantByIdQuery(Guid Id) : IRequest<AppResponse<TenantResponse>>, ICachableRequest
+public record GetTenantByIdQuery(Guid Id) : IRequest<AppResponse<TenantResponse>>, IUncachedQuery
 {
-    public string CacheGroup => "tenants";
-    public string Discriminator => Id.ToString();
-    public string? CacheUserId => null;
-    public bool IsVersioned => false;
+    string IUncachedQuery.CacheBypassReason => "Tenant details must reflect current provisioning and routing configuration.";
 }

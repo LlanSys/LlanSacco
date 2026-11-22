@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,10 @@ using LS.SharedKernel.Dtos.Loans.Collections;
 
 namespace LS.Application.Features.Loans.Collections.Queries;
 
-public record GetPendingPromisesQuery(Guid? OfficerUserId) : IRequest<AppResponse<IEnumerable<CollectionPromiseResponse>>>;
+public record GetPendingPromisesQuery(Guid? OfficerUserId) : IRequest<AppResponse<IEnumerable<CollectionPromiseResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Officer-scoped promises change during follow-up, payments and background processing.";
+}
 
 internal class GetPendingPromisesQueryHandler(ILoansUnitOfWork unitOfWork) : IRequestHandler<GetPendingPromisesQuery, AppResponse<IEnumerable<CollectionPromiseResponse>>>
 {

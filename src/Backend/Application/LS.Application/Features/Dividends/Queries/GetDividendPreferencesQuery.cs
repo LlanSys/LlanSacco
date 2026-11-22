@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Dtos.Dividends;
@@ -9,7 +10,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Dividends.Queries;
 
-public record GetDividendPreferencesQuery : IRequest<AppResponse<IEnumerable<DividendPreferenceDto>>>;
+public record GetDividendPreferencesQuery : IRequest<AppResponse<IEnumerable<DividendPreferenceDto>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Distribution preferences are member-specific and reflect the latest election.";
+}
 
 internal class GetDividendPreferencesQueryHandler(
     IDividendsUnitOfWork uow) : IRequestHandler<GetDividendPreferencesQuery, AppResponse<IEnumerable<DividendPreferenceDto>>>

@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Accounting.Dtos;
 using MediatR;
@@ -6,7 +7,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Accounting.Queries;
 
-public record GetAccountingDashboardStatsQuery() : IRequest<AppResponse<AccountingDashboardStatsResponse>>;
+public record GetAccountingDashboardStatsQuery() : IRequest<AppResponse<AccountingDashboardStatsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Accounting totals reflect newly posted journals and background accounting events.";
+}
 
 internal class GetAccountingDashboardStatsQueryHandler 
     : IRequestHandler<GetAccountingDashboardStatsQuery, AppResponse<AccountingDashboardStatsResponse>>

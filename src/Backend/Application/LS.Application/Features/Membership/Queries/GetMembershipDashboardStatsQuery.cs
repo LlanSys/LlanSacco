@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Membership.Dtos;
 using LS.Domain.Features.Membership.Contracts.Repositories;
@@ -7,7 +8,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Membership.Queries;
 
-public record GetMembershipDashboardStatsQuery() : IRequest<AppResponse<MembershipDashboardStatsResponse>>;
+public record GetMembershipDashboardStatsQuery() : IRequest<AppResponse<MembershipDashboardStatsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Membership totals reflect committed onboarding and approval state.";
+}
 
 internal class GetMembershipDashboardStatsQueryHandler(IMemberRepository memberRepository) 
     : IRequestHandler<GetMembershipDashboardStatsQuery, AppResponse<MembershipDashboardStatsResponse>>

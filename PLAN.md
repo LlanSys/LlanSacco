@@ -302,6 +302,6 @@ EventIds are structured by architectural layer to simplify searching in logs:
 
 Follow [Architecture Remediation And Repository Governance Plan](docs/architecture/architecture-remediation-plan.md) before expanding product features. It tracks repository and Unit of Work alignment, AppResponse, behaviours and caching, validator placement, operation-named command slices and the protected GitHub PR workflow.
 
-Phases 0–3 are on main through [PR #4](https://github.com/LlanSys/LlanSacco/pull/4). Phase 4 aligns application and HTTP failure responses. See the [Phase 4 verification report](docs/architecture/phase-4-verification.md). Finish and verify each remediation phase, then present it for review before starting the next one.
+Phases 0–4 are on main through [PR #8](https://github.com/LlanSys/LlanSacco/pull/8). Phase 4 aligned application and HTTP failure responses. See the [Phase 4 verification report](docs/architecture/phase-4-verification.md). Phase 5 behaviour and cache coverage is implemented and verified locally. The [Phase 5 verification report](docs/architecture/phase-5-verification.md) records the tests and pending PR. Finish and verify each remediation phase, then present it for review before starting the next one.
 
 The 2026-11-21 direction is to improve the established LlanSacco application incrementally using selected StarterTemplate platform improvements. Preserve SACCO workflows, migration history and application identities. Keep LlanSacco's architecture and CI gates in force.

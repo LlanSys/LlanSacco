@@ -6,10 +6,7 @@ using MediatR;
 
 namespace LS.Application.Features.ControlPlane.Stamps.Queries;
 
-public record GetDeploymentStampByIdQuery(Guid Id) : IRequest<AppResponse<DeploymentStampResponse>>, ICachableRequest
+public record GetDeploymentStampByIdQuery(Guid Id) : IRequest<AppResponse<DeploymentStampResponse>>, IUncachedQuery
 {
-    public string CacheGroup => "stamps";
-    public string Discriminator => Id.ToString();
-    public string? CacheUserId => null;
-    public bool IsVersioned => false;
+    string IUncachedQuery.CacheBypassReason => "Stamp detail must reflect current provisioning and placement configuration.";
 }

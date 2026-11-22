@@ -148,7 +148,7 @@ UseAuthorization()
 ```
 
 **Why before `UseAuthentication()`?**
-Hostname resolution does not require an authenticated user. The middleware resolves the tenant purely from the `Host` HTTP header (or `X-Forwarded-Host` for proxied requests), looks up the matching `Tenant.HostName` in the ControlPlane database (cached for 5 minutes), and injects the resolved tenant ID into a request header.
+Hostname resolution does not require an authenticated user. The middleware resolves the tenant purely from the `Host` HTTP header (or `X-Forwarded-Host` for proxied requests), reads the active hostname mapping from the ControlPlane database at the start of the request, and injects the resolved tenant ID into a request header.
 
 **Resolution fallback priority in `CurrentTenantProvider`:**
 1. `tenant_id` JWT claim (populated post-auth for already-authenticated requests).

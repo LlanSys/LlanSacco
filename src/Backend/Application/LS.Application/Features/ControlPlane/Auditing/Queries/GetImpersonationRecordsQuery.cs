@@ -14,12 +14,9 @@ using LS.SharedKernel.Features.ControlPlane.Auditing.Dtos;
 
 namespace LS.Application.Features.ControlPlane.Auditing.Queries;
 
-public record GetImpersonationRecordsQuery(bool ActiveOnly = false) : IRequest<AppResponse<IReadOnlyList<ImpersonationRecordResponse>>>, ICachableRequest
+public record GetImpersonationRecordsQuery(bool ActiveOnly = false) : IRequest<AppResponse<IReadOnlyList<ImpersonationRecordResponse>>>, IUncachedQuery
 {
-    public string CacheGroup => "auditing";
-    public string Discriminator => $"impersonation_records_{ActiveOnly}";
-    public string? CacheUserId => null;
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Support access history must reflect session start, revocation and expiry.";
 }
 
 internal sealed class GetImpersonationRecordsQueryHandler(

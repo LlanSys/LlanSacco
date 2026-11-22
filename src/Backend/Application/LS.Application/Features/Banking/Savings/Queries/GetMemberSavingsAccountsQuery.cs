@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Banking.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Banking.Savings.Dtos;
@@ -10,7 +11,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Banking.Savings.Queries;
 
-public record GetMemberSavingsAccountsQuery(Guid MemberId) : IRequest<AppResponse<List<SavingsAccountResponse>>>;
+public record GetMemberSavingsAccountsQuery(Guid MemberId) : IRequest<AppResponse<List<SavingsAccountResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Savings balances change through postings and interest jobs.";
+}
 
 internal class GetMemberSavingsAccountsQueryHandler(IBankingUnitOfWork unitOfWork) 
     : IRequestHandler<GetMemberSavingsAccountsQuery, AppResponse<List<SavingsAccountResponse>>>

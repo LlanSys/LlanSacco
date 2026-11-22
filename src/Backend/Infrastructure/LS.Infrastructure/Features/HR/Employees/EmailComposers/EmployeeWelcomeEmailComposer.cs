@@ -24,9 +24,8 @@ namespace LS.Infrastructure.Features.HR.Employees.EmailComposers;
 
 
 internal sealed class EmployeeWelcomeEmailComposer(
-    ICacheService _cache,
     ISharedUnitOfWork _sharedUnitOfWork,
-    ILogger<EmployeeWelcomeEmailComposer> _logger) : EmailComposer<EmployeeCreatedIntegrationEvent>(_cache, _sharedUnitOfWork, _logger)
+    ILogger<EmployeeWelcomeEmailComposer> _logger) : EmailComposer<EmployeeCreatedIntegrationEvent>(_sharedUnitOfWork, _logger)
 {
     public override async Task<AppResponse<ComposeEmailResponse>> ComposeAsync(EmployeeCreatedIntegrationEvent evt, CancellationToken ct)
     {

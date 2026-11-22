@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Dtos.Dividends;
@@ -9,7 +10,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Dividends.Queries;
 
-public record GetDividendDeclarationsQuery : IRequest<AppResponse<IEnumerable<DividendDeclarationDto>>>;
+public record GetDividendDeclarationsQuery : IRequest<AppResponse<IEnumerable<DividendDeclarationDto>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Declaration lists reflect current financial workflow status.";
+}
 
 internal class GetDividendDeclarationsQueryHandler(
     IDividendsUnitOfWork uow) : IRequestHandler<GetDividendDeclarationsQuery, AppResponse<IEnumerable<DividendDeclarationDto>>>

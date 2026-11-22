@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System.Threading;
 using System.Threading.Tasks;
 using LS.SharedKernel.Features.HR.Payroll.Dtos;
@@ -8,7 +9,10 @@ using System.Linq;
 
 namespace LS.Application.Features.HR.Payroll.Queries;
 
-public record GetPayrollConfigurationQuery() : IRequest<AppResponse<PayrollStatutoryConfigurationResponse>>;
+public record GetPayrollConfigurationQuery() : IRequest<AppResponse<PayrollStatutoryConfigurationResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Payroll configuration reflects the currently effective statutory settings.";
+}
 
 internal class GetPayrollConfigurationQueryHandler(IHrUnitOfWork unitOfWork) : IRequestHandler<GetPayrollConfigurationQuery, AppResponse<PayrollStatutoryConfigurationResponse>>
 {

@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-22. Phases 0–3 are on main. Phase 4 is complete for review. Phases 5–7 remain pending.
+Status reviewed 2026-11-22. Phases 0–4 are on main. Phase 5 is implemented and verified locally. Phases 6–7 remain pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -165,6 +165,8 @@ The [Phase 4 verification report](phase-4-verification.md) records the response 
 
 Gate: DI-level tests prove participation and ordering; integration tests prove stale data is invalidated, tenants/users cannot share unintended entries, failures are not cached, rejected commands do not invalidate, and cache faults cannot trigger duplicate writes.
 
+**Verified locally.** All 126 cache findings were resolved and all cache and tenant routing regressions passed. See the [Phase 5 verification report](phase-5-verification.md) for the inventory, local evidence and pending PR.
+
 ### Phase 6 - Validator Extraction And Slice Layout
 
 1. Extract every inline validator to its own type-named file under the owning feature. Inventory user-input writes and reuse shared transport validators where appropriate.
@@ -223,7 +225,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 2: Persistence/financial correctness (all five items complete; see [Phase 2 evidence](phase-2-verification.md).)
 - [x] Phase 3: Repository/UoW alignment ([verification report](phase-3-verification.md))
 - [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
-- [ ] Phase 5: Behaviours and caching
+- [x] Phase 5: Behaviours and caching ([local verification report](phase-5-verification.md))
 - [ ] Phase 6: Validators and slice layout
 - [ ] Phase 7: Full closure
 

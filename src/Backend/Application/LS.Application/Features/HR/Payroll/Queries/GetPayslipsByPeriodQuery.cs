@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,10 @@ using MediatR;
 
 namespace LS.Application.Features.HR.Payroll.Queries;
 
-public record GetPayslipsByPeriodQuery(Guid PayrollPeriodId) : IRequest<AppResponse<IEnumerable<PayslipResponse>>>;
+public record GetPayslipsByPeriodQuery(Guid PayrollPeriodId) : IRequest<AppResponse<IEnumerable<PayslipResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Payslips contain sensitive compensation and must reflect the completed run.";
+}
 
 internal class GetPayslipsByPeriodQueryHandler(IHrUnitOfWork unitOfWork) : IRequestHandler<GetPayslipsByPeriodQuery, AppResponse<IEnumerable<PayslipResponse>>>
 {

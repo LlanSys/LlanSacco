@@ -17,6 +17,12 @@ namespace LS.Application.Contracts.Interfaces.Common;
 /// </summary>
 public interface ICacheService
 {
+    /// <summary>Reads a cache generation directly from the shared store.</summary>
+    Task<string?> GetGenerationAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>Publishes a unique generation through the shared store.</summary>
+    Task SetGenerationAsync(string key, string generation, TimeSpan expiration, CancellationToken cancellationToken);
+
     // ── Write ─────────────────────────────────────────────────────────────────
     Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken ct = default);
     

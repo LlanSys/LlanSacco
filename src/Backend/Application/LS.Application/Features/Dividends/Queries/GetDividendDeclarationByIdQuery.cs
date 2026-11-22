@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Dtos.Dividends;
@@ -8,7 +9,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Dividends.Queries;
 
-public record GetDividendDeclarationByIdQuery(Guid Id) : IRequest<AppResponse<DividendDeclarationDto>>;
+public record GetDividendDeclarationByIdQuery(Guid Id) : IRequest<AppResponse<DividendDeclarationDto>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Declaration details reflect current calculation, approval and payout state.";
+}
 
 internal class GetDividendDeclarationByIdQueryHandler(
     IDividendsUnitOfWork uow) : IRequestHandler<GetDividendDeclarationByIdQuery, AppResponse<DividendDeclarationDto>>

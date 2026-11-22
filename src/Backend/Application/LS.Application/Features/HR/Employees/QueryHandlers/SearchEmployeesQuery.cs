@@ -13,14 +13,8 @@ namespace LS.Application.Features.HR.Employees.QueryHandlers;
 
 
 public sealed record SearchEmployeesQuery(EmployeeSearchRequest SearchRequest, string UserId)
-    : IRequest<AppResponse<PagedResponse<EmployeeResponse, Guid>>>, ICachableRequest
+    : IRequest<AppResponse<PagedResponse<EmployeeResponse, Guid>>>, IUncachedQuery
 {
-    public string CacheGroup => "employees";
-
-    public string Discriminator => CacheKeys.Discriminator(SearchRequest);
-
-    public string? CacheUserId => null;
-
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Employee search returns personal information and current employment and IAM state.";
 }
 

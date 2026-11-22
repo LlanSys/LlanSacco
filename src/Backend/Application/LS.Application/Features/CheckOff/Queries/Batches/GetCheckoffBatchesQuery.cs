@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using FluentValidation;
 using LS.Domain.Features.CheckOff.Contracts;
 using LS.SharedKernel.Dtos.Common;
@@ -7,7 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.CheckOff.Queries.Batches;
 
-public record GetCheckoffBatchesQuery : IRequest<AppResponse<List<CheckoffBatchResponse>>>;
+public record GetCheckoffBatchesQuery : IRequest<AppResponse<List<CheckoffBatchResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Batch lists reflect current processing state across requests and workers.";
+}
 
 internal sealed class GetCheckoffBatchesQueryHandler(
     ICheckOffUnitOfWork unitOfWork,

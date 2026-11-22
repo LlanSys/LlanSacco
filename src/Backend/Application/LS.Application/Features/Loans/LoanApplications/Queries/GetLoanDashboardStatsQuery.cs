@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Loans.Dtos;
 using LS.Domain.Features.Loans.Contracts.Repositories;
@@ -8,7 +9,10 @@ using System.Linq;
 
 namespace LS.Application.Features.Loans.LoanApplications.Queries;
 
-public record GetLoanDashboardStatsQuery() : IRequest<AppResponse<LoanDashboardStatsResponse>>;
+public record GetLoanDashboardStatsQuery() : IRequest<AppResponse<LoanDashboardStatsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Loan totals reflect committed applications, disbursements and repayments.";
+}
 
 internal class GetLoanDashboardStatsQueryHandler(ILoanApplicationRepository loanRepository) 
     : IRequestHandler<GetLoanDashboardStatsQuery, AppResponse<LoanDashboardStatsResponse>>

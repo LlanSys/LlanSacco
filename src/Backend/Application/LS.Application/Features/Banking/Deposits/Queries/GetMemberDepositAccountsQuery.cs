@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Shared.Contracts.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Banking.Deposits.Dtos;
@@ -7,4 +8,7 @@ using System.Collections.Generic;
 
 namespace LS.Application.Features.Banking.Deposits.Queries;
 
-public record GetMemberDepositAccountsQuery(Guid MemberId) : IRequest<AppResponse<IEnumerable<DepositAccountResponse>>>;
+public record GetMemberDepositAccountsQuery(Guid MemberId) : IRequest<AppResponse<IEnumerable<DepositAccountResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Deposit balances change through postings, interest and maturity jobs.";
+}

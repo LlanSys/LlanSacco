@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using LS.Domain.Features.ControlPlane.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using LS.Infrastructure.Configuration;
 
@@ -14,15 +13,12 @@ namespace LS.Infrastructure.Contracts.Implementations.Common;
 
 internal sealed class TenantModuleResolver(
     ICurrentTenantProvider tenantProvider,
-    IMemoryCache cache,
     IServiceProvider serviceProvider,
     Microsoft.Extensions.Options.IOptions<LS.Infrastructure.Configuration.ShowcaseSettings> showcaseSettings) : ITenantModuleResolver
 {
     private readonly ICurrentTenantProvider _tenantProvider = tenantProvider;
-    private readonly IMemoryCache _cache = cache;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly ShowcaseSettings _showcaseSettings = showcaseSettings.Value;
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
     public async Task<IReadOnlyList<string>> GetEnabledModulesAsync(CancellationToken cancellationToken = default)
     {
@@ -47,13 +43,7 @@ internal sealed class TenantModuleResolver(
             return globalModules;
         }
 
-        var cacheKey = $"tenant_modules_{tenantId}";
-        if (_cache.TryGetValue<IReadOnlyList<string>>(cacheKey, out var cachedModules) && cachedModules != null)
-        {
-            return cachedModules.Concat(globalModules).Distinct().ToList();
-        }
-
-        using var scope = _serviceProvider.CreateScope();
+        await using var scope = _serviceProvider.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
 
         var modules = await unitOfWork.TenantRepository.FindAll()
@@ -64,7 +54,6 @@ internal sealed class TenantModuleResolver(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        _cache.Set(cacheKey, modules, CacheDuration);
         return modules.Concat(globalModules).Distinct().ToList();
     }
 }

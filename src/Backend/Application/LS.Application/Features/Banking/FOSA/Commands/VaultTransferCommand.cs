@@ -47,12 +47,12 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork, ICurre
                     && string.Equals(existing.Denominations, denominations, StringComparison.Ordinal)
                     && string.Equals(existing.Remarks, remarks, StringComparison.Ordinal)
                     ? AppResponses.Success("Vault transfer already processed.", true)
-                    : AppResponses.Failure<bool>(AppError.BusinessRule("The vault transfer reference is already in use."));
+                    : AppResponses.Conflict<bool>("The vault transfer reference is already in use.");
 
             var till = await unitOfWork.TellerTillRepository.FindByIdAsync(request.TellerTillId, cancellationToken).ConfigureAwait(false);
             if (till is null)
             {
-                return AppResponses.Failure<bool>("Teller till not found.");
+                return AppResponses.NotFound<bool>("Teller till not found.");
             }
 
             if (till.Status != TillStatus.Open)
@@ -63,7 +63,7 @@ internal class VaultTransferCommandHandler(IBankingUnitOfWork unitOfWork, ICurre
             var vault = await unitOfWork.VaultRepository.FindByIdAsync(request.VaultId, cancellationToken).ConfigureAwait(false);
             if (vault is null)
             {
-                return AppResponses.Failure<bool>("Vault not found.");
+                return AppResponses.NotFound<bool>("Vault not found.");
             }
 
             var transferAmount = request.Breakdown.TotalValue;

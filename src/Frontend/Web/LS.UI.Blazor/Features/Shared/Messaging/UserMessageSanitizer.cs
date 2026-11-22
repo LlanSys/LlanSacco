@@ -6,8 +6,6 @@ namespace LS.UI.Blazor.Features.Shared.Messaging;
 
 internal static class UserMessageSanitizer
 {
-    public static bool IsDevelopment { get; set; }
-
     private static readonly Regex GuidRegex = new(
         @"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
@@ -63,9 +61,7 @@ internal static class UserMessageSanitizer
 
         if (LooksTechnical(message))
         {
-            return IsDevelopment
-                ? $"[DEV WARNING: Technical Error] {message.Trim()}"
-                : fallback;
+            return fallback;
         }
 
         return message.Trim();

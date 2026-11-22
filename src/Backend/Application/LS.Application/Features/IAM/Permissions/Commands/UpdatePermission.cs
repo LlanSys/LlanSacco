@@ -29,7 +29,7 @@ internal sealed class UpdatePermissionCommandHandler(IIamUnitOfWork unitOfWork, 
             var permission = await unitOfWork.PermissionRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (permission is null)
             {
-                return AppResponses.Failure<PermissionResponse>($"Permission {command.Id} not found.");
+                return AppResponses.NotFound<PermissionResponse>("Permission not found.");
             }
 
             var draft = Permission.Create(
@@ -46,7 +46,7 @@ internal sealed class UpdatePermissionCommandHandler(IIamUnitOfWork unitOfWork, 
 
             if (duplicate)
             {
-                return AppResponses.Failure<PermissionResponse>($"Permission {draft.Key} already exists.");
+                return AppResponses.Conflict<PermissionResponse>($"Permission {draft.Key} already exists.");
             }
 
             permission.Update(

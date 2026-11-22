@@ -31,7 +31,7 @@ internal class RecordCollectionActionCommandHandler(
 
         var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
-            return AppResponses.Failure<Guid>(AppError.BusinessRule("Collection case not found"));
+            return AppResponses.NotFound<Guid>("Collection case not found");
 
         var action = new CollectionAction
         {

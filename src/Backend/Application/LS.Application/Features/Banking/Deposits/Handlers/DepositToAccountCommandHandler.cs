@@ -24,7 +24,7 @@ internal class DepositToAccountCommandHandler(
         var account = await unitOfWork.DepositAccountRepository.FindByIdAsync(command.AccountId, cancellationToken);
         if (account == null)
         {
-            return AppResponses.NotFound<DepositTransactionResponse>($"Deposit account with ID {command.AccountId} not found.");
+            return AppResponses.NotFound<DepositTransactionResponse>("Deposit account not found.");
         }
 
         if (!account.IsActive)

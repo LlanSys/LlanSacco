@@ -25,7 +25,7 @@ internal sealed class DeleteReferenceCatalogItemCommandHandler(IIamUnitOfWork un
             var found = await DeactivateAsync(command, cancellationToken).ConfigureAwait(false);
             if (!found)
             {
-                return AppResponses.Failure<bool>("Reference catalog item was not found.");
+                return AppResponses.NotFound<bool>("Reference catalog item was not found.");
             }
 
             var saved = await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false) > 0;

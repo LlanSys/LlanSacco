@@ -36,7 +36,7 @@ public class AddTenantModuleCommandHandler(
 
         if (tenant == null)
         {
-            return AppResponses.Failure<TenantResponse>("Tenant not found.");
+            return AppResponses.NotFound<TenantResponse>("Tenant not found.");
         }
 
         var moduleKey = request.Request.ModuleKey.Trim();

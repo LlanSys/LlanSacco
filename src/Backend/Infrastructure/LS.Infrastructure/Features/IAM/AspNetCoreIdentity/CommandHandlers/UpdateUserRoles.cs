@@ -22,7 +22,7 @@ internal sealed class UpdateUserRoles(
             var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
             if (user is null)
             {
-                return AppResponses.Failure<UserRolesResponse>("User not found.");
+                return AppResponses.NotFound<UserRolesResponse>("User not found.");
             }
 
             var requestedRoles = command.Request.Roles

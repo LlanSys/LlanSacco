@@ -19,7 +19,7 @@ internal sealed class DeletePermissionCommandHandler(IIamUnitOfWork unitOfWork, 
             var permission = await unitOfWork.PermissionRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (permission is null)
             {
-                return AppResponses.Failure<bool>($"Permission {command.Id} not found.");
+                return AppResponses.NotFound<bool>("Permission not found.");
             }
 
             permission.MarkAsDeleted(command.UserId);

@@ -24,14 +24,14 @@ internal class ResolveCollectionCaseCommandHandler(
     {
         var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
         if (collectionCase == null)
-            return AppResponses.Failure<bool>(AppError.BusinessRule("Collection case not found"));
+            return AppResponses.NotFound<bool>("Collection case not found");
 
         if (collectionCase.Status != CollectionCaseStatus.Open)
             return AppResponses.Failure<bool>(AppError.BusinessRule($"Cannot resolve case in {collectionCase.Status} status"));
 
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(collectionCase.LoanApplicationId, cancellationToken);
         if (loan == null)
-            return AppResponses.Failure<bool>(AppError.BusinessRule("Associated loan application not found"));
+            return AppResponses.NotFound<bool>("Associated loan application not found");
 
         
 

@@ -19,7 +19,7 @@ internal class PostDividendDistributionsCommandHandler(
         var declaration = await uow.DividendDeclarationRepository.FindByIdAsync(request.DeclarationId, cancellationToken);
         
         if (declaration == null)
-            return AppResponses.Failure<bool>("Declaration not found.");
+            return AppResponses.NotFound<bool>("Declaration not found.");
 
         if (declaration.Status != DividendStatus.Approved)
             return AppResponses.Failure<bool>($"Cannot post distributions for a declaration in {declaration.Status} status. Must be {DividendStatus.Approved}.");

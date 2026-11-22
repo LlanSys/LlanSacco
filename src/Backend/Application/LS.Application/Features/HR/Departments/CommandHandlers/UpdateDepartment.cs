@@ -22,7 +22,7 @@ internal sealed class UpdateDepartmentCommandHandler(IHrUnitOfWork unitOfWork, I
             var department = await unitOfWork.DepartmentRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (department is null)
             {
-                return AppResponses.Failure<DepartmentResponse>($"Department {command.Id} not found.");
+                return AppResponses.NotFound<DepartmentResponse>("Department not found.");
             }
 
             var code = request.Code.Trim().ToUpperInvariant();

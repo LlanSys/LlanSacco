@@ -14,6 +14,9 @@ public static class AppResponses
     public static AppResponse<T> Failure<T>(string message, T? data = default)
         => new(AppError.BusinessRule(message)) { Message = message, Data = data };
 
+    public static AppResponse<T> Conflict<T>(string message) =>
+        new(AppError.Conflict(message)) { Message = message };
+
     public static AppResponse<T> NotFound<T>(string message) =>
         new(AppError.NotFound(message));
 

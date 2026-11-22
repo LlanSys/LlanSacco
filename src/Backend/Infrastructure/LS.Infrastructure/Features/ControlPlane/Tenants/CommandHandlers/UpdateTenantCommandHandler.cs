@@ -34,14 +34,14 @@ public class UpdateTenantCommandHandler(
 
         if (tenant == null)
         {
-            return AppResponses.Failure<TenantResponse>("Tenant not found.");
+            return AppResponses.NotFound<TenantResponse>("Tenant not found.");
         }
 
         var duplicateHostName = await _unitOfWork.TenantRepository.AnyAsync(t => t.HostName == request.Request.HostName && t.Id != request.Id, cancellationToken).ConfigureAwait(false);
 
         if (duplicateHostName)
         {
-            return AppResponses.Failure<TenantResponse>("Another tenant with this hostname already exists.");
+            return AppResponses.Conflict<TenantResponse>("Another tenant with this hostname already exists.");
         }
 
         SubscriptionTier parsedTier;

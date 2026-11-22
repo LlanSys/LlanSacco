@@ -32,7 +32,7 @@ internal sealed class CreateMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogge
                 var parent = await unitOfWork.MenuRepository.FindByIdAsync(request.ParentId.Value, cancellationToken).ConfigureAwait(false);
                 if (parent is null)
                 {
-                    return AppResponses.Failure<MenuResponse>("Parent menu not found.");
+                    return AppResponses.NotFound<MenuResponse>("Parent menu not found.");
                 }
 
                 if (!string.Equals(parent.Placement, request.Placement, StringComparison.OrdinalIgnoreCase)
@@ -50,7 +50,7 @@ internal sealed class CreateMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogge
 
             if (duplicate)
             {
-                return AppResponses.Failure<MenuResponse>($"Menu key {menu.Key} already exists.");
+                return AppResponses.Conflict<MenuResponse>($"Menu key {menu.Key} already exists.");
             }
 
             await unitOfWork.MenuRepository.CreateAsync(menu, cancellationToken).ConfigureAwait(false);

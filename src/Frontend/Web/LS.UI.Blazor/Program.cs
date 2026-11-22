@@ -43,7 +43,6 @@ using System.Globalization;
 var builder = WebApplication.CreateBuilder(args);
 ConfigurePlatformAssignedPort(builder.WebHost);
 
-UserMessageSanitizer.IsDevelopment = builder.Environment.IsDevelopment();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

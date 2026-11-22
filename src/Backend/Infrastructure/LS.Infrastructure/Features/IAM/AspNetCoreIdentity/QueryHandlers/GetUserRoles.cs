@@ -15,7 +15,7 @@ internal sealed class GetUserRoles(UserManager<AppUser> userManager)
         var user = await userManager.FindByIdAsync(request.UserId).ConfigureAwait(false);
         if (user is null)
         {
-            return AppResponses.Failure<UserRolesResponse>("User not found.");
+            return AppResponses.NotFound<UserRolesResponse>("User not found.");
         }
 
         var roles = (await userManager.GetRolesAsync(user).ConfigureAwait(false))

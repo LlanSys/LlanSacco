@@ -31,7 +31,7 @@ public class SuspendTenantCommandHandler(
 
         if (tenant == null)
         {
-            return AppResponses.Failure<TenantResponse>("Tenant not found.");
+            return AppResponses.NotFound<TenantResponse>("Tenant not found.");
         }
 
         tenant.Status = TenantStatus.Suspended;

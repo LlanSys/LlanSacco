@@ -36,7 +36,7 @@ internal sealed class GetEmployeeByIdQueryHandler(IHrUnitOfWork unitOfWork)
                 .ConfigureAwait(false) ?? string.Empty;
 
         return employee is null
-            ? AppResponses.Failure<EmployeeResponse>($"Employee {query.Id} not found.")
+            ? AppResponses.NotFound<EmployeeResponse>("Employee not found.")
             : AppResponses.Success("Employee loaded.", employee.ToEmployeeResponse(departmentName, managerName));
     }
 }

@@ -13,10 +13,10 @@ namespace LS.Api.Common.Controllers;
 [ApiController]
 public abstract class BaseController : ControllerBase
 {
-    protected IActionResult HandleResponse<T>(
+    protected ActionResult HandleResponse<T>(
         AppResponse<T> response, 
-        Func<AppResponse<T>, IActionResult>? onSuccess = null,
-        Func<AppError, IActionResult>? onError = null)
+        Func<AppResponse<T>, ActionResult>? onSuccess = null,
+        Func<AppError, ActionResult>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(response);
 
@@ -51,7 +51,7 @@ public abstract class BaseController : ControllerBase
 
             AddDiagnostics(validationProblemDetails, error);
 
-            return StatusCode(statusCode, validationProblemDetails);
+            return ProblemResult(statusCode, validationProblemDetails);
         }
 
         var problemDetails = new ProblemDetails
@@ -68,8 +68,11 @@ public abstract class BaseController : ControllerBase
 
         AddDiagnostics(problemDetails, error);
 
-        return StatusCode(statusCode, problemDetails);
+        return ProblemResult(statusCode, problemDetails);
     }
+
+    private static ObjectResult ProblemResult(int statusCode, ProblemDetails problem)
+        => new(problem) { StatusCode = statusCode, ContentTypes = { "application/problem+json" } };
 
     private static (int StatusCode, string Title) GetHttpMetadata(ErrorType type) =>
         type switch

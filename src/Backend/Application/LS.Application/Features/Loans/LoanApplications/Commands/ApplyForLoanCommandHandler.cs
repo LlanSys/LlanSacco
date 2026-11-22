@@ -30,7 +30,7 @@ internal sealed partial class ApplyForLoanCommandHandler(
         var product = await unitOfWork.LoanProductRepository.FindByIdAsync(request.LoanProductId, cancellationToken).ConfigureAwait(false);
         if (product == null || !product.IsActive)
         {
-            return AppResponses.Failure<Guid>("Loan product not found or is inactive.");
+            return AppResponses.NotFound<Guid>("An active loan product could not be found.");
         }
 
         if (request.PrincipalAmount > product.MaxAmount)

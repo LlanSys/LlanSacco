@@ -32,7 +32,7 @@ internal sealed class DisableTotp(
                 var user = await userManager.FindByIdAsync(command.UserId).ConfigureAwait(false);
                 if (user is null)
                 {
-                    return AppResponses.Failure<bool>("User not found.");
+                    return AppResponses.NotFound<bool>("User not found.");
                 }
 
                 var isEnabled = await userManager.GetTwoFactorEnabledAsync(user).ConfigureAwait(false);

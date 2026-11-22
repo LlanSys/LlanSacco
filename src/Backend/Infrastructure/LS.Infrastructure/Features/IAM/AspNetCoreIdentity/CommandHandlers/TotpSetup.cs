@@ -32,7 +32,7 @@ internal sealed class InitiateTotpSetupCommandHandler(
             var user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
             if (user == null)
             {
-                return AppResponses.Failure<TwoFactorSetupInfo>("User not found.");
+                return AppResponses.NotFound<TwoFactorSetupInfo>("User not found.");
             }
 
             await iamUnitOfWork.TempTotpSecretRepository.DeleteUserTempSecretsAsync(userId, cancellationToken).ConfigureAwait(false);

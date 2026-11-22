@@ -37,7 +37,7 @@ internal sealed partial class MigrateTenantStampCommandHandler(
         var tenant = await _unitOfWork.TenantRepository.FindByIdAsync(request.TenantId, cancellationToken).ConfigureAwait(false);
         if (tenant == null)
         {
-            return AppResponses.Failure<bool>("Tenant not found.");
+            return AppResponses.NotFound<bool>("Tenant not found.");
         }
 
         var oldStampId = tenant.DeploymentStampId;

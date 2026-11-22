@@ -19,7 +19,7 @@ internal sealed class DeleteMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogge
             var menu = await unitOfWork.MenuRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (menu is null)
             {
-                return AppResponses.Failure<bool>($"Menu {command.Id} not found.");
+                return AppResponses.NotFound<bool>("Menu not found.");
             }
 
             var hasChildren = await unitOfWork.MenuRepository

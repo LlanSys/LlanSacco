@@ -20,7 +20,7 @@ internal sealed class CreateOrgSettingHandler(
         
         if (existingSetting != null)
         {
-            return AppResponses.Failure<OrgSettingResponse>($"A setting with key '{request.Request.Key}' already exists.");
+            return AppResponses.Conflict<OrgSettingResponse>($"A setting with key '{request.Request.Key}' already exists.");
         }
 
         var setting = new OrgSetting(

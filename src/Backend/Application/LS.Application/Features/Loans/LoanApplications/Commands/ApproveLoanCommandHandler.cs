@@ -23,7 +23,7 @@ internal sealed partial class ApproveLoanCommandHandler(
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken).ConfigureAwait(false);
         if (loan == null)
         {
-            return AppResponses.Failure<bool>("Loan application not found.");
+            return AppResponses.NotFound<bool>("Loan application not found.");
         }
 
         if (loan.Status != LoanStatus.Submitted)

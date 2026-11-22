@@ -26,7 +26,7 @@ internal sealed class EndImpersonationCommandHandler(
         
         if (record == null)
         {
-            return AppResponses.Failure<bool>("Impersonation record not found");
+            return AppResponses.NotFound<bool>("Impersonation record not found");
         }
 
         if (record.ActorId != actorProvider.ActorId)

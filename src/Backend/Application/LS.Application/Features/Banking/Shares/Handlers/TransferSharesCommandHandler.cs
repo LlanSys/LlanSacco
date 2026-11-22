@@ -32,7 +32,7 @@ internal partial class TransferSharesCommandHandler(
             .ConfigureAwait(false);
 
         if (product == null)
-            return AppResponses.Failure<Guid>("Share product not found.");
+            return AppResponses.NotFound<Guid>("Share product not found.");
 
         decimal totalValue = request.NumberOfShares * product.PricePerShare;
 

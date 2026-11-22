@@ -34,7 +34,7 @@ internal partial class PurchaseSharesCommandHandler(
                 var priorAccount = await unitOfWork.ShareAccountRepository.FirstOrDefaultAsync(a => a.TenantId == tenantId && a.Id == prior.ShareAccountId, cancellationToken);
                 return priorAccount is not null && priorAccount.MemberId == request.MemberId && priorAccount.ShareProductId == request.ShareProductId && prior.TotalAmount == request.Amount
                     ? AppResponses.Success(prior.Id)
-                    : AppResponses.Failure<Guid>("This reference is already associated with different share purchase details.");
+                    : AppResponses.Conflict<Guid>("This reference is already associated with different share purchase details.");
             }
         }
         var product = await unitOfWork.ShareProductRepository.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == request.ShareProductId, cancellationToken);

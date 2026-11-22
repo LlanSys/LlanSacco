@@ -15,7 +15,7 @@ internal sealed class GetRolePermissions(RoleManager<AppRole> roleManager)
         var role = await roleManager.FindByIdAsync(request.RoleId).ConfigureAwait(false);
         if (role is null)
         {
-            return AppResponses.Failure<RolePermissionsResponse>("Role not found.");
+            return AppResponses.NotFound<RolePermissionsResponse>("Role not found.");
         }
 
         var permissionKeys = (await roleManager.GetClaimsAsync(role).ConfigureAwait(false))

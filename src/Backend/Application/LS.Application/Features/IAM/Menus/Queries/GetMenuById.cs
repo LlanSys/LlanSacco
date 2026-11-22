@@ -20,7 +20,7 @@ internal sealed class GetMenuByIdQueryHandler(IIamUnitOfWork unitOfWork, ILogger
         {
             var menu = await unitOfWork.MenuRepository.FindByIdAsync(query.Id, cancellationToken).ConfigureAwait(false);
             return menu is null
-                ? AppResponses.Failure<MenuResponse>($"Menu {query.Id} not found.")
+                ? AppResponses.NotFound<MenuResponse>("Menu not found.")
                 : AppResponses.Success(menu.ToMenuResponse());
         }
         catch (Exception ex)

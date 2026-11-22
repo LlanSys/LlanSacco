@@ -1,19 +1,16 @@
-using LS.Infrastructure.Contracts.Implementations.Common;
-using LS.Domain.Features.Accounting.Contracts;
 using LS.Application.Features.Accounting.Contracts.Interfaces;
-using LS.SharedKernel.Features.Accounting.Dtos;
+using LS.Domain.Features.Accounting.Contracts;
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Shared.Contracts.Common;
+using LS.Infrastructure.Contracts.Implementations.Common;
+using LS.SharedKernel.Features.Accounting.Dtos;
 using MassTransit;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace LS.Infrastructure.Messaging.Consumers.Accounting;
 
-public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> where TEvent : class, IIntegrationEvent
+public abstract partial class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> where TEvent : class, IIntegrationEvent
 {
     protected readonly IAccountingUnitOfWork _unitOfWork;
     protected readonly ILedgerService _ledgerService;
@@ -23,7 +20,8 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
     protected AccountingEventHandlerBase(
         IAccountingUnitOfWork unitOfWork,
         ILedgerService ledgerService,
-        ILogger logger, BackgroundExecutionContext executionContext)
+        ILogger logger,
+        BackgroundExecutionContext executionContext)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
@@ -35,7 +33,7 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
     {
         var evt = context.Message;
         _executionContext.Initialize(GetTenantId(evt), ICurrentActorProvider.SystemActor);
-        
+
         try
         {
             var transactionTypeCode = GetTransactionTypeCode(evt);
@@ -43,49 +41,59 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
                 .FirstOrDefaultAsync(m => m.TransactionTypeCode == transactionTypeCode, context.CancellationToken)
                 .ConfigureAwait(false);
 
-            if (mapping == null)
+            if (mapping is null)
             {
-                throw new InvalidOperationException($"No GL mapping found for transaction type {transactionTypeCode}");
+                await RecordFailureAsync(context, "No ledger mapping is configured for the transaction type.").ConfigureAwait(false);
+                return;
             }
 
             var entries = await CreateJournalEntriesAsync(evt, mapping).ConfigureAwait(false);
-
-            await _ledgerService.PostJournalAsync(
+            var result = await _ledgerService.PostJournalAsync(
                 referenceNumber: GetReferenceNumber(evt),
                 description: GetDescription(evt),
                 transactionDate: evt.OccurredAt,
                 entries: entries,
                 createdBy: ICurrentActorProvider.SystemActor,
-                cancellationToken: context.CancellationToken
-            ).ConfigureAwait(false);
-            
-            _logger.LogInformation("Successfully posted GL for {EventType} {EventId}", typeof(TEvent).Name, context.MessageId);
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Expected mapping errors -> DLQ
-            _logger.LogError(ex, "Failed to process GL mapping for {EventType} {EventId}. Moving to DLQ.", typeof(TEvent).Name, context.MessageId);
-            
-            var error = new AccountingIntegrationError
+                cancellationToken: context.CancellationToken).ConfigureAwait(false);
+
+            if (!result.IsSuccess)
             {
-                TenantId = GetTenantId(evt),
-                EventId = context.MessageId ?? Guid.Empty,
-                EventType = typeof(TEvent).Name,
-                EventPayload = JsonSerializer.Serialize(evt),
-                ErrorMessage = ex.Message,
-                Status = "Failed",
-                OccurredAt = DateTimeOffset.UtcNow,
-                CreatedBy = ICurrentActorProvider.SystemActor
-            };
-            
-            await _unitOfWork.AccountingIntegrationErrorRepository.CreateAsync(error, context.CancellationToken).ConfigureAwait(false);
-            await _unitOfWork.CompleteAsync(context.CancellationToken).ConfigureAwait(false);
+                await RecordFailureAsync(context, result.Error?.Message ?? "The journal could not be posted.").ConfigureAwait(false);
+                return;
+            }
+
+            LogPosted(_logger, typeof(TEvent).Name, context.MessageId);
+        }
+        catch (LedgerMappingException ex)
+        {
+            await RecordFailureAsync(context, ex.Message).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error processing GL mapping for {EventType} {EventId}", typeof(TEvent).Name, context.MessageId);
-            throw; // Let MassTransit retry other unexpected errors
+            LogUnexpectedFailure(_logger, typeof(TEvent).Name, context.MessageId, ex);
+            throw;
         }
+    }
+
+    private async Task RecordFailureAsync(ConsumeContext<TEvent> context, string message)
+    {
+        var evt = context.Message;
+        var eventType = typeof(TEvent).Name;
+        LogRejected(_logger, eventType, context.MessageId, message);
+        var error = new AccountingIntegrationError
+        {
+            TenantId = GetTenantId(evt),
+            EventId = context.MessageId ?? Guid.Empty,
+            EventType = eventType,
+            EventPayload = JsonSerializer.Serialize(evt),
+            ErrorMessage = message,
+            Status = "Failed",
+            OccurredAt = DateTimeOffset.UtcNow,
+            CreatedBy = ICurrentActorProvider.SystemActor
+        };
+
+        await _unitOfWork.AccountingIntegrationErrorRepository.CreateAsync(error, context.CancellationToken).ConfigureAwait(false);
+        await _unitOfWork.CompleteAsync(context.CancellationToken).ConfigureAwait(false);
     }
 
     protected abstract string GetTransactionTypeCode(TEvent evt);
@@ -95,13 +103,22 @@ public abstract class AccountingEventHandlerBase<TEvent> : IConsumer<TEvent> whe
     protected abstract Task<IEnumerable<CreateJournalEntryDto>> CreateJournalEntriesAsync(TEvent evt, TransactionTypeGlMapping mapping);
 
     protected Guid ResolveAccountId(string source, Guid? explicitId, Guid? channelId, Guid? productId)
-    {
-        return source switch
+        => source switch
         {
-            "EXPLICIT_GL" => explicitId ?? throw new InvalidOperationException("Explicit GL Account ID is null"),
-            "CHANNEL_ACCOUNT" => channelId ?? throw new InvalidOperationException("Channel Account ID is null"),
-            "PRODUCT_ACCOUNT" => productId ?? throw new InvalidOperationException("Product Account ID is null"),
-            _ => throw new InvalidOperationException($"Unknown GL source {source}")
+            "EXPLICIT_GL" => explicitId ?? throw new LedgerMappingException("The explicit ledger account is missing."),
+            "CHANNEL_ACCOUNT" => channelId ?? throw new LedgerMappingException("The payment channel ledger account is missing."),
+            "PRODUCT_ACCOUNT" => productId ?? throw new LedgerMappingException("The product ledger account is missing."),
+            _ => throw new LedgerMappingException("The ledger account source is unsupported.")
         };
-    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Posted ledger event {EventType} {EventId}")]
+    private static partial void LogPosted(ILogger logger, string eventType, Guid? eventId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Ledger event {EventType} {EventId} rejected: {Reason}")]
+    private static partial void LogRejected(ILogger logger, string eventType, Guid? eventId, string reason);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Unexpected failure posting ledger event {EventType} {EventId}")]
+    private static partial void LogUnexpectedFailure(ILogger logger, string eventType, Guid? eventId, Exception exception);
+
+    private sealed class LedgerMappingException(string message) : Exception(message);
 }

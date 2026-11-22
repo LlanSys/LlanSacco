@@ -280,7 +280,7 @@ internal sealed class SessionService(
 
             if (session == null || session.AppUserId != userId)
             {
-                return AppResponses.Failure<bool>("Session not found");
+                return AppResponses.NotFound<bool>("Session not found");
             }
 
             if (!session.IsActive)
@@ -349,7 +349,7 @@ internal sealed class SessionService(
 
             if (session == null)
             {
-                return AppResponses.Failure<bool>("Session not found");
+                return AppResponses.NotFound<bool>("Session not found");
             }
 
             if (!session.IsActive)

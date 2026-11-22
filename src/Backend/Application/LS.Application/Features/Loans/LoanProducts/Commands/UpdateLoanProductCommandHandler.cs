@@ -19,7 +19,7 @@ internal sealed partial class UpdateLoanProductCommandHandler(
         var loanProduct = await unitOfWork.LoanProductRepository.FindByIdAsync(request.Id, cancellationToken);
         if (loanProduct == null)
         {
-            return AppResponses.Failure<bool>("Loan product not found.");
+            return AppResponses.NotFound<bool>("Loan product not found.");
         }
 
         loanProduct.ProductName = request.ProductName;

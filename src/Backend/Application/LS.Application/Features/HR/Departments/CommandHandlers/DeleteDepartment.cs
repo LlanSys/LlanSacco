@@ -19,7 +19,7 @@ internal sealed class DeleteDepartmentCommandHandler(IHrUnitOfWork unitOfWork, I
             var department = await unitOfWork.DepartmentRepository.FindByIdAsync(command.Id, cancellationToken).ConfigureAwait(false);
             if (department is null)
             {
-                return AppResponses.Failure<bool>($"Department {command.Id} not found.");
+                return AppResponses.NotFound<bool>("Department not found.");
             }
 
             var hasEmployees = await unitOfWork.EmployeeRepository

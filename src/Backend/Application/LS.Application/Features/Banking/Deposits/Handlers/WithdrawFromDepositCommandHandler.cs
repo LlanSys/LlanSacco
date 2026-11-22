@@ -24,7 +24,7 @@ internal class WithdrawFromDepositCommandHandler(
             
         if (account == null)
         {
-            return AppResponses.NotFound<DepositTransactionResponse>($"Deposit account with ID {command.AccountId} not found.");
+            return AppResponses.NotFound<DepositTransactionResponse>("Deposit account not found.");
         }
 
         if (!account.IsActive)
@@ -40,7 +40,7 @@ internal class WithdrawFromDepositCommandHandler(
         var product = await unitOfWork.DepositProductRepository.FindByIdAsync(account.DepositProductId, cancellationToken);
         if (product == null)
         {
-            return AppResponses.Failure<DepositTransactionResponse>("Deposit product associated with this account not found.");
+            return AppResponses.NotFound<DepositTransactionResponse>("Deposit product associated with this account not found.");
         }
 
         // Penalty Engine check

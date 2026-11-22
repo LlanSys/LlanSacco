@@ -121,7 +121,9 @@ else if (Batch != null)
         var response = await CheckOffService.ValidateBatchAsync(BatchId);
         if (response.IsSuccess)
         {
-            Snackbar.Add("Batch validated successfully.", Severity.Success);
+            Snackbar.Add(
+                response.Message ?? (response.Data ? "Batch validated successfully." : "Validation finished with rejected rows."),
+                response.Data ? Severity.Success : Severity.Warning);
             await LoadBatch();
         }
         else

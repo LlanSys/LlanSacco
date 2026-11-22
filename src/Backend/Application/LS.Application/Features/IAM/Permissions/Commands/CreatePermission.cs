@@ -40,7 +40,7 @@ internal sealed class CreatePermissionCommandHandler(IIamUnitOfWork unitOfWork, 
 
             if (duplicate)
             {
-                return AppResponses.Failure<PermissionResponse>($"Permission {permission.Key} already exists.");
+                return AppResponses.Conflict<PermissionResponse>($"Permission {permission.Key} already exists.");
             }
 
             await unitOfWork.PermissionRepository.CreateAsync(permission, cancellationToken).ConfigureAwait(false);

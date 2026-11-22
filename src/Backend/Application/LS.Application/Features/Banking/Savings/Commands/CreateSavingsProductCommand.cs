@@ -39,7 +39,7 @@ internal class CreateSavingsProductCommandHandler(
             
         if (exists)
         {
-            return AppResponses.Failure<SavingsProductResponse>($"A savings product with code '{request.Code}' already exists.");
+            return AppResponses.Conflict<SavingsProductResponse>($"A savings product with code '{request.Code}' already exists.");
         }
 
         var product = SavingsProduct.Create(

@@ -20,7 +20,7 @@ internal sealed class GetPermissionByIdQueryHandler(IIamUnitOfWork unitOfWork, I
         {
             var permission = await unitOfWork.PermissionRepository.FindByIdAsync(query.Id, cancellationToken).ConfigureAwait(false);
             return permission is null
-                ? AppResponses.Failure<PermissionResponse>($"Permission {query.Id} not found.")
+                ? AppResponses.NotFound<PermissionResponse>("Permission not found.")
                 : AppResponses.Success(permission.ToPermissionResponse());
         }
         catch (Exception ex)

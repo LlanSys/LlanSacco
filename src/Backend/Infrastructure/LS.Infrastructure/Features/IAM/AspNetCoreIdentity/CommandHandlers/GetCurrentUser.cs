@@ -31,11 +31,11 @@ internal sealed class GetCurrentUser(
         {
             var userId = httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(userId))
-                return AppResponses.Failure<CurrentUserResponse>("User not found.");
+                return AppResponses.NotFound<CurrentUserResponse>("User not found.");
 
             var appUser = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
             if (appUser == null)
-                return AppResponses.Failure<CurrentUserResponse>("User not found.");
+                return AppResponses.NotFound<CurrentUserResponse>("User not found.");
 
             var roles = await userManager.GetRolesAsync(appUser).ConfigureAwait(false);
             var rolesList = roles.ToList();

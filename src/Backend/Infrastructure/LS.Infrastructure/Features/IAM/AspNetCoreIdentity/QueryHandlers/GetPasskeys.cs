@@ -32,7 +32,7 @@ internal sealed class GetPasskeys(
 
         if (user == null)
         {
-            return AppResponses.Failure<IReadOnlyList<PasskeyResponse>>("User not found.");
+            return AppResponses.NotFound<IReadOnlyList<PasskeyResponse>>("User not found.");
         }
 
         var passkeys = user.Fido2Credentials

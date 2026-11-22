@@ -62,7 +62,7 @@ internal sealed class CreateAppUser(
                         .ConfigureAwait(false);
 
                     if (alreadyLinked)
-                        return AppResponses.Failure<AppUserResponse>("A user account already exists for this employee.");
+                        return AppResponses.Conflict<AppUserResponse>("A user account already exists for this employee.");
                 }
 
                 if (req.MemberId is Guid memberId)
@@ -78,7 +78,7 @@ internal sealed class CreateAppUser(
                         .ConfigureAwait(false);
 
                     if (alreadyLinked)
-                        return AppResponses.Failure<AppUserResponse>("A user account already exists for this member.");
+                        return AppResponses.Conflict<AppUserResponse>("A user account already exists for this member.");
                 }
 
                 var emailOrUsernameExists = await userManager.Users
@@ -87,7 +87,7 @@ internal sealed class CreateAppUser(
                     .ConfigureAwait(false);
 
                 if (emailOrUsernameExists)
-                    return AppResponses.Failure<AppUserResponse>("An account with this username or email already exists.");
+                    return AppResponses.Conflict<AppUserResponse>("An account with this username or email already exists.");
 
                 var appUser = employee is not null
                     ? AppUser.CreateForEmployee(

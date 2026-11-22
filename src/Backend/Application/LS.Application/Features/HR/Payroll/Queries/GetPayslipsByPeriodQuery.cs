@@ -19,7 +19,7 @@ internal class GetPayslipsByPeriodQueryHandler(IHrUnitOfWork unitOfWork) : IRequ
         var period = await unitOfWork.PayrollPeriodRepository.FindByIdAsync(request.PayrollPeriodId, cancellationToken);
         if (period == null)
         {
-            return new AppResponse<IEnumerable<PayslipResponse>> { IsSuccess = false, Message = "Payroll period not found." };
+            return AppResponses.NotFound<IEnumerable<PayslipResponse>>("Payroll period not found.");
         }
 
         var payslips = await unitOfWork.PayslipRepository.ListAsync(q => q.Where(p => p.PayrollPeriodId == request.PayrollPeriodId), cancellationToken);

@@ -41,14 +41,14 @@ public class CreateTenantCommandHandler(
 
         if (existingTenant)
         {
-            return AppResponses.Failure<TenantResponse>("A tenant with this identifier or hostname already exists.");
+            return AppResponses.Conflict<TenantResponse>("A tenant with this identifier or hostname already exists.");
         }
 
         var stamp = await _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(s => s.Id == req.DeploymentStampId, cancellationToken).ConfigureAwait(false);
 
         if (stamp == null)
         {
-            return AppResponses.Failure<TenantResponse>("The specified Deployment Stamp does not exist.");
+            return AppResponses.NotFound<TenantResponse>("The specified Deployment Stamp does not exist.");
         }
 
         SubscriptionTier parsedTier;

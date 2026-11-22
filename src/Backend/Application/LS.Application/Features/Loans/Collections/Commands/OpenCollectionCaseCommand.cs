@@ -32,7 +32,7 @@ internal class OpenCollectionCaseCommandHandler(
         // Retrieve LoanApplication
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken);
         if (loan == null)
-            return AppResponses.Failure<Guid>(AppError.BusinessRule("Loan application not found"));
+            return AppResponses.NotFound<Guid>("Loan application not found");
 
         if (loan.Status != LoanStatus.Active && loan.Status != LoanStatus.Arrears)
             return AppResponses.Failure<Guid>(AppError.BusinessRule($"Cannot open collection case for loan in {loan.Status} status"));

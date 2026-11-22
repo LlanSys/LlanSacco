@@ -97,7 +97,7 @@ public sealed class CreateTenantCommandHandlerTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("does not exist", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not exist", result.Error?.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

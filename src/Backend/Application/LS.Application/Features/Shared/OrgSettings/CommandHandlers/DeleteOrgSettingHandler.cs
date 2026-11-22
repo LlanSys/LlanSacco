@@ -14,7 +14,7 @@ internal sealed class DeleteOrgSettingHandler(ISharedUnitOfWork unitOfWork)
         var setting = await unitOfWork.OrgSettingRepository.FindByIdAsync(request.Id, cancellationToken).ConfigureAwait(false);
         
         if (setting is null)
-            return AppResponses.Failure<bool>("Tenant setting not found.");
+            return AppResponses.NotFound<bool>("Tenant setting not found.");
 
         await unitOfWork.OrgSettingRepository.DeleteAsync(setting.Id, cancellationToken).ConfigureAwait(false);
         await unitOfWork.CompleteAsync(cancellationToken).ConfigureAwait(false);

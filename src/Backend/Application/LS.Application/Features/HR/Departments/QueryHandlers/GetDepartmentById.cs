@@ -20,7 +20,7 @@ internal sealed class GetDepartmentByIdQueryHandler(IHrUnitOfWork unitOfWork, IL
         {
             var department = await unitOfWork.DepartmentRepository.FindByIdAsync(query.Id, cancellationToken).ConfigureAwait(false);
             return department is null
-                ? AppResponses.Failure<DepartmentResponse>($"Department {query.Id} not found.")
+                ? AppResponses.NotFound<DepartmentResponse>("Department not found.")
                 : AppResponses.Success(department.ToDepartmentResponse());
         }
         catch (Exception ex)

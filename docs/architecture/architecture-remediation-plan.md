@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-22. Phases 0–2 are on main. Phase 3 is complete for review. Phases 4–7 remain pending.
+Status reviewed 2026-11-22. Phases 0–3 are on main. Phase 4 is complete for review. Phases 5–7 remain pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -150,6 +150,8 @@ Gate: focused unit plus PostgreSQL and SQL Server integration tests prove saved 
 
 Gate: HTTP contract tests prove expected status/error codes and sanitization; no expected missing-record/business rejection becomes an accidental 500.
 
+The [Phase 4 verification report](phase-4-verification.md) records the response and CheckOff decisions, the tests, and the reduced debt register.
+
 ### Phase 5 - Behaviour And Cache Coverage
 
 1. Inventory every MediatR request and every writer by context. Record query policy as cached or explicitly bypassed/uncached with reason, TTL, tenant/user/permission scope, filter/page discriminator, and affected invalidators. Financial freshness and sensitive user-specific reads require deliberate decisions.
@@ -220,7 +222,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 1: Standards and regression controls (all four items complete; see [Phase 1 evidence](phase-1-verification.md). Legacy remediation remains assigned to later phases.)
 - [x] Phase 2: Persistence/financial correctness (all five items complete; see [Phase 2 evidence](phase-2-verification.md).)
 - [x] Phase 3: Repository/UoW alignment ([verification report](phase-3-verification.md))
-- [ ] Phase 4: AppResponse alignment
+- [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
 - [ ] Phase 5: Behaviours and caching
 - [ ] Phase 6: Validators and slice layout
 - [ ] Phase 7: Full closure

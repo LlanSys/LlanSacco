@@ -18,7 +18,7 @@ internal sealed class UpdateRole(RoleManager<AppRole> roleManager, ILogger<Updat
             var role = await roleManager.FindByIdAsync(command.RoleId).ConfigureAwait(false);
             if (role is null)
             {
-                return AppResponses.Failure<AdminRoleListResponse>("Role not found.");
+                return AppResponses.NotFound<AdminRoleListResponse>("Role not found.");
             }
 
             var name = command.Request.Name.Trim();

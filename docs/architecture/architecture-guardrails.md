@@ -29,6 +29,12 @@ SourceArchitectureRules resolves C# symbols through Roslyn, including aliases an
 
 CreateOrder.cs may contain the public CreateOrderCommand and internal CreateOrderCommandHandler. This does not waive validator separation, permit an unrelated public type, or rename the handler type to CreateOrder. Queries are not automatically forced into the command pairing rule. Generated .g.cs/.Designer.cs or auto-generated source is excluded from authored-source layout checks; entire Platforms or feature directories are not excluded. EF Migration subclasses may use a 14-digit timestamp followed by their exact type name; their authored bodies remain inspected.
 
+## Split Command Contracts
+
+Use the exact entries in command-layout-exceptions.json for requests whose handlers remain in the IAM or Control Plane infrastructure adapters. Each entry names the request type and source file, the handler type and source file, and the boundary reason. The architecture gate checks the live layout finding, the handler declaration, and its compiled MediatR request interface. A request moved into a normal Application slice must leave the exception register.
+
+Application DI scans internal validators. Runtime checks resolve the registered validators and prove that the MediatR validation behaviour rejects invalid input before handler execution.
+
 ## Exact Legacy Debt
 
 architecture-debt.json is the reviewed occurrence register. Every entry identifies a rule, portable source path, symbol, line, concrete evidence, and owning remediation phase. The identity uses rule/path/symbol/evidence; line numbers are informational so moving an unchanged declaration does not hide or invent debt. The current locations are emitted on every run into artifacts/architecture-inventory.

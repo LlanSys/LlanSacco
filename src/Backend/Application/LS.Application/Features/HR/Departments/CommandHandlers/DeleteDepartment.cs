@@ -7,7 +7,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.HR.Departments.CommandHandlers;
 
+public sealed record DeleteDepartmentCommand(Guid Id, string UserId)
+    : IRequest<AppResponse<bool>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("departments", Id.ToString())];
 
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("departments")];
+}
 
 internal sealed class DeleteDepartmentCommandHandler(IHrUnitOfWork unitOfWork, ILogger<DeleteDepartmentCommandHandler> logger)
     : IRequestHandler<DeleteDepartmentCommand, AppResponse<bool>>

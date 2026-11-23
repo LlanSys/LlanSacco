@@ -7,7 +7,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.Permissions.Commands;
 
+public sealed record DeletePermissionCommand(Guid Id, string UserId)
+    : IRequest<AppResponse<bool>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("permissions", Id.ToString())];
 
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("permissions")];
+}
 
 internal sealed class DeletePermissionCommandHandler(IIamUnitOfWork unitOfWork, ILogger<DeletePermissionCommandHandler> logger)
     : IRequestHandler<DeletePermissionCommand, AppResponse<bool>>

@@ -6,5 +6,5 @@ public sealed class ApplyForLoanRequest
     public Guid LoanProductId { get; set; }
     public decimal PrincipalAmount { get; set; }
     public int TermInMonths { get; set; }
-    public List<LoanGuarantorInputDto> Guarantors { get; set; } = [];
+    public List<LoanGuarantorRequest> Guarantors { get; set; } = [];
 }

@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-22. Phases 0–4 are on main. Phase 5 is implemented and verified locally. Phases 6–7 remain pending.
+Status reviewed 2026-11-23. Phases 0–5 are on main. Phase 6 is complete for review. Phase 7 remains pending.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -165,7 +165,7 @@ The [Phase 4 verification report](phase-4-verification.md) records the response 
 
 Gate: DI-level tests prove participation and ordering; integration tests prove stale data is invalidated, tenants/users cannot share unintended entries, failures are not cached, rejected commands do not invalidate, and cache faults cannot trigger duplicate writes.
 
-**Verified locally.** All 126 cache findings were resolved and all cache and tenant routing regressions passed. See the [Phase 5 verification report](phase-5-verification.md) for the inventory, local evidence and pending PR.
+**Merged.** [PR #9](https://github.com/LlanSys/LlanSacco/pull/9) passed Required / Remediation and resolved all 126 cache findings. See the [Phase 5 verification report](phase-5-verification.md) for the inventory and runtime evidence.
 
 ### Phase 6 - Validator Extraction And Slice Layout
 
@@ -175,6 +175,8 @@ Gate: DI-level tests prove participation and ordering; integration tests prove s
 4. Apply feature ownership and Request/Response transport naming cleanup with serialization/consumer checks. Replace free-form logs in affected paths with LoggerMessage definitions.
 
 Gate: all validators are standalone, all relevant input writes validate at runtime, operation files follow the default or carry reviewed exceptions, and public-type guardrails still reject unrelated bundling.
+
+**Complete for review.** All 181 Phase 6 findings are resolved. The runtime inventory confirms validator discovery and early rejection for input-bearing commands. Both relocated Dividends provider models match their snapshots. See the [Phase 6 verification report](phase-6-verification.md).
 
 ### Phase 7 - Full Closure
 
@@ -226,7 +228,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 3: Repository/UoW alignment ([verification report](phase-3-verification.md))
 - [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
 - [x] Phase 5: Behaviours and caching ([local verification report](phase-5-verification.md))
-- [ ] Phase 6: Validators and slice layout
+- [x] Phase 6: Validators and slice layout ([verification report](phase-6-verification.md))
 - [ ] Phase 7: Full closure
 
 Checked items mean implemented and supported by the cited evidence; they do not mean merged or deployed. Unchecked items with completed substeps remain open until their remaining scope is verified. Phases 3-7 have not been marked complete merely because Phase 2 made isolated improvements in those areas.

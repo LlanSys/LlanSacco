@@ -9,9 +9,9 @@ namespace LS.UI.Maui.WinUI;
 /// Provides application-specific behavior to supplement the default Application class.
 /// </summary>
 #pragma warning disable CA1515
-public partial class MauiWinUIApp : MauiWinUIApplication
+public partial class App : MauiWinUIApplication
 {
-    public MauiWinUIApp()
+    public App()
     {
         InitializeComponent();
     }

@@ -1,0 +1,73 @@
+using LS.Domain.Features.Loans.Collections.Enums;
+using LS.Domain.Features.Loans.Contracts;
+using LS.Domain.Features.Loans.Enums;
+using LS.SharedKernel.Dtos.Common;
+using MediatR;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace LS.Application.Features.Loans.Collections.Commands;
+
+public record ResolveCollectionCaseCommand(
+    Guid CollectionCaseId,
+    string ResolutionReason
+) : IRequest<AppResponse<bool>>;
+
+internal partial class ResolveCollectionCaseCommandHandler(
+    ILoansUnitOfWork unitOfWork,
+    ILogger<ResolveCollectionCaseCommandHandler> logger
+) : IRequestHandler<ResolveCollectionCaseCommand, AppResponse<bool>>
+{
+    public async Task<AppResponse<bool>> Handle(ResolveCollectionCaseCommand request, CancellationToken cancellationToken)
+    {
+        var collectionCase = await unitOfWork.CollectionCaseRepository.FindByIdAsync(request.CollectionCaseId, cancellationToken);
+        if (collectionCase == null)
+            return AppResponses.NotFound<bool>("Collection case not found");
+
+        if (collectionCase.Status != CollectionCaseStatus.Open)
+            return AppResponses.Failure<bool>(AppError.BusinessRule($"Cannot resolve case in {collectionCase.Status} status"));
+
+        var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(collectionCase.LoanApplicationId, cancellationToken);
+        if (loan == null)
+            return AppResponses.NotFound<bool>("Associated loan application not found");
+
+        
+
+        try
+        {
+            collectionCase.Status = CollectionCaseStatus.Resolved;
+            collectionCase.ResolvedAt = DateTimeOffset.UtcNow;
+            collectionCase.ResolutionReason = request.ResolutionReason;
+
+            await unitOfWork.CollectionCaseRepository.UpdateAsync(collectionCase, cancellationToken);
+
+            // Revert loan status to active if arrears cleared
+            if (loan.Status == LoanStatus.Arrears)
+            {
+                loan.Status = LoanStatus.Active;
+                await unitOfWork.LoanApplicationRepository.UpdateAsync(loan, cancellationToken);
+            }
+
+            await unitOfWork.CompleteAsync(cancellationToken);
+            
+
+            LogCaseResolved(logger, request.CollectionCaseId, loan.Id);
+
+            return AppResponses.Success<bool>(true);
+        }
+        catch (Exception ex)
+        {
+            
+            LogResolutionFailed(logger, ex, request.CollectionCaseId);
+            return AppResponses.Failure<bool>(AppError.BusinessRule("Failed to resolve collection case"));
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Resolved collection case {CaseId} for loan {LoanId}")]
+    private static partial void LogCaseResolved(ILogger logger, Guid caseId, Guid loanId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to resolve collection case {CaseId}")]
+    private static partial void LogResolutionFailed(ILogger logger, Exception exception, Guid caseId);
+}

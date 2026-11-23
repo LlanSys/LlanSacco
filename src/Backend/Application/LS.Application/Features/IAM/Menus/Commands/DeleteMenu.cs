@@ -7,7 +7,12 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.Menus.Commands;
 
-
+public sealed record DeleteMenuCommand(Guid Id, string UserId)
+    : IRequest<AppResponse<bool>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("menus", Id.ToString())];
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("menus")];
+}
 
 internal sealed class DeleteMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogger<DeleteMenuCommandHandler> logger)
     : IRequestHandler<DeleteMenuCommand, AppResponse<bool>>

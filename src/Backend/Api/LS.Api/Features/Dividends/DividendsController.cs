@@ -3,6 +3,7 @@ using LS.Api.Common.Controllers;
 using LS.Application.Features.Dividends.Commands;
 using LS.Application.Features.Dividends.Queries;
 using LS.SharedKernel.Dtos.Dividends;
+using LS.SharedKernel.Features.Dividends.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -19,7 +20,7 @@ public class DividendsController(IMediator mediator) : BaseController
 {
     [HttpGet("declarations")]
     [Authorize(Policy = "ControlPlane.Manage")]
-    [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendDeclarationDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendDeclarationResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDeclarations()
     {
         var result = await mediator.Send(new GetDividendDeclarationsQuery());
@@ -28,7 +29,7 @@ public class DividendsController(IMediator mediator) : BaseController
 
     [HttpGet("declarations/{declarationId:guid}")]
     [Authorize(Policy = "ControlPlane.Manage")]
-    [ProducesResponseType(typeof(AppResponse<DividendDeclarationDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<DividendDeclarationResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDeclarationById([FromRoute] Guid declarationId)
     {
@@ -37,7 +38,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("preferences")]
-    [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendPreferenceDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendPreferenceResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPreferences()
     {
         var result = await mediator.Send(new GetDividendPreferencesQuery());

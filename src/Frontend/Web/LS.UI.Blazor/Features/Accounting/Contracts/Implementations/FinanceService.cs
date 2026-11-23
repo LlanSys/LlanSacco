@@ -26,7 +26,7 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
         );
     }
 
-    public Task<AppResponse<IncomeStatementDto>> GetIncomeStatementAsync(DateTimeOffset? startDate, DateTimeOffset? endDate)
+    public Task<AppResponse<IncomeStatementResponse>> GetIncomeStatementAsync(DateTimeOffset? startDate, DateTimeOffset? endDate)
     {
         var url = "api/v1.0/finance/income-statement";
         
@@ -39,13 +39,13 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
             url += "?" + string.Join("&", queryParams);
         }
 
-        return apiClient.SendAsync<IncomeStatementDto>(
+        return apiClient.SendAsync<IncomeStatementResponse>(
             HttpMethod.Get,
             url
         );
     }
 
-    public Task<AppResponse<BalanceSheetDto>> GetBalanceSheetAsync(DateTimeOffset? asOfDate)
+    public Task<AppResponse<BalanceSheetResponse>> GetBalanceSheetAsync(DateTimeOffset? asOfDate)
     {
         var url = "api/v1.0/finance/balance-sheet";
         if (asOfDate.HasValue)
@@ -53,7 +53,7 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
             url += $"?asOfDate={Uri.EscapeDataString(asOfDate.Value.ToString("o"))}";
         }
 
-        return apiClient.SendAsync<BalanceSheetDto>(
+        return apiClient.SendAsync<BalanceSheetResponse>(
             HttpMethod.Get,
             url
         );
@@ -86,14 +86,14 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
         );
     }
 
-    public Task<AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorDto>>> GetIntegrationErrorsAsync(string? status = null)
+    public Task<AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>> GetIntegrationErrorsAsync(string? status = null)
     {
         var url = "api/v1.0/finance/integration-errors";
         if (!string.IsNullOrEmpty(status))
         {
             url += $"?status={Uri.EscapeDataString(status)}";
         }
-        return apiClient.SendAsync<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorDto>>(
+        return apiClient.SendAsync<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>(
             HttpMethod.Get,
             url
         );

@@ -14,6 +14,7 @@ public sealed class SourceArchitectureTests
         var findings = SourceArchitectureRules.Analyze(sources);
         Assert.All(decisions, d => Assert.Contains(findings, f => f.Rule == "CACHE002" && f.Symbol == d.Symbol));
         findings = findings.Where(f => f.Rule != "CACHE002" || !decisions.Any(d => d.Symbol == f.Symbol)).ToArray();
+        findings = ApplyCommandLayoutExceptions(sources, findings);
         var failures = new List<Exception>();
         foreach (var rule in SourceArchitectureRules.RuleIds)
         {
@@ -21,6 +22,46 @@ public sealed class SourceArchitectureTests
             catch (Exception error) { failures.Add(error); }
         }
         if (failures.Count != 0) throw new AggregateException("Architecture drift register mismatch", failures);
+    }
+
+    private static IReadOnlyList<ArchitectureFinding> ApplyCommandLayoutExceptions(
+        IReadOnlyDictionary<string, string> sources,
+        IReadOnlyList<ArchitectureFinding> findings)
+    {
+        var entries = System.Text.Json.JsonSerializer.Deserialize<CommandLayoutException[]>(File.ReadAllText(Path.Combine(
+            AssemblyReferences.RepoRoot, "docs", "architecture", "command-layout-exceptions.json")))!;
+        Assert.Equal(entries.Length, entries.Select(entry => entry.Symbol).Distinct(StringComparer.Ordinal).Count());
+        var infrastructure = typeof(LS.Infrastructure.Extensions.DependencyInjection).Assembly;
+        var handlerRequests = AssemblyReferences.Application.GetTypes().Concat(infrastructure.GetTypes())
+            .Where(handlerType => !handlerType.IsAbstract)
+            .SelectMany(handlerType => handlerType.GetInterfaces()
+                .Where(contract => contract.IsGenericType &&
+                    contract.GetGenericTypeDefinition() == typeof(MediatR.IRequestHandler<,>))
+                .Select(contract => (Request: contract.GenericTypeArguments[0], Handler: handlerType)))
+            .ToLookup(pair => pair.Request, pair => pair.Handler);
+        foreach (var entry in entries)
+        {
+            Assert.StartsWith("src/Backend/Application/LS.Application/Features/", entry.RequestPath);
+            Assert.StartsWith("src/Backend/Infrastructure/LS.Infrastructure/Features/", entry.HandlerPath);
+            Assert.False(entry.RequestPath.Contains('*') || entry.HandlerPath.Contains('*'));
+            Assert.True(entry.Reason.Length >= 40, "A boundary exception requires a concrete reason.");
+            Assert.Single(findings, finding => finding.Rule == "LAY001" &&
+                finding.Symbol == entry.Symbol && finding.Path == entry.RequestPath);
+
+            var request = AssemblyReferences.Application.GetType(entry.Symbol);
+            var handler = infrastructure.GetType(entry.Handler);
+            Assert.NotNull(request);
+            Assert.NotNull(handler);
+            Assert.Equal(handler, Assert.Single(handlerRequests[request]));
+
+            var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(sources[entry.HandlerPath]);
+            Assert.Contains(tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.BaseNamespaceDeclarationSyntax>(),
+                declaration => declaration.Members.OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>()
+                    .Any(type => string.Equals($"{declaration.Name}.{type.Identifier.ValueText}", entry.Handler, StringComparison.Ordinal)));
+        }
+
+        return findings.Where(finding => finding.Rule != "LAY001" ||
+            !entries.Any(entry => entry.Symbol == finding.Symbol && entry.RequestPath == finding.Path)).ToArray();
     }
 
     [Fact]

@@ -41,7 +41,7 @@ public class LedgerServiceTests
     public async Task Expected_journal_rejection_does_not_stage_or_commit_a_write(string scenario, ErrorType expected)
     {
         var id = Guid.CreateVersion7();
-        CreateJournalEntryDto[] entries = scenario switch
+        CreateJournalEntryRequest[] entries = scenario switch
         {
             "unbalanced" => [new() { AccountId = id, Debit = 100 }, new() { AccountId = id, Credit = 90 }],
             "zero" => [],

@@ -14,12 +14,12 @@ using System;
 
 namespace LS.Application.Features.Accounting.Handlers;
 
-internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILogger<GetBalanceSheetQueryHandler> logger) : IRequestHandler<GetBalanceSheetQuery, AppResponse<BalanceSheetDto>>
+internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILogger<GetBalanceSheetQueryHandler> logger) : IRequestHandler<GetBalanceSheetQuery, AppResponse<BalanceSheetResponse>>
 {
     private readonly IAccountingUnitOfWork _unitOfWork = unitOfWork;
     private readonly ILogger<GetBalanceSheetQueryHandler> _logger = logger;
 
-    public async Task<AppResponse<BalanceSheetDto>> Handle(GetBalanceSheetQuery request, CancellationToken cancellationToken)
+    public async Task<AppResponse<BalanceSheetResponse>> Handle(GetBalanceSheetQuery request, CancellationToken cancellationToken)
     {
         var accounts = await _unitOfWork.AccountRepository.ListAsync(q => q.Where(a => 
             a.AccountType == AccountType.Asset || 
@@ -35,7 +35,7 @@ internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
         var assets = accounts.Where(a => a.AccountType == AccountType.Asset).Select(a =>
         {
             var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
-            return new StatementRowDto
+            return new StatementRowResponse
             {
                 AccountCode = a.AccountCode,
                 AccountName = a.AccountName,
@@ -47,7 +47,7 @@ internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
         var liabilities = accounts.Where(a => a.AccountType == AccountType.Liability).Select(a =>
         {
             var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
-            return new StatementRowDto
+            return new StatementRowResponse
             {
                 AccountCode = a.AccountCode,
                 AccountName = a.AccountName,
@@ -59,7 +59,7 @@ internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
         var equities = accounts.Where(a => a.AccountType == AccountType.Equity).Select(a =>
         {
             var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
-            return new StatementRowDto
+            return new StatementRowResponse
             {
                 AccountCode = a.AccountCode,
                 AccountName = a.AccountName,
@@ -80,7 +80,7 @@ internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
 
         if (netSurplus != 0)
         {
-            equities.Add(new StatementRowDto
+            equities.Add(new StatementRowResponse
             {
                 AccountCode = "RETAINED-EARNINGS",
                 AccountName = "Retained Earnings",
@@ -88,7 +88,7 @@ internal class GetBalanceSheetQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
             });
         }
 
-        var dto = new BalanceSheetDto
+        var dto = new BalanceSheetResponse
         {
             Assets = assets,
             Liabilities = liabilities,

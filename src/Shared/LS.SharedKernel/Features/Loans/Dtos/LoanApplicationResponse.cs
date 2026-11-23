@@ -16,7 +16,7 @@ public record LoanApplicationResponse
     public DateTimeOffset ApplicationDate { get; init; }
     public decimal OutstandingPrincipal { get; init; }
     public decimal OutstandingInterest { get; init; }
-    public List<LoanGuarantorDto> Guarantors { get; init; } = new();
+    public List<LoanGuarantorResponse> Guarantors { get; init; } = new();
 }
 
 

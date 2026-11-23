@@ -22,23 +22,23 @@ public class LoanDisbursedIntegrationEventHandler(
     protected override string GetDescription(LoanDisbursedIntegrationEvent evt) => $"Loan Disbursement for Application {evt.LoanApplicationId}";
     protected override Guid GetTenantId(LoanDisbursedIntegrationEvent evt) => evt.TenantId;
 
-    protected override Task<IEnumerable<CreateJournalEntryDto>> CreateJournalEntriesAsync(LoanDisbursedIntegrationEvent evt, TransactionTypeGlMapping mapping)
+    protected override Task<IEnumerable<CreateJournalEntryRequest>> CreateJournalEntriesAsync(LoanDisbursedIntegrationEvent evt, TransactionTypeGlMapping mapping)
     {
-        var entries = new List<CreateJournalEntryDto>();
+        var entries = new List<CreateJournalEntryRequest>();
 
         var debitAccountId = ResolveAccountId(mapping.DebitSideSource, mapping.DebitExplicitGlAccountId, evt.PaymentChannelGlAccountId, null);
-        entries.Add(new CreateJournalEntryDto { AccountId = debitAccountId, Debit = evt.Amount, Credit = 0, Description = $"Debit for Loan Disbursement", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
+        entries.Add(new CreateJournalEntryRequest { AccountId = debitAccountId, Debit = evt.Amount, Credit = 0, Description = $"Debit for Loan Disbursement", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
 
         var creditAccountId = ResolveAccountId(mapping.CreditSideSource, mapping.CreditExplicitGlAccountId, evt.PaymentChannelGlAccountId, null);
-        entries.Add(new CreateJournalEntryDto { AccountId = creditAccountId, Debit = 0, Credit = evt.Amount, Description = $"Credit for Loan Disbursement", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
+        entries.Add(new CreateJournalEntryRequest { AccountId = creditAccountId, Debit = 0, Credit = evt.Amount, Description = $"Credit for Loan Disbursement", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
 
         if (evt.FeeComponent > 0)
         {
             var feeAccountId = ResolveAccountId(mapping.FeeSideSource, mapping.FeeExplicitGlAccountId, evt.PaymentChannelGlAccountId, null);
             // Assuming fees are deducted from disbursement or added to a separate income
-            entries.Add(new CreateJournalEntryDto { AccountId = feeAccountId, Debit = 0, Credit = evt.FeeComponent, Description = $"Credit for Loan Fee", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
+            entries.Add(new CreateJournalEntryRequest { AccountId = feeAccountId, Debit = 0, Credit = evt.FeeComponent, Description = $"Credit for Loan Fee", BranchId = evt.BranchId, CostCenterId = evt.CostCenterId });
         }
 
-        return Task.FromResult<IEnumerable<CreateJournalEntryDto>>(entries);
+        return Task.FromResult<IEnumerable<CreateJournalEntryRequest>>(entries);
     }
 }

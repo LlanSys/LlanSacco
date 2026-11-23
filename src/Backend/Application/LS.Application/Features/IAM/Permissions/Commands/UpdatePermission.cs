@@ -10,7 +10,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.Permissions.Commands;
 
+public sealed record UpdatePermissionCommand(Guid Id, UpdatePermissionRequest Request, string UserId)
+    : IRequest<AppResponse<PermissionResponse>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("permissions", Id.ToString())];
 
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("permissions")];
+}
 
 internal sealed class UpdatePermissionCommandHandler(IIamUnitOfWork unitOfWork, ILogger<UpdatePermissionCommandHandler> logger)
     : IRequestHandler<UpdatePermissionCommand, AppResponse<PermissionResponse>>

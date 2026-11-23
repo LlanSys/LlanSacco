@@ -1084,7 +1084,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             await using var services = Services(db, tenant);
             var ledger = new LedgerService(services.GetRequiredService<IAccountingUnitOfWork>(), tenant);
             Task<AppResponse<Guid>> Post() => ledger.PostJournalAsync("replay", "test", date,
-                [new CreateJournalEntryDto { AccountId = debit.Id, Debit = amount }, new CreateJournalEntryDto { AccountId = credit.Id, Credit = amount }], new Actor().ActorId);
+                [new CreateJournalEntryRequest { AccountId = debit.Id, Debit = amount }, new CreateJournalEntryRequest { AccountId = credit.Id, Credit = amount }], new Actor().ActorId);
             var result = await Post();
             if (amount == 90m)
             {

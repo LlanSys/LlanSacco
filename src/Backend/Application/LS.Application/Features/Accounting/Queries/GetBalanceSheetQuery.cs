@@ -6,7 +6,7 @@ using System;
 
 namespace LS.Application.Features.Accounting.Queries;
 
-public record GetBalanceSheetQuery(DateTimeOffset AsOfDate) : IRequest<AppResponse<BalanceSheetDto>>, IUncachedQuery
+public record GetBalanceSheetQuery(DateTimeOffset AsOfDate) : IRequest<AppResponse<BalanceSheetResponse>>, IUncachedQuery
 {
     string IUncachedQuery.CacheBypassReason => "The as-of balance sheet must include corrections posted since the last read.";
 }

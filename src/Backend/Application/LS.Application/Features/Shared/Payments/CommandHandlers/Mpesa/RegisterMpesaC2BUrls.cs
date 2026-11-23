@@ -1,0 +1,17 @@
+using LS.Application.Features.Shared.Payments.Contracts.Interfaces;
+using LS.SharedKernel.Dtos.Common;
+using MediatR;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa;
+
+public sealed record RegisterMpesaC2BUrlsCommand() : IRequest<AppResponse<string>>;
+
+internal sealed class RegisterMpesaC2BUrlsCommandHandler(IMpesaC2BService mpesaC2BService) : IRequestHandler<RegisterMpesaC2BUrlsCommand, AppResponse<string>>
+{
+    public Task<AppResponse<string>> Handle(RegisterMpesaC2BUrlsCommand request, CancellationToken cancellationToken)
+    {
+        return mpesaC2BService.RegisterUrlsAsync(cancellationToken);
+    }
+}

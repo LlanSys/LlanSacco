@@ -10,18 +10,18 @@ using System.Collections.Generic;
 namespace LS.Application.Features.Accounting.Queries.GetIntegrationErrors;
 
 internal class GetIntegrationErrorsQueryHandler(IAccountingUnitOfWork unitOfWork)
-    : IRequestHandler<GetIntegrationErrorsQuery, AppResponse<IEnumerable<AccountingIntegrationErrorDto>>>
+    : IRequestHandler<GetIntegrationErrorsQuery, AppResponse<IEnumerable<AccountingIntegrationErrorResponse>>>
 {
     private readonly IAccountingUnitOfWork _unitOfWork = unitOfWork;
 
-    public async Task<AppResponse<IEnumerable<AccountingIntegrationErrorDto>>> Handle(GetIntegrationErrorsQuery request, CancellationToken cancellationToken)
+    public async Task<AppResponse<IEnumerable<AccountingIntegrationErrorResponse>>> Handle(GetIntegrationErrorsQuery request, CancellationToken cancellationToken)
     {
         var errors = await _unitOfWork.AccountingIntegrationErrorRepository
             .ListAsync(q => q.Where(e => request.Status == null || e.Status == request.Status)
                              .OrderByDescending(e => e.OccurredAt), cancellationToken)
             .ConfigureAwait(false);
 
-        var dtos = errors.Select(e => new AccountingIntegrationErrorDto(
+        var dtos = errors.Select(e => new AccountingIntegrationErrorResponse(
             e.Id,
             e.EventId,
             e.EventType,

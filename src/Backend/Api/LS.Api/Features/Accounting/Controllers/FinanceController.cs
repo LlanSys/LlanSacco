@@ -58,7 +58,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <returns>The income statement.</returns>
     [HttpGet("income-statement")]
     [Authorize]
-    [ProducesResponseType(typeof(AppResponse<IncomeStatementDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<IncomeStatementResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncomeStatement([FromQuery] DateTimeOffset? startDate, [FromQuery] DateTimeOffset? endDate)
     {
         var sDate = startDate ?? new DateTimeOffset(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -75,7 +75,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <returns>The balance sheet.</returns>
     [HttpGet("balance-sheet")]
     [Authorize]
-    [ProducesResponseType(typeof(AppResponse<BalanceSheetDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<BalanceSheetResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBalanceSheet([FromQuery] DateTimeOffset? asOfDate)
     {
         var query = new GetBalanceSheetQuery(asOfDate ?? DateTimeOffset.UtcNow);
@@ -119,7 +119,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <returns>A list of accounting integration errors.</returns>
     [HttpGet("integration-errors")]
     [Authorize]
-    [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIntegrationErrors([FromQuery] string? status = null)
     {
         var query = new GetIntegrationErrorsQuery(status);

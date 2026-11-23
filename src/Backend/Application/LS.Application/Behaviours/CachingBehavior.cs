@@ -3,125 +3,76 @@ using LS.Application.Utilities;
 using LS.Domain.Shared.Contracts.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Text;
 
 namespace LS.Application.Behaviours;
 
-/// <summary>
-/// MediatR pipeline behavior that provides transparent read-through caching
-/// for any query implementing <see cref="ICachableRequest"/>.
-///
-/// Registration order matters — register this AFTER validation behaviors
-/// so invalid requests are rejected before a cache lookup.
-///
-/// Key assembly:
-///   Non-versioned  →  "{group}:entity:{discriminator}"
-///   Versioned      →  "{group}:list:{scope}:{versionToken}:{discriminator}"
-///
-/// Version token lifecycle:
-///   Created lazily on the first cache miss; stored with a long TTL (24 h).
-///   Bumped (replaced) by <see cref="CacheInvalidationBehavior{TRequest,TResponse}"/>
-///   whenever a mutation command succeeds, which orphans all versioned entries
-///   in the group without any key scanning.
-/// </summary>
 public sealed class CachingBehavior<TRequest, TResponse>(
     ICacheService cache,
     ICurrentTenantProvider tenantProvider,
     ILogger<CachingBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>, ICachableRequest
 {
-    // Version tokens live longer than the entries they version.
-    // If a version token expires, the next request simply creates a new one —
-    // effectively a full cache miss for the group, which is safe.
-    private static readonly TimeSpan VersionTtl = TimeSpan.FromDays(1);
-
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(next);
 
-        // ── 1. Bypass check ────────────────────────────────────────────────────
-        if (request.BypassCache)
+        var tenant = tenantProvider.TenantId;
+
+        if (request.BypassCache || tenant == Guid.Empty)
         {
             return await next(cancellationToken).ConfigureAwait(false);
         }
 
-        // ── 2. Key assembly ────────────────────────────────────────────────────
-        string cacheKey;
+        string key;
 
-        if (request.IsVersioned)
+        try
         {
-            var scope = BuildTenantScope(tenantProvider.TenantId, request.CacheUserId);
-            var sentinelKey = CacheKeys.GroupVersion(request.CacheGroup, scope);
-            var versionToken = await ResolveOrCreateVersionAsync(sentinelKey, cancellationToken).ConfigureAwait(false);
+            var groupKey = CacheKeys.RequestGeneration(tenant, CacheKeys.GroupVersion(request.CacheGroup));
+            var groupGeneration = await ResolveGenerationAsync(groupKey, cancellationToken).ConfigureAwait(false);
+            var userGeneration = string.IsNullOrWhiteSpace(request.CacheUserId)
+                ? null
+                : await ResolveGenerationAsync(
+                    CacheKeys.RequestGeneration(
+                    tenant,
+                        CacheKeys.GroupVersion(request.CacheGroup, request.CacheUserId)),
+                    cancellationToken)
+                    .ConfigureAwait(false);
 
-            cacheKey = CacheKeys.VersionedList(
-                request.CacheGroup,
-                scope,
-                versionToken,
-                request.Discriminator);
+            var entityGeneration = request.IsVersioned
+                ? null
+                : await ResolveGenerationAsync(
+                    CacheKeys.RequestGeneration(
+                    tenant,
+                        CacheKeys.Entity(request.CacheGroup, request.Discriminator)),
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+            key = CacheKeys.RequestEntry(tenant, request, groupGeneration, userGeneration, entityGeneration);
         }
-        else
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            // Entity (non-versioned) lookups are scoped per-tenant to prevent cross-tenant
-            // cache leakage.  Platform admins (empty TenantId) get the bare global key.
-            //
-            // Key format for tenant requests: "{group}:entity:tenant:{tenantId}:{discriminator}"
-            // Key format for platform admins:  "{group}:entity:{discriminator}"
-            var tenantId = tenantProvider.TenantId;
-            cacheKey = tenantId == Guid.Empty
-                ? CacheKeys.Entity(request.CacheGroup, request.Discriminator)
-                : CacheKeys.Entity(request.CacheGroup, $"tenant:{tenantId:D}:{request.Discriminator}");
-        }
-
-        // ── 3. Stampede-Protected Cache Lookup & Execution ─────────────────────
-        var ttl = request.Expiration ?? TimeSpan.FromMinutes(30);
-
-        var response = await cache.GetOrCreateAsync(
-            cacheKey,
-            async ct =>
-            {
-                CacheLogDefinitions.LogCacheMiss(logger, cacheKey);
-                return await next(ct).ConfigureAwait(false);
-            },
-            ttl,
-            cancellationToken).ConfigureAwait(false);
-
-        if (response is LS.SharedKernel.Dtos.Common.IAppResponse appResponse && !appResponse.IsSuccess)
-        {
-            // Do not cache failed responses (especially since errors don't serialize well).
-            await cache.RemoveAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+            // Without a shared version we cannot know whether a cached value is current.
+            CacheLogDefinitions.LogCacheGenerationReadFailed(logger, typeof(TRequest).Name, ex);
+            return await next(cancellationToken).ConfigureAwait(false);
         }
 
-        return response;
+        var expiration = request.Expiration ?? TimeSpan.FromMinutes(30);
+        return await cache.GetOrCreateAsync(key, next.Invoke, expiration, cancellationToken).ConfigureAwait(false);
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────────
-
-    private async Task<string> ResolveOrCreateVersionAsync(string sentinelKey, CancellationToken ct)
+    private async Task<string> ResolveGenerationAsync(string key, CancellationToken cancellationToken)
     {
-        return await cache.GetOrCreateAsync(
-            sentinelKey,
-            async token =>
-            {
-                var version = GenerateVersion();
-                CacheLogDefinitions.LogCacheSet(logger, sentinelKey, VersionTtl);
-                return version;
-            },
-            VersionTtl,
-            ct).ConfigureAwait(false);
-    }
+        var generation = await cache.GetGenerationAsync(key, cancellationToken).ConfigureAwait(false);
 
-    private static string GenerateVersion()
-        => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
+        if (generation is not null)
+        {
+            return generation;
+        }
 
-    private static string BuildTenantScope(Guid tenantId, string? userId)
-    {
-        var tenantScope = tenantId == Guid.Empty ? "tenant:unknown" : $"tenant:{tenantId:D}";
-        return string.IsNullOrWhiteSpace(userId)
-            ? tenantScope
-            : $"{tenantScope}:user:{userId}";
+        // This generation is unique. A concurrent initializer can discard it, but
+        // can never revive cached data from an earlier generation.
+        generation = Guid.CreateVersion7().ToString("N");
+        await cache.SetGenerationAsync(key, generation, CacheKeys.GenerationLifetime, cancellationToken).ConfigureAwait(false);
+        return generation;
     }
 }

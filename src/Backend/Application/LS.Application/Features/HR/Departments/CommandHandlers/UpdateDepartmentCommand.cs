@@ -15,6 +15,6 @@ public sealed record UpdateDepartmentCommand(Guid Id, UpdateDepartmentRequest Re
 {
     public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("departments", Id.ToString())];
 
-    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("departments"), CacheKeys.GroupVersion("employees")];
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("departments")];
 }
 

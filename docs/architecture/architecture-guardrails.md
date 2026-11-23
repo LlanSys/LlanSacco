@@ -39,7 +39,7 @@ Run dotnet test tests/LS.Tests.Architecture/LS.Tests.Architecture.csproj --no-re
 
 ## Cache Decisions
 
-Use ICachableRequest for read queries, with explicit tenant/user/permission scope, filters/paging, expiration, and deliberate BypassCache for fresh/sensitive reads. Marker presence is only a structural check; Phase 5 verifies behavior, invalidation timing, and cache keys.
+Use ICachableRequest for cached queries with tenant/user/permission scope, full filters and paging, and expiration. Use IUncachedQuery, which implements ICachableRequest, for deliberate fresh or sensitive reads. Give each bypass a concrete reason. Marker presence is a structural check. The Phase 5 runtime tests exercise cache failures, invalidation ordering and scope.
 
 Commands affecting cached reads use ICacheInvalidatorRequest and real invalidation targets. A command with no cached dependents may instead have an exact Symbol and concrete Reason in cache-policy-decisions.json. Unused/duplicate decisions fail. Do not invent empty implementations merely to satisfy a marker test. Runtime behavior tests remain necessary: structural checks cannot establish cache correctness, validator discovery, transactional behavior, or absence of N+1 queries.
 

@@ -1,59 +1,35 @@
 using LS.Domain.Features.ControlPlane.Contracts;
-using LS.Domain.Features.ControlPlane.Tenants.Entities;
 using LS.Domain.Features.ControlPlane.Tenants.Enums;
 using LS.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace LS.Infrastructure.Middleware;
 
-public class TenantResolutionMiddleware(
-    RequestDelegate next,
-    ILogger<TenantResolutionMiddleware> logger,
-    IMemoryCache cache)
+public class TenantResolutionMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next = next;
-    private readonly ILogger<TenantResolutionMiddleware> _logger = logger;
-    private readonly IMemoryCache _cache = cache;
-
     public async Task InvokeAsync(HttpContext context, IServiceProvider serviceProvider)
     {
-        ArgumentNullException.ThrowIfNull(context, nameof(context));
-        ArgumentNullException.ThrowIfNull(serviceProvider, nameof(serviceProvider));
-        var host = context.Request.Host.Host;
-        var OrgSettings = serviceProvider.GetRequiredService<IOptions<OrgSettings>>().Value;
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(serviceProvider);
 
-        // If the header already exists (e.g. injected by a proxy or explicitly provided), respect it
-        if (!context.Request.Headers.ContainsKey(OrgSettings.HeaderName))
+        var settings = serviceProvider.GetRequiredService<IOptions<OrgSettings>>().Value;
+        if (!context.Request.Headers.ContainsKey(settings.HeaderName))
         {
-            var cacheKey = $"Tenant_Host_{host}";
+            var host = context.Request.Host.Host;
+            await using var scope = serviceProvider.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
+            var tenant = await unitOfWork.TenantRepository.FirstOrDefaultAsync(
+                candidate => candidate.HostName == host && candidate.Status == TenantStatus.Active,
+                context.RequestAborted).ConfigureAwait(false);
 
-            if (!_cache.TryGetValue(cacheKey, out Guid tenantId))
+            if (tenant is not null && tenant.Id != Guid.Empty)
             {
-                using var scope = serviceProvider.CreateScope();
-                var uow = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
-
-                var tenant = await uow.TenantRepository
-                    .FirstOrDefaultAsync(t => t.HostName == host && t.Status == TenantStatus.Active).ConfigureAwait(false);
-
-                tenantId = tenant?.Id ?? Guid.Empty;
-                _cache.Set(cacheKey, tenantId, TimeSpan.FromMinutes(5));
-            }
-
-            if (tenantId != Guid.Empty)
-            {
-                // Inject the tenant ID into the headers so CurrentTenantProvider can read it
-                context.Request.Headers[OrgSettings.HeaderName] = tenantId.ToString();
+                context.Request.Headers[settings.HeaderName] = tenant.Id.ToString();
             }
         }
 
-        await _next(context).ConfigureAwait(false);
+        await next(context).ConfigureAwait(false);
     }
 }

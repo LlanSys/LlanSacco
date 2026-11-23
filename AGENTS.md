@@ -83,7 +83,7 @@ This file is the canonical source of truth and working contract for AI coding to
 - Add FluentValidation validators for write requests that can accept user input. Keep each validator in a separate type-named file under its feature and prove it is discovered by DI and runs through MediatR. Internal validators require explicit scanning/registration; file placement alone does not prove execution.
 - Use source-generated `LoggerMessage` methods; do not add free-form logging in new code paths.
 - Every `catch` block must log or deliberately translate the error into an expected result.
-- Every query needs an explicit cache policy through `ICachableRequest`; sensitive/fresh reads use BypassCache deliberately. Every command needs a cache-impact decision: use `ICacheInvalidatorRequest` for affected cached reads or a reviewed exact no-cached-dependents decision. Do not add empty marker implementations just to pass checks. Invalidation follows a successful committed outcome; failed results must not be cached. Validate behavior ordering, tenant/user/permission scope, and non-MediatR writers.
+- Every query needs an explicit policy through the existing cache contracts. Use IUncachedQuery with a reason for always-fresh or sensitive reads. Cached reads use ICachableRequest with an explicit scope, discriminator and TTL. Each command declares actual invalidation keys or has an exact no-cached-dependents decision in the cache policy register. Invalidation follows successful commit. Failed results stay out of the cache. Verify behaviour ordering, tenant/user impact, and non-MediatR writers.
 - Keep cache keys tenant-aware where data is tenant-scoped.
 
 ## IAM And Security
@@ -128,6 +128,7 @@ This file is the canonical source of truth and working contract for AI coding to
 - Run `./scripts/Format-Code.ps1 -Include <changed path>` for C# and Razor formatting, or add `-Check` to verify the result. See [package management and formatting](docs/development/package-management-and-formatting.md) for the workflow.
 
 - Preserve user changes. Do not revert unrelated work.
+- Use the main LlanSacco checkout for phase work. Switch branches in that checkout and keep local Compose configuration in place.
 - Architecture debt is recorded exactly in `docs/architecture/architecture-debt.json`, with rule, file, symbol, evidence, and owning remediation phase. CI rejects new violations and stale entries. Never regenerate or expand the register to hide a regression; remove resolved entries in the fixing PR. See `docs/architecture/architecture-guardrails.md`.
 - Prefer small, focused commits with clear messages.
 - When adding or modifying constructor dependencies for core abstractions (like `DbContext`), ensure the dependency injection configurations in the integration tests are also updated to provide those services.

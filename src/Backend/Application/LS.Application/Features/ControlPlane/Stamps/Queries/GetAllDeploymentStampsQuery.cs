@@ -6,10 +6,7 @@ using MediatR;
 
 namespace LS.Application.Features.ControlPlane.Stamps.Queries;
 
-public record GetAllDeploymentStampsQuery : IRequest<AppResponse<List<DeploymentStampResponse>>>, ICachableRequest
+public record GetAllDeploymentStampsQuery : IRequest<AppResponse<List<DeploymentStampResponse>>>, IUncachedQuery
 {
-    public string CacheGroup => "stamps";
-    public string Discriminator => "all";
-    public string? CacheUserId => null;
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "The operations catalog must reflect stamp state and placement changes immediately.";
 }

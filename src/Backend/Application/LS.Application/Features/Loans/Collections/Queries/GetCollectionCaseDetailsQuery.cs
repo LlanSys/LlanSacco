@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System;
 using System.Linq;
 using System.Threading;
@@ -9,7 +10,10 @@ using LS.SharedKernel.Dtos.Loans.Collections;
 
 namespace LS.Application.Features.Loans.Collections.Queries;
 
-public record GetCollectionCaseDetailsQuery(Guid CollectionCaseId) : IRequest<AppResponse<CollectionCaseDetailsResponse>>;
+public record GetCollectionCaseDetailsQuery(Guid CollectionCaseId) : IRequest<AppResponse<CollectionCaseDetailsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Collection cases contain sensitive member data and live repayment activity.";
+}
 
 internal class GetCollectionCaseDetailsQueryHandler(ILoansUnitOfWork unitOfWork) : IRequestHandler<GetCollectionCaseDetailsQuery, AppResponse<CollectionCaseDetailsResponse>>
 {

@@ -18,4 +18,10 @@ internal static partial class CacheLogDefinitions
 
     [LoggerMessage(EventId = 2003, Level = LogLevel.Debug, Message = "[Cache] SET {Key} (TTL {Ttl})")]
     public static partial void LogCacheSet(ILogger logger, string key, TimeSpan ttl);
+
+    [LoggerMessage(EventId = 2004, Level = LogLevel.Warning, Message = "Cache version unavailable for {RequestType}. Reading from source.")]
+    public static partial void LogCacheGenerationReadFailed(ILogger logger, string requestType, Exception exception);
+
+    [LoggerMessage(EventId = 2005, Level = LogLevel.Error, Message = "Cache invalidation failed after {RequestType} committed for {GenerationKey}")]
+    public static partial void LogPostCommitInvalidationFailed(ILogger logger, string requestType, string generationKey, Exception exception);
 }

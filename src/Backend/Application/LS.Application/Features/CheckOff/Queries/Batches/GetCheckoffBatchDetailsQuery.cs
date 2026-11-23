@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using FluentValidation;
 using LS.Domain.Features.CheckOff.Contracts;
 using LS.SharedKernel.Dtos.Common;
@@ -7,7 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.CheckOff.Queries.Batches;
 
-public record GetCheckoffBatchDetailsQuery(Guid BatchId) : IRequest<AppResponse<CheckoffBatchDetailsResponse>>;
+public record GetCheckoffBatchDetailsQuery(Guid BatchId) : IRequest<AppResponse<CheckoffBatchDetailsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Batch details include row errors and results updated by validation and posting.";
+}
 
 internal class GetCheckoffBatchDetailsQueryValidator : AbstractValidator<GetCheckoffBatchDetailsQuery>
 {

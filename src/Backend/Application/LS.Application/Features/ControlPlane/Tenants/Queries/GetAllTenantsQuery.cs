@@ -7,10 +7,7 @@ using MediatR;
 
 namespace LS.Application.Features.ControlPlane.Tenants.Queries;
 
-public record GetAllTenantsQuery : IRequest<AppResponse<List<TenantResponse>>>, ICachableRequest
+public record GetAllTenantsQuery : IRequest<AppResponse<List<TenantResponse>>>, IUncachedQuery
 {
-    public string CacheGroup => "tenants";
-    public string Discriminator => "all";
-    public string? CacheUserId => null;
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Tenant administration must observe current provisioning, routing and access state.";
 }

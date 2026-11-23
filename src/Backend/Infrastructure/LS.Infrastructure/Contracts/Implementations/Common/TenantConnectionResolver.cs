@@ -5,7 +5,6 @@ using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.ControlPlane.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Exceptions;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LS.Infrastructure.Contracts.Implementations.Common;
@@ -13,13 +12,12 @@ namespace LS.Infrastructure.Contracts.Implementations.Common;
 internal sealed class TenantConnectionResolver(
     ICurrentTenantProvider tenantProvider,
     IServiceProvider serviceProvider,
-    IEncryptionService encryptionService,
-    IMemoryCache memoryCache) : ITenantConnectionResolver
+    IEncryptionService encryptionService) : ITenantConnectionResolver
 {
     private readonly ICurrentTenantProvider _tenantProvider = tenantProvider;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly IEncryptionService _encryptionService = encryptionService;
-    private readonly IMemoryCache _memoryCache = memoryCache;
+    private TenantDatabaseMetadata? _metadata;
 
     public async Task<string?> GetConnectionStringAsync(CancellationToken cancellationToken = default)
     {
@@ -47,13 +45,14 @@ internal sealed class TenantConnectionResolver(
             return null;
         }
 
-        var cacheKey = $"TenantDbMetadata_{tenantId}";
-        if (_memoryCache.TryGetValue(cacheKey, out TenantDatabaseMetadata? cachedMetadata))
+        // A scope may open several EF connections. Other requests must resolve
+        // the latest placement and connection configuration.
+        if (_metadata is { } current && current.TenantId == tenantId)
         {
-            return cachedMetadata;
+            return current;
         }
 
-        using var scope = _serviceProvider.CreateScope();
+        await using var scope = _serviceProvider.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IControlPlaneUnitOfWork>();
 
         var tenant = await unitOfWork.TenantRepository.FindByIdAsync(tenantId, cancellationToken).ConfigureAwait(false);
@@ -80,15 +79,10 @@ internal sealed class TenantConnectionResolver(
             }
         }
 
-        var metadata = new TenantDatabaseMetadata(resolvedConnectionString, resolvedProvider);
-
-        var cacheOptions = new MemoryCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
-            
-        _memoryCache.Set(cacheKey, metadata, cacheOptions);
-
+        var metadata = new TenantDatabaseMetadata(tenantId, resolvedConnectionString, resolvedProvider);
+        _metadata = metadata;
         return metadata;
     }
 
-    private record TenantDatabaseMetadata(string? ConnectionString, string? Provider);
+    private sealed record TenantDatabaseMetadata(Guid TenantId, string? ConnectionString, string? Provider);
 }

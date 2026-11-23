@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +25,28 @@ namespace LS.Application.Utilities;
 /// </summary>
 public static class CacheKeys
 {
+    internal static readonly TimeSpan GenerationLifetime = TimeSpan.FromHours(24);
+
+    internal static string RequestGeneration(Guid tenantId, string logicalKey)
+        => $"ls:request:v2:{tenantId:N}:generation:{logicalKey}";
+
+    internal static string RequestEntry(Guid tenantId, ICachableRequest request, string groupGeneration, string? userGeneration, string? entityGeneration)
+    {
+        var scope = new
+        {
+            Group = NormalizeRequired(request.CacheGroup, nameof(request.CacheGroup)),
+            RequestType = request.GetType().FullName,
+            request.CacheUserId,
+            request.IsVersioned,
+            request.Discriminator,
+            GroupGeneration = groupGeneration,
+            UserGeneration = userGeneration,
+            EntityGeneration = entityGeneration
+        };
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(scope);
+        return $"ls:request:v2:{tenantId:N}:data:{Convert.ToHexStringLower(SHA256.HashData(bytes))}";
+    }
+
     // ── Public key builders ────────────────────────────────────────────────────
 
     /// <summary>
@@ -35,7 +58,7 @@ public static class CacheKeys
     public static string GroupVersion(string group, string? userId = null)
         => userId is null
             ? $"{NormalizeRequired(group, nameof(group))}:version:global"
-            : $"{NormalizeRequired(group, nameof(group))}:version:{NormalizeRequired(userId, nameof(userId))}";
+            : $"{NormalizeRequired(group, nameof(group))}:version:user:{NormalizeRequired(userId, nameof(userId))}";
 
     /// <summary>
     /// Non-versioned key for a single entity lookup.

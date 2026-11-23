@@ -222,7 +222,7 @@ public static class DependencyInjection
                     _.GetRequiredService<ILogger<BackgroundJobService>>())
                 : new NoOpBackgroundJobService());
         services.AddScoped<IEncryptionService, EncryptionService>();
-        services.AddScoped<IOrgSettingsProvider, CachedOrgSettingsProvider>();
+        services.AddScoped<IOrgSettingsProvider, OrgSettingsProvider>();
         
         services.AddFido2(options =>
         {

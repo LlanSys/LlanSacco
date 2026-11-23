@@ -10,14 +10,8 @@ namespace LS.Application.Features.HR.Employees.QueryHandlers;
 
 
 public sealed record GetEmployeeByIdQuery(Guid Id, string UserId)
-    : IRequest<AppResponse<EmployeeResponse>>, ICachableRequest
+    : IRequest<AppResponse<EmployeeResponse>>, IUncachedQuery
 {
-    public string CacheGroup => "employees";
-
-    public string Discriminator => CacheKeys.Entity("employees", Id.ToString());
-
-    public string? CacheUserId => null;
-
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Employee details include personal information and current IAM linkage.";
 }
 

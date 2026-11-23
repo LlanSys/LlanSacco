@@ -1,8 +1,6 @@
 using LS.Application.Features.HR.Employees.Mappings;
 using LS.Application.Features.IAM.Users.Mappings;
 using LS.Application.Features.Shared.EmailTemplates.Mappings;
-using LS.Application.Contracts.Interfaces.Common;
-using LS.Application.Utilities;
 using LS.Domain.Features.HR.Contracts;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Shared.Contracts;
@@ -19,9 +17,5 @@ using Microsoft.Extensions.Logging;
 namespace LS.Application.Features.HR.Employees.CommandHandlers;
 
 
-public sealed record CreateEmployeeCommand(CreateEmployeeRequest Request, string User) : IRequest<AppResponse<EmployeeResponse>>, ICacheInvalidatorRequest
-{
-    public IReadOnlyList<string> DirectInvalidationKeys => [];
-    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("employees")];
-}
+public sealed record CreateEmployeeCommand(CreateEmployeeRequest Request, string User) : IRequest<AppResponse<EmployeeResponse>>;
 

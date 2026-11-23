@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Banking.Contracts;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Banking.Savings.Dtos;
@@ -9,7 +10,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Banking.Savings.Queries;
 
-public record GetSavingsProductsQuery(bool OnlyActive = true) : IRequest<AppResponse<List<SavingsProductResponse>>>;
+public record GetSavingsProductsQuery(bool OnlyActive = true) : IRequest<AppResponse<List<SavingsProductResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Savings terms and availability reflect current product configuration.";
+}
 
 internal class GetSavingsProductsQueryHandler(IBankingUnitOfWork unitOfWork) 
     : IRequestHandler<GetSavingsProductsQuery, AppResponse<List<SavingsProductResponse>>>

@@ -1,1 +1,466 @@
-[]
+[
+  {
+    "Symbol": "LS.Application.Features.Accounting.Commands.CreateJournalCommand",
+    "Reason": "Posts ledger entries. Trial balance, financial statements and accounting totals read committed data directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Accounting.Commands.RetryIntegrationEventCommand",
+    "Reason": "Retries the accounting integration delivery. The integration error queue reads current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Deposits.Commands.CreateDepositProductCommand",
+    "Reason": "Adds a deposit product. Available deposit products and terms are read directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Deposits.Commands.DepositToAccountCommand",
+    "Reason": "Changes deposit balances and ledger activity. Balance and accounting reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Deposits.Commands.OpenDepositAccountCommand",
+    "Reason": "Creates a member deposit account. Deposit account lists and totals read the database directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Deposits.Commands.WithdrawFromDepositCommand",
+    "Reason": "Changes deposit balances, penalties and ledger activity. These reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.FOSA.Commands.CloseTillCommand",
+    "Reason": "Closes a teller till. Teller operations and till status reads use committed operational state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.FOSA.Commands.OpenFosaAccountCommand",
+    "Reason": "Creates a member FOSA account. Account and teller operations read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.FOSA.Commands.OpenTillCommand",
+    "Reason": "Opens a teller till. Teller status and balances use current operational state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.FOSA.Commands.OverTheCounterTransactionCommand",
+    "Reason": "Changes teller and FOSA balances. Cash operations and financial balance reads use committed state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.FOSA.Commands.VaultTransferCommand",
+    "Reason": "Moves cash between teller and vault. Cash operations read current till and vault balances."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Savings.Commands.CreateSavingsProductCommand",
+    "Reason": "Adds savings terms. Product availability and pricing reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Savings.Commands.DepositSavingsCommand",
+    "Reason": "Changes savings balances and ledger activity. Savings and accounting reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Savings.Commands.WithdrawSavingsCommand",
+    "Reason": "Changes savings balances, fees and ledger activity. These financial reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Shares.Commands.CreateShareProductCommand",
+    "Reason": "Adds share terms. Available share products and terms are read directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Shares.Commands.PurchaseSharesCommand",
+    "Reason": "Changes member shares and ledger activity. Share holdings and financial reports bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Shares.Commands.TransferSharesCommand",
+    "Reason": "Changes two members' share holdings. Holdings and accounting reads use committed data."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Batches.PostCheckoffBatchCommand",
+    "Reason": "Posts a CheckOff batch and starts downstream processing. Batch status, row details and balances are fresh reads."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Batches.UploadCheckoffBatchCommand",
+    "Reason": "Stages a CheckOff batch. Batch list and details read from the database."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Batches.ValidateCheckoffBatchCommand",
+    "Reason": "Records validation state and rejected rows. CheckOff batch reads bypass the cache."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Employers.LinkMemberToEmployerCommand",
+    "Reason": "Changes employer linkage. Employer, membership and CheckOff reads use current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Employers.RegisterEmployerCommand",
+    "Reason": "Creates an employer. The CheckOff employer list reads current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.CheckOff.Commands.Instructions.CreateCheckoffInstructionCommand",
+    "Reason": "Changes scheduled deductions. CheckOff operations read current instructions directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Auditing.Commands.EndImpersonationCommand",
+    "Reason": "Ends support access. Authorization and support-access history read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Auditing.Commands.StartImpersonationCommand",
+    "Reason": "Starts support access. Authorization and support-access history read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Stamps.Commands.CreateDeploymentStampCommand",
+    "Reason": "Creates a placement target. Deployment stamps are read directly by the control plane."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Stamps.Commands.UpdateDeploymentStampCommand",
+    "Reason": "Updates deployment configuration. The stamp and tenant placement views use current records."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.ActivateTenantCommand",
+    "Reason": "Tenant activation changes access and routing. The control plane and routing services read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.AddTenantModuleCommand",
+    "Reason": "Changes a tenant module grant. Entitlements and the control-plane tenant view read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.ApproveTenantKYCCommand",
+    "Reason": "Changes tenant KYC state. The control plane reads the current tenant record."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.CompleteTenantProvisioningCommand",
+    "Reason": "Activates a tenant and sets routing configuration. Control-plane and runtime-routing reads use current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.CreateTenantCommand",
+    "Reason": "Creates a tenant and its assignments. Tenant directory and provisioning reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.MigrateTenantStampCommand",
+    "Reason": "Changes the tenant's stamp assignment. Platform operations read the current tenant and stamp records."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.RemoveTenantModuleCommand",
+    "Reason": "Revokes a module grant. Entitlement and tenant-admin reads use the current grant state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.SuspendTenantCommand",
+    "Reason": "Suspends a tenant. Tenant resolution and the control-plane view read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.UpdateTenantCommand",
+    "Reason": "Changes tenant details. Tenant administration and routing reads bypass query caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Dividends.Commands.ApproveDividendDeclarationCommand",
+    "Reason": "Changes declaration approval state. Dividend declaration views read the database directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Dividends.Commands.DeclareDividendsCommand",
+    "Reason": "Adds a financial-year declaration. Dividend lists and details bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Dividends.Commands.PostDividendDistributionsCommand",
+    "Reason": "Posts payouts and accounting activity. Dividend and account balance reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Dividends.Commands.RunDividendCalculationCommand",
+    "Reason": "Changes declared distributions and calculation status. Declaration views read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Dividends.Commands.SetDividendPreferenceCommand",
+    "Reason": "Changes a member's payout election. Preferences are read directly under the member's scope."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Employees.CommandHandlers.CreateEmployeeCommand",
+    "Reason": "Creates an employee. Employee views and HR dashboard totals bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Employees.CommandHandlers.DeleteEmployeeCommand",
+    "Reason": "Removes an employee. Sensitive employee views and dashboard counts bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Employees.CommandHandlers.UpdateEmployeeCommand",
+    "Reason": "Changes employee details and department membership. Employee views and dashboard counts are fresh."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Payroll.Commands.ClosePayrollPeriodCommand",
+    "Reason": "Closes a payroll period. Period state and payroll views read the database directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Payroll.Commands.RunPayrollCommand",
+    "Reason": "Creates payslips and updates the period. Payroll periods and compensation reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.HR.Payroll.Commands.UpdatePayrollConfigurationCommand",
+    "Reason": "Changes effective statutory configuration. Configuration queries and payroll calculations read current rules."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Permissions.Commands.UpdateRolePermissionsCommand",
+    "Reason": "Changes grants on a role. Role permissions, access checks and navigation use current grants."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ChangePasswordCommand",
+    "Reason": "Changes credentials and invalidates sessions according to IAM policy. Authentication and session reads use their own lifecycle."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.CreateAppUserCommand",
+    "Reason": "Creates an identity and may link a member or employee. These administrative reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.CreateRoleCommand",
+    "Reason": "Creates a role. Admin role lists and authorization checks use their current source."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DeactivateAdminUserCommand",
+    "Reason": "Revokes active user access. User lists, grants and session checks are fresh reads."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DeleteRoleCommand",
+    "Reason": "Removes a role. Role lists, role permissions and access checks read the current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DisableTotpCommand",
+    "Reason": "Changes MFA configuration. Sign-in and current-user security reads bypass query caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ExchangeSsoCodeCommand",
+    "Reason": "Consumes a one-time authorization code and issues session credentials. Code and session stores manage their own lifecycle."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ForgotPasswordCommand",
+    "Reason": "Creates password recovery state. Recovery challenges are managed directly by IAM."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GetCurrentUserCommand",
+    "Reason": "Reads the active user and session context. Current identity and grants are deliberately fresh."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GetOtpStatusCommand",
+    "Reason": "Reads current MFA challenge state from the authoritative store."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GrantEmployeeSystemAccessCommand",
+    "Reason": "Grants employee identity access. Employee, user and authorization reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.InitiateTotpSetupCommand",
+    "Reason": "Creates authenticator enrolment state. Security reads use the IAM store."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LinkEmployeeToExistingUserCommand",
+    "Reason": "Updates employee identity linkage. HR employee and IAM user views bypass query caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LoginCommand",
+    "Reason": "Authenticates the user and records session/device state. Security and device reads use current data."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LoginWithPasskeyCommand",
+    "Reason": "Authenticates with a passkey and creates a session. Credential, device and session reads use current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LogoutCommand",
+    "Reason": "Revokes the current session. Session checks and current-user reads use active IAM state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ProcessSsoLoginCommand",
+    "Reason": "Authenticates an external user and can provision an account. The admin user list and current-user reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RefreshTokenCommand",
+    "Reason": "Rotates session credentials. Refresh, token and session stores manage their own lifecycle."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RegisterPasskeyCommand",
+    "Reason": "Writes a passkey. Passkey lists use a fresh authenticated read."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RequestPasskeyLoginOptionsCommand",
+    "Reason": "Creates a short-lived authentication challenge. Challenge lifetime is owned by the passkey flow."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RequestPasskeyRegistrationOptionsCommand",
+    "Reason": "Creates a short-lived registration challenge. Challenge lifetime is owned by the passkey flow."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ResetPasswordCommand",
+    "Reason": "Changes credentials and manages recovery state. Authentication and security reads use current IAM state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RevokeEmployeeSystemAccessCommand",
+    "Reason": "Revokes employee identity access. Employee, user and authorization reads are fresh."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RevokeUserDeviceCommand",
+    "Reason": "Revokes a device and associated access. Device lists and session checks use current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.SendEmailOtpCommand",
+    "Reason": "Creates an OTP challenge. The OTP flow manages expiry and attempt state directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateAdminUserCommand",
+    "Reason": "Changes user account details. IAM administrator views read current user data."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateProfilePictureCommand",
+    "Reason": "Changes a private asset reference. Profile and current-user reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateRoleCommand",
+    "Reason": "Changes role configuration. Admin roles and affected access checks read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateUserPermissionsCommand",
+    "Reason": "Changes user grants. User-permission, access and navigation reads bypass query caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateUserRolesCommand",
+    "Reason": "Changes user role assignments. Role, access and navigation reads use current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyEmailOtpCommand",
+    "Reason": "Consumes or updates a verification challenge. IAM verifies current challenge and session state."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyOtpCommand",
+    "Reason": "Updates MFA challenge or login state. Sign-in and MFA checks use current records."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyPasswordCommand",
+    "Reason": "Checks credentials in the live IAM store. This verification bypasses query caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyPasswordResetOtpCommand",
+    "Reason": "Consumes or updates password recovery state. IAM manages recovery challenge lifetime."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.AssignCollectionOfficerCommand",
+    "Reason": "Changes officer ownership. Officer-scoped collection lists read current assignments."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.OpenCollectionCaseCommand",
+    "Reason": "Creates a collection case. Collection queues and loan status read current records."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.ProcessPendingPromisesCommand",
+    "Reason": "Updates collection promises in the background. Promise and case views read current status."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.RecordCollectionActionCommand",
+    "Reason": "Adds collection case history. Case detail and queue reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.RecordPromiseToPayCommand",
+    "Reason": "Adds a collection promise. Case and promise queues read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.ResolveCollectionCaseCommand",
+    "Reason": "Closes a collection case. Officer queues and case details read current data."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.ScanForArrearsCommand",
+    "Reason": "Identifies overdue accounts and creates collection work. Loan and collection reads use live balances and case state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Collections.Commands.SendPromiseRemindersCommand",
+    "Reason": "Processes promise reminders. Promise and case reads use current state directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.AcceptGuarantorPledgeCommand",
+    "Reason": "Changes guarantor acceptance and application state. Loan and membership reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.ApplyForLoanCommand",
+    "Reason": "Creates a loan application and uses current lending eligibility. Application lists and dashboards bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.ApproveLoanCommand",
+    "Reason": "Changes approval state. The application queue and loan dashboard use current committed data."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.DisburseLoanCommand",
+    "Reason": "Records disbursement and financial activity. Loan, account balance and ledger reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.RejectLoanCommand",
+    "Reason": "Changes application state. Application queues and dashboard totals use committed data."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanProducts.Commands.CreateLoanProductCommand",
+    "Reason": "Creates lending terms. Loan product and eligibility reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanProducts.Commands.UpdateLoanProductCommand",
+    "Reason": "Changes terms and availability. Loan product and eligibility reads use current configuration."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.LoanRepayments.Commands.ProcessRepaymentCommand",
+    "Reason": "Changes the loan balance and repayment history. Repayment, collections and financial reports read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.AddBeneficiaryCommand",
+    "Reason": "Adds a beneficiary. Protected member and beneficiary reads use the current records."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.ApproveMemberCommand",
+    "Reason": "Changes membership status. Member details and the KYC queue read committed state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.CloseMemberCommand",
+    "Reason": "Closes membership. Membership and financial status reads use current data."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.NominateGuarantorCommand",
+    "Reason": "Creates a guarantor request. Guarantor and loan application workflows read the current request."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.OnboardMemberCommand",
+    "Reason": "Creates a member. Member lists, KYC queues and membership totals bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.PostBosaTransactionCommand",
+    "Reason": "Changes member financial activity. Member balance and accounting reports bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.RejectMemberCommand",
+    "Reason": "Changes membership and queue status. Membership views read the database directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.RemoveBeneficiaryCommand",
+    "Reason": "Removes a beneficiary. Sensitive beneficiary lists are fresh reads."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.RespondToGuarantorCommand",
+    "Reason": "Changes guarantor request status. Guarantor and application reads use current workflow state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.SuspendMemberCommand",
+    "Reason": "Changes membership eligibility. Member and application workflows read current state."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.VerifyMemberKycCommand",
+    "Reason": "Changes KYC status. Membership details and review queues bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.InitiatePaymentCommand",
+    "Reason": "Starts a provider payment. Provider capability, payment history and status reads are fresh."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa.ProcessMpesaC2BConfirmationCommand",
+    "Reason": "Records a provider confirmation. Payment history, status and downstream balances bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa.ProcessMpesaC2BValidationCommand",
+    "Reason": "Validates a provider transaction against current payment and membership rules."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa.ProcessMpesaStkCallbackCommand",
+    "Reason": "Updates payment state from a provider callback. Payment status and history are fresh reads."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa.RegisterMpesaC2BUrlsCommand",
+    "Reason": "Registers provider callback URLs. Payment capabilities query the current configuration."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa.SimulateMpesaC2BPaymentCommand",
+    "Reason": "Exercises the provider payment flow. History and status reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Shared.Payments.CommandHandlers.ProcessPaymentWebhookCommand",
+    "Reason": "Records a provider result. Payment status, history and affected financial reads bypass caching."
+  }
+]

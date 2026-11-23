@@ -23,14 +23,13 @@ public class ValidationBehavior<TRequest, TResponse>
             return await next(cancellationToken).ConfigureAwait(false);
         }
 
-        var context = new ValidationContext<TRequest>(request);
-
-        var validationResults = await Task.WhenAll(_validators.Select(v => v.ValidateAsync(context, cancellationToken))).ConfigureAwait(false);
-
-        var failures = validationResults
-            .SelectMany(r => r.Errors)
-            .Where(f => f != null)
-            .ToList();
+        var failures = new List<FluentValidation.Results.ValidationFailure>();
+        foreach (var validator in _validators)
+        {
+            var context = new ValidationContext<TRequest>(request);
+            var result = await validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
+            failures.AddRange(result.Errors);
+        }
 
         if (failures.Any())
         {

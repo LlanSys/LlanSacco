@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.HR.Payroll.Dtos;
 using MediatR;
@@ -6,7 +7,10 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.HR.Payroll.Queries;
 
-public record GetHrDashboardStatsQuery() : IRequest<AppResponse<HrDashboardStatsResponse>>;
+public record GetHrDashboardStatsQuery() : IRequest<AppResponse<HrDashboardStatsResponse>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "HR totals depend on employee, department and payroll changes across workflows.";
+}
 
 internal class GetHrDashboardStatsQueryHandler 
     : IRequestHandler<GetHrDashboardStatsQuery, AppResponse<HrDashboardStatsResponse>>

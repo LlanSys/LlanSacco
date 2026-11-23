@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using FluentValidation;
 using LS.Domain.Features.CheckOff.Contracts;
 using LS.SharedKernel.Dtos.Common;
@@ -7,7 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.CheckOff.Queries.Employers;
 
-public record GetEmployersQuery : IRequest<AppResponse<List<EmployerResponse>>>;
+public record GetEmployersQuery : IRequest<AppResponse<List<EmployerResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "CheckOff operators see employer registration and linkage changes immediately.";
+}
 
 internal sealed class GetEmployersQueryHandler(
     ICheckOffUnitOfWork unitOfWork,

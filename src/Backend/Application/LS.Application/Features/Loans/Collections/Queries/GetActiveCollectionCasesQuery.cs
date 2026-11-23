@@ -1,3 +1,4 @@
+using LS.Application.Contracts.Interfaces.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,10 @@ using LS.SharedKernel.Dtos.Loans.Collections;
 
 namespace LS.Application.Features.Loans.Collections.Queries;
 
-public record GetActiveCollectionCasesQuery(Guid? OfficerUserId) : IRequest<AppResponse<IEnumerable<CollectionCaseResponse>>>;
+public record GetActiveCollectionCasesQuery(Guid? OfficerUserId) : IRequest<AppResponse<IEnumerable<CollectionCaseResponse>>>, IUncachedQuery
+{
+    string IUncachedQuery.CacheBypassReason => "Officer-scoped collection queues reflect current assignment and status.";
+}
 
 internal class GetActiveCollectionCasesQueryHandler(ILoansUnitOfWork unitOfWork) : IRequestHandler<GetActiveCollectionCasesQuery, AppResponse<IEnumerable<CollectionCaseResponse>>>
 {

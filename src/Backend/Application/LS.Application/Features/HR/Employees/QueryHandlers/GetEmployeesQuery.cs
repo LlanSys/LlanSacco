@@ -20,11 +20,8 @@ namespace LS.Application.Features.HR.Employees.QueryHandlers;
 // ── Get Active Employees (for RM dropdown) ────────────────────────────────
 
 
-public record GetEmployeesQuery(string UserId) : IRequest<AppResponse<List<EmployeeResponse>>>, ICachableRequest
+public record GetEmployeesQuery(string UserId) : IRequest<AppResponse<List<EmployeeResponse>>>, IUncachedQuery
 {
-    public string CacheGroup => "employees";
-    public string Discriminator => "all";
-    public string? CacheUserId => null;
-    public bool IsVersioned => true;
+    string IUncachedQuery.CacheBypassReason => "Employee data includes personal and identity information changed by HR and IAM.";
 }
 

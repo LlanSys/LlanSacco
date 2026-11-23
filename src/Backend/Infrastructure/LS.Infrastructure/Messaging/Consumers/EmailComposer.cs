@@ -1,10 +1,8 @@
 using LS.SharedKernel.Features.Shared.EmailTemplates.Enums;
 using LS.SharedKernel.Features.Shared.Notifications.Dtos;
-using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Features.IAM.Users.Contracts.Interfaces;
 using LS.Application.Features.Shared.Notifications.Contracts.Interfaces;
 using LS.SharedKernel.Extensions;
-using LS.Application.Utilities;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
@@ -21,11 +19,9 @@ namespace LS.Infrastructure.Messaging.Consumers;
 
 
 public abstract class EmailComposer<TEvent>(
-    ICacheService _cache,
     ISharedUnitOfWork _sharedUnitOfWork,
     ILogger<EmailComposer<TEvent>> logger) : IEmailComposer<TEvent> where TEvent : IIntegrationEvent
 {
-    private static readonly TimeSpan Ttl = TimeSpan.FromHours(1);
 
     public abstract Task<AppResponse<ComposeEmailResponse>> ComposeAsync(TEvent evt,CancellationToken ct);
 
@@ -52,16 +48,9 @@ public abstract class EmailComposer<TEvent>(
     {
         try
         {
-            var key = CacheKeys.EmailTemplate(emailTemplateType.ToDisplayString());
-
-            return await _cache.GetOrCreateAsync(
-                key,
-                async ct => await _sharedUnitOfWork.EmailTemplateRepository
-                    .FindByCondition(t => t.Name == emailTemplateType.ToDisplayString())
-                    .FirstOrDefaultAsync(ct)
-                    .ConfigureAwait(false),
-                Ttl,
-                cancellationToken).ConfigureAwait(false);
+            var name = emailTemplateType.ToDisplayString();
+            return await _sharedUnitOfWork.EmailTemplateRepository
+                .FirstOrDefaultAsync(template => template.Name == name, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

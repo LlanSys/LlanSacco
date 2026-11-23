@@ -1,5 +1,3 @@
-using LS.Application.Contracts.Interfaces.Common;
-using LS.Application.Utilities;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
 using System;
@@ -13,9 +11,4 @@ public sealed record GrantEmployeeSystemAccessCommand(
     IReadOnlyList<string> Roles,
     string GrantedBy
 
-) : IRequest<AppResponse<bool>>, ICacheInvalidatorRequest
-{
-    public IReadOnlyList<string> DirectInvalidationKeys => [];
-
-    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("iam-admin")];
-}
+) : IRequest<AppResponse<bool>>;

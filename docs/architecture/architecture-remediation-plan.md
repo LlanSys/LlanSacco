@@ -8,7 +8,7 @@ Repository: https://github.com/LlanSys/LlanSacco
 
 Restore the documented modular monolith, Clean Architecture, feature ownership, generic repository/Unit of Work, AppResponse, validation, and MediatR pipeline conventions. Establish a protected PR workflow with executable architecture checks. Preserve existing features and user changes; correct runtime defects before treating naming cleanup as complete.
 
-AGENTS.md remains canonical. The user's September 10 instructions explicitly refine the contract: feature-specific repository interfaces and Repository property suffixes; separate validator files; operation-named files containing the command and handler by default. Phase 1 reconciled these rules with the canonical docs and regression tests; existing implementation debt remains assigned to the later phases. BaseTemplate is a reference, not authority over these instructions: its current checkout also contains exceptions and inherited weaknesses.
+AGENTS.md remains canonical. The user's September 10 instructions explicitly refine the contract: feature-specific repository interfaces and Repository property suffixes; separate validator files; operation-named files containing the command and handler by default. Phase 1 reconciled these rules with the canonical docs and regression tests; existing implementation debt remains assigned to the later phases. StarterTemplate is the default platform and architecture reference. Use BaseTemplate as a reference only when explicitly requested.
 
 Platform alignment direction (2026-11-21): continue improving the existing LlanSacco application, preserving its SACCO workflows, data, migrations and identities. Selectively adopt the verified platform improvements from [StarterTemplate PR #12](https://github.com/LlanSys/starter-template/pull/12), merged on 2026-11-20. Replacing LlanSacco with a fresh clone would not close the recovery and isolation gates below.
 
@@ -17,8 +17,8 @@ Platform alignment direction (2026-11-21): continue improving the existing LlanS
 - The local directory has no .git metadata. Do not infer original commits or change provenance.
 - GitHub reports LlanSys/LlanSacco is private, size 0, default branch main, with admin access for the current account. Recheck branches and contents before bootstrap; size alone is not proof of no commits.
 - Historical planning observation (superseded during Phase 0): the rulesets API returned HTTP 403: "Upgrade to GitHub Pro or make this repository public to enable this feature." Resolve private-repository plan eligibility with the owner; do not change visibility or purchase a plan automatically. Also inspect classic branch-protection availability. Local hooks and CI do not substitute for server-enforced merge protection.
-- AppResponse.cs and AppResponses.cs match the current local BaseTemplate after namespace normalization. Preserve the transport structure while fixing usage. IRepository method signatures also match; a removed feature-specific using is not a contract change.
-- Raw generic repository properties: Banking 14, CheckOff 6, Dividends 3, IAM 7, Loans 5, Membership 4 (39 total). Of these, 30 omit Repository. ControlPlane has three additional named-interface properties without the suffix. IAM's seven raw properties also exist in the current BaseTemplate.
+- At the starting audit, AppResponse.cs and AppResponses.cs matched the BaseTemplate checkout after namespace normalization. IRepository method signatures also matched. Preserve the transport structure while fixing usage.
+- Raw generic repository properties: Banking 14, CheckOff 6, Dividends 3, IAM 7, Loans 5, Membership 4 (39 total). Of these, 30 omit Repository. ControlPlane has three additional named-interface properties without the suffix. The BaseTemplate checkout examined during the starting audit also exposed these seven IAM properties.
 - CheckOff and Dividends construct generic repositories in property getters. Membership already injects named repositories but exposes several as raw interfaces.
 - Check-off validation and posting mutate entities returned by no-tracking methods without staging updates. Validation performs an employment lookup per row; posting queues work before the transaction commits.
 - Payroll overwrites its effective-date-filtered configuration with an unfiltered latest configuration, materializes before filtering, and constructs error-less AppResponse failures.
@@ -40,7 +40,7 @@ Features/{Context}/{Feature}/Commands/CreateOrder.cs
 Features/{Context}/{Feature}/Validators/CreateOrderCommandValidator.cs
 ```
 
-CreateOrder.cs contains the public CreateOrderCommand and its internal CreateOrderCommandHandler. The FILE is named CreateOrder.cs, not CreateOrderHandler.cs or CreateOrderCommandHandler.cs. Retain meaningful Command/Query/Handler TYPE suffixes for MediatR intent and existing type conventions. This is the interpretation of the user's filename example, consistent with the operation-named BaseTemplate file examined.
+CreateOrder.cs contains the public CreateOrderCommand and its internal CreateOrderCommandHandler. The FILE is named CreateOrder.cs, not CreateOrderHandler.cs or CreateOrderCommandHandler.cs. Retain meaningful Command/Query/Handler TYPE suffixes for MediatR intent and existing type conventions. This is the interpretation of the user's filename example, consistent with the operation-named file examined during the starting audit.
 
 Validators always occupy their own type-named files, including internal validators. Shared transport validators stay in SharedKernel.Validation under their owning feature. Reuse transport validation with composition where suitable; application validation covers command and use-case concerns.
 
@@ -188,35 +188,36 @@ Gate: all remediation items closed or explicitly blocked with evidence; protecte
 
 ## 5. Git Workflow And Remote Guardrails
 
-Use a protected-main PR workflow with short-lived feat/*, fix/*, refactor/*, and chore/* branches. BaseTemplate workflows target main; a permanent develop branch adds no demonstrated benefit here. Use release/* only when maintaining a separate supported release, and tag releases vX.Y.Z. Hotfixes follow the same checks. Squash merge focused PRs and remove merged branches.
+Use a protected-main PR workflow with short-lived `feat/*`, `fix/*`, `refactor/*`, and `chore/*` branches. StarterTemplate workflows target main; a permanent develop branch adds no demonstrated benefit here. Use `release/*` only when maintaining a separate supported release, and tag releases vX.Y.Z. Hotfixes follow the same checks. Squash merge focused PRs and remove merged branches.
 
 Protect main against direct pushes, force pushes, and deletion; require current successful checks and resolved review conversations. Set least-privilege GitHub Actions permissions. Configure CODEOWNERS for actual eligible maintainers of architecture, domain, persistence, IAM, and .github paths; do not invent accounts or require an impossible self-approval. Require independent approval when a second eligible reviewer is available; record any temporary solo-maintainer review policy explicitly while retaining PR/check requirements. Narrow, auditable emergency bypass only.
 
-Adapt BaseTemplate's architecture/backend/frontend/full-solution workflows and PR template. Add an always-running, uniquely named aggregate merge gate for every PR to main. It must fail on failed/cancelled required jobs and permit only justified non-applicable skips; required workflows must not disappear due to path filters. Verify exact emitted check names before requiring them.
+Adapt StarterTemplate's architecture/backend/frontend/full-solution workflows and PR template. Add an always-running, uniquely named aggregate merge gate for every PR to main. It must fail on failed/cancelled required jobs and permit only justified non-applicable skips; required workflows must not disappear due to path filters. Verify exact emitted check names before requiring them.
 
 Required gate coverage: architecture and source conventions; API and Blazor build; unit tests; PostgreSQL/SQL Server persistence tests for relevant changes; formatting/analyzer checks; migration consistency; secret/dependency checks appropriate to available repository capabilities. Full/nightly jobs supplement rather than replace merge-time correctness checks. Upload diagnostics/test reports on failure. No continue-on-error for required checks.
 
-Update .gitignore, .editorconfig, PR template, contribution guide, CODEOWNERS, and a single local validation script aligned with CI. PR descriptions include problem, behavior, contract impact, evidence, and remaining risks. Capture the BaseTemplate comparison commit when available. Pin/review workflow dependencies and deployment targets. Use OIDC for Azure and environment-controlled release promotion; do not activate inherited deployment credentials or paths.
+Update .gitignore, .editorconfig, PR template, contribution guide, CODEOWNERS, and a single local validation script aligned with CI. PR descriptions include problem, behavior, contract impact, evidence, and remaining risks. Capture the StarterTemplate comparison commit when available. Pin/review workflow dependencies and deployment targets. Use OIDC for Azure and environment-controlled release promotion; do not activate inherited deployment credentials or paths.
 
 GitHub references:
+
 - https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
 - https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks
 
 ## 6. Enforcement Matrix
 
-| Rule | Enforcement |
-| --- | --- |
-| Named UoW repository types and suffix | Reflection/semantic architecture tests |
-| No raw repositories/DbContexts in handlers | Constructor and dependency checks with exact exceptions |
-| Thin repositories; no premature saves | Semantic checks for known forbidden calls plus behavioral integration tests/review |
-| Separate validators and operation file pairing | Roslyn source structure tests excluding generated sources only |
-| Validators actually execute | DI and IMediator/API tests |
-| Typed failure outcomes | Source checks plus HTTP contract tests |
-| Cache policy coverage and invalidation | Request inventory checks plus pipeline/integration tests |
-| No tracking-loss/N+1/partial commits | Fresh-context, query-count, rollback and idempotency tests |
-| Inward dependencies and bounded contexts | Assembly/namespace architecture tests and explicit context registry |
-| Provider and tenant correctness | Dual-provider integration, migration/model, filter/audit tests |
-| Remote merge policy | Rules/protection readback and required-check verification |
+| Rule                                           | Enforcement                                                                        |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Named UoW repository types and suffix          | Reflection/semantic architecture tests                                             |
+| No raw repositories/DbContexts in handlers     | Constructor and dependency checks with exact exceptions                            |
+| Thin repositories; no premature saves          | Semantic checks for known forbidden calls plus behavioral integration tests/review |
+| Separate validators and operation file pairing | Roslyn source structure tests excluding generated sources only                     |
+| Validators actually execute                    | DI and IMediator/API tests                                                         |
+| Typed failure outcomes                         | Source checks plus HTTP contract tests                                             |
+| Cache policy coverage and invalidation         | Request inventory checks plus pipeline/integration tests                           |
+| No tracking-loss/N+1/partial commits           | Fresh-context, query-count, rollback and idempotency tests                         |
+| Inward dependencies and bounded contexts       | Assembly/namespace architecture tests and explicit context registry                |
+| Provider and tenant correctness                | Dual-provider integration, migration/model, filter/audit tests                     |
+| Remote merge policy                            | Rules/protection readback and required-check verification                          |
 
 Structural tests cannot prove all business semantics or absence of N+1 queries. Keep behavioral tests and review evidence for those properties.
 

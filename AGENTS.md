@@ -25,7 +25,7 @@ This file is the canonical source of truth and working contract for AI coding to
 - Product: LlanSacco
 - Root namespace prefix: `LS`
 - LlanSacco is the SACCO product, derived from BaseTemplate. Do not rerun template renaming on this established application.
-- Adopt proven StarterTemplate platform improvements selectively. Preserve SACCO workflows, migration history, LS namespaces and application identities; adopting a platform baseline does not certify open remediation gates.
+- StarterTemplate is the default reference for platform and architecture work. Use BaseTemplate as a reference only when explicitly requested. Adopt proven StarterTemplate improvements selectively and preserve SACCO workflows, migration history, LS namespaces and application identities. Verify LlanSacco’s remediation gates independently.
 - After protected data has been issued, `DataProtection:ApplicationName` is immutable without an explicit migration or security reset.
 - Target framework: `.NET 10`
 - Architecture: modular monolith with Clean Architecture boundaries and bounded-context feature folders.

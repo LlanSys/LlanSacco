@@ -53,7 +53,7 @@ public static class DependencyInjection
 
         });
 
-        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly(), includeInternalTypes: true);
 
 
         services.AddScoped<IEmployeeNumberGenerator, EmployeeNumberGenerator>();

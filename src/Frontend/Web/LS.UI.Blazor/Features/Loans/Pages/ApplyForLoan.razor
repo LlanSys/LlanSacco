@@ -115,12 +115,12 @@
             return;
         }
 
-        var guarantorInputs = new List<LoanGuarantorInputDto>();
+        var guarantorInputs = new List<LoanGuarantorRequest>();
         foreach (var g in Guarantors)
         {
             if (Guid.TryParse(g.MemberIdString, out var gId) && g.Amount > 0)
             {
-                guarantorInputs.Add(new LoanGuarantorInputDto
+                guarantorInputs.Add(new LoanGuarantorRequest
                 {
                     GuarantorMemberId = gId,
                     GuaranteedAmount = g.Amount

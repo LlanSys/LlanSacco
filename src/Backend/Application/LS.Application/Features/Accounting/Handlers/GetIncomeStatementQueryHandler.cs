@@ -14,12 +14,12 @@ using System;
 
 namespace LS.Application.Features.Accounting.Handlers;
 
-internal class GetIncomeStatementQueryHandler(IAccountingUnitOfWork unitOfWork, ILogger<GetIncomeStatementQueryHandler> logger) : IRequestHandler<GetIncomeStatementQuery, AppResponse<IncomeStatementDto>>
+internal class GetIncomeStatementQueryHandler(IAccountingUnitOfWork unitOfWork, ILogger<GetIncomeStatementQueryHandler> logger) : IRequestHandler<GetIncomeStatementQuery, AppResponse<IncomeStatementResponse>>
 {
     private readonly IAccountingUnitOfWork _unitOfWork = unitOfWork;
     private readonly ILogger<GetIncomeStatementQueryHandler> _logger = logger;
 
-    public async Task<AppResponse<IncomeStatementDto>> Handle(GetIncomeStatementQuery request, CancellationToken cancellationToken)
+    public async Task<AppResponse<IncomeStatementResponse>> Handle(GetIncomeStatementQuery request, CancellationToken cancellationToken)
     {
         var accounts = await _unitOfWork.AccountRepository.ListAsync(q => q.Where(a => a.AccountType == AccountType.Revenue || a.AccountType == AccountType.Expense), cancellationToken);
         var balances = await _unitOfWork.AccountRepository.GetAccountBalancesAsync(request.StartDate, request.EndDate, cancellationToken);
@@ -28,7 +28,7 @@ internal class GetIncomeStatementQueryHandler(IAccountingUnitOfWork unitOfWork, 
         {
             var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
             // Revenue is normally credit (negative)
-            return new StatementRowDto
+            return new StatementRowResponse
             {
                 AccountCode = a.AccountCode,
                 AccountName = a.AccountName,
@@ -40,7 +40,7 @@ internal class GetIncomeStatementQueryHandler(IAccountingUnitOfWork unitOfWork, 
         {
             var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
             // Expense is normally debit (positive)
-            return new StatementRowDto
+            return new StatementRowResponse
             {
                 AccountCode = a.AccountCode,
                 AccountName = a.AccountName,
@@ -48,7 +48,7 @@ internal class GetIncomeStatementQueryHandler(IAccountingUnitOfWork unitOfWork, 
             };
         }).Where(r => r.Balance != 0).ToList();
 
-        var dto = new IncomeStatementDto
+        var dto = new IncomeStatementResponse
         {
             Incomes = incomes,
             Expenses = expenses,

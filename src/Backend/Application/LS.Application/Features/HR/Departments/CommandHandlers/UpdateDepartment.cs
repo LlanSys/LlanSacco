@@ -9,7 +9,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.HR.Departments.CommandHandlers;
 
+public sealed record UpdateDepartmentCommand(Guid Id, UpdateDepartmentRequest Request, string UserId)
+    : IRequest<AppResponse<DepartmentResponse>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("departments", Id.ToString())];
 
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("departments")];
+}
 
 internal sealed class UpdateDepartmentCommandHandler(IHrUnitOfWork unitOfWork, ILogger<UpdateDepartmentCommandHandler> logger)
     : IRequestHandler<UpdateDepartmentCommand, AppResponse<DepartmentResponse>>

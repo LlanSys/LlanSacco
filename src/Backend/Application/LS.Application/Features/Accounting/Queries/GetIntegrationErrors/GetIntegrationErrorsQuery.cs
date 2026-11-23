@@ -8,7 +8,7 @@ using System;
 
 namespace LS.Application.Features.Accounting.Queries.GetIntegrationErrors;
 
-public record GetIntegrationErrorsQuery(string? Status = null) : IRequest<AppResponse<IEnumerable<AccountingIntegrationErrorDto>>>, IUncachedQuery
+public record GetIntegrationErrorsQuery(string? Status = null) : IRequest<AppResponse<IEnumerable<AccountingIntegrationErrorResponse>>>, IUncachedQuery
 {
     string IUncachedQuery.CacheBypassReason => "Retry and consumer delivery can change error state between requests.";
 }

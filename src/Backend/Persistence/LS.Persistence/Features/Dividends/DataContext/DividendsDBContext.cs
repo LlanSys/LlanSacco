@@ -52,7 +52,7 @@ public class DividendsDBContext : DbContext, ITenantFilteredDBContext, IDomainEv
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(DividendsDBContext).Assembly,
-            t => t.Namespace?.Contains("Features.Dividends.Configurations") == true);
+            t => t.Namespace?.Contains("Features.Dividends.EntityConfigurations") == true);
     }
 
     public Guid CurrentTenantId => _tenantProvider?.TenantId ?? Guid.Empty;

@@ -163,7 +163,7 @@
                 ReferenceNumber = ReferenceNumber,
                 Description = Description,
                 TransactionDate = TransactionDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(TransactionDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow,
-                Entries = Entries.Select(e => new CreateJournalEntryDto
+                Entries = Entries.Select(e => new CreateJournalEntryRequest
                 {
                     AccountId = e.AccountId,
                     Debit = e.Debit,

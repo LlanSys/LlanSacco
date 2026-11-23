@@ -10,7 +10,12 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.Menus.Commands;
 
-
+public sealed record UpdateMenuCommand(Guid Id, UpdateMenuRequest Request, string UserId)
+    : IRequest<AppResponse<MenuResponse>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [CacheKeys.Entity("menus", Id.ToString())];
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("menus")];
+}
 
 internal sealed class UpdateMenuCommandHandler(IIamUnitOfWork unitOfWork, ILogger<UpdateMenuCommandHandler> logger)
     : IRequestHandler<UpdateMenuCommand, AppResponse<MenuResponse>>

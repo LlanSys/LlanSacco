@@ -38,6 +38,6 @@ EF model seed data for departments and IAM reference definitions is applied thro
 | Phase 5 regressions | Seven passed. The five MediatR and HybridCache cases also ran against the running LlanSacco Redis service. The other two cover fresh hostname resolution and connection routing across scopes. |
 | Opt-in RabbitMQ transport | Passed on retry against the running LlanSacco broker. Windows locked the temporary SQLite file during cleanup on the first attempt. |
 | Package policy and scoped formatting | Passed |
-| Hosted remediation check | Pending the Phase 5 PR |
+| Hosted remediation check | Passed on [PR #9](https://github.com/LlanSys/LlanSacco/pull/9), merged into main at 619555b |
 
 Phase 5 is based on main at 515ed6c, the merged [Phase 4 PR](https://github.com/LlanSys/LlanSacco/pull/8). Its baseline tree matches the one used for local Phase 5 verification.

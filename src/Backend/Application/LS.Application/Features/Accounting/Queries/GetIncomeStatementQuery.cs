@@ -6,7 +6,7 @@ using System;
 
 namespace LS.Application.Features.Accounting.Queries;
 
-public record GetIncomeStatementQuery(DateTimeOffset StartDate, DateTimeOffset EndDate) : IRequest<AppResponse<IncomeStatementDto>>, IUncachedQuery
+public record GetIncomeStatementQuery(DateTimeOffset StartDate, DateTimeOffset EndDate) : IRequest<AppResponse<IncomeStatementResponse>>, IUncachedQuery
 {
     string IUncachedQuery.CacheBypassReason => "Financial statements reflect journals posted for the requested date range.";
 }

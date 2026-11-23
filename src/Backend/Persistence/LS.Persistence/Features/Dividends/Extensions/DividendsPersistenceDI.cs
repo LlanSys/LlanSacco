@@ -4,8 +4,6 @@ using LS.Domain.Features.Dividends.Contracts;
 using LS.Persistence.Common.Configuration;
 using LS.Persistence.Common.Interceptors;
 using LS.Persistence.Features.Dividends.DataContext;
-using LS.Persistence.Features.Dividends.Providers.PostgreSql;
-using LS.Persistence.Features.Dividends.Providers.SqlServer;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

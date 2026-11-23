@@ -37,7 +37,7 @@ internal sealed class GetLoanApplicationsQueryHandler(ILoansUnitOfWork unitOfWor
                         ApplicationDate = a.ApplicationDate,
                         OutstandingPrincipal = a.OutstandingPrincipal,
                         OutstandingInterest = a.OutstandingInterest,
-                        Guarantors = a.Guarantors.Select(g => new LoanGuarantorDto
+                        Guarantors = a.Guarantors.Select(g => new LoanGuarantorResponse
                         {
                             Id = g.Id,
                             GuarantorMemberId = g.GuarantorMemberId,

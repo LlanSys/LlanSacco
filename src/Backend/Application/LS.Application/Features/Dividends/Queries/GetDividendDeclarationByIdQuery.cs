@@ -1,7 +1,7 @@
 using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.SharedKernel.Dtos.Common;
-using LS.SharedKernel.Dtos.Dividends;
+using LS.SharedKernel.Features.Dividends.Dtos;
 using MediatR;
 using System;
 using System.Threading;
@@ -9,23 +9,23 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Dividends.Queries;
 
-public record GetDividendDeclarationByIdQuery(Guid Id) : IRequest<AppResponse<DividendDeclarationDto>>, IUncachedQuery
+public record GetDividendDeclarationByIdQuery(Guid Id) : IRequest<AppResponse<DividendDeclarationResponse>>, IUncachedQuery
 {
     string IUncachedQuery.CacheBypassReason => "Declaration details reflect current calculation, approval and payout state.";
 }
 
 internal class GetDividendDeclarationByIdQueryHandler(
-    IDividendsUnitOfWork uow) : IRequestHandler<GetDividendDeclarationByIdQuery, AppResponse<DividendDeclarationDto>>
+    IDividendsUnitOfWork uow) : IRequestHandler<GetDividendDeclarationByIdQuery, AppResponse<DividendDeclarationResponse>>
 {
-    public async Task<AppResponse<DividendDeclarationDto>> Handle(GetDividendDeclarationByIdQuery request, CancellationToken cancellationToken)
+    public async Task<AppResponse<DividendDeclarationResponse>> Handle(GetDividendDeclarationByIdQuery request, CancellationToken cancellationToken)
     {
         var declaration = await uow.DividendDeclarationRepository.FindByIdAsync(request.Id, cancellationToken);
         if (declaration == null)
         {
-            return AppResponses.NotFound<DividendDeclarationDto>("Declaration not found.");
+            return AppResponses.NotFound<DividendDeclarationResponse>("Declaration not found.");
         }
 
-        var dto = new DividendDeclarationDto
+        var dto = new DividendDeclarationResponse
         {
             Id = declaration.Id,
             FinancialYear = declaration.FinancialYear.ToString(System.Globalization.CultureInfo.InvariantCulture),

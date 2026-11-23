@@ -14,7 +14,7 @@ public class LedgerService(IAccountingUnitOfWork uow, ICurrentTenantProvider ten
         string referenceNumber,
         string description,
         DateTimeOffset transactionDate,
-        IEnumerable<CreateJournalEntryDto> entries,
+        IEnumerable<CreateJournalEntryRequest> entries,
         string createdBy,
         CancellationToken cancellationToken = default)
     {

@@ -10,7 +10,13 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.Permissions.Commands;
 
+public sealed record CreatePermissionCommand(CreatePermissionRequest Request, string UserId)
+    : IRequest<AppResponse<PermissionResponse>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> DirectInvalidationKeys => [];
 
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("permissions")];
+}
 
 internal sealed class CreatePermissionCommandHandler(IIamUnitOfWork unitOfWork, ILogger<CreatePermissionCommandHandler> logger)
     : IRequestHandler<CreatePermissionCommand, AppResponse<PermissionResponse>>

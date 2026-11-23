@@ -7,7 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.HR.Employees.CommandHandlers;
 
-
+public sealed record DeleteEmployeeCommand(Guid Id, string UserId)
+    : IRequest<AppResponse<bool>>;
 
 internal sealed class DeleteEmployeeCommandHandler(IHrUnitOfWork unitOfWork, ILogger<DeleteEmployeeCommandHandler> logger)
     : IRequestHandler<DeleteEmployeeCommand, AppResponse<bool>>

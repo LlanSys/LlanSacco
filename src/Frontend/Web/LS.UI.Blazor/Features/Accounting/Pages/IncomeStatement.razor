@@ -83,7 +83,7 @@
     private DateTime? StartDate { get; set; } = new DateTime(DateTime.Today.Year, 1, 1);
     private DateTime? EndDate { get; set; } = DateTime.Today;
     private bool IsLoading { get; set; }
-    private IncomeStatementDto? ReportData;
+    private IncomeStatementResponse? ReportData;
 
     protected override async Task OnInitializedAsync()
     {

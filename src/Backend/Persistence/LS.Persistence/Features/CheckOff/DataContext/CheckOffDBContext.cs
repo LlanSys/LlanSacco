@@ -59,7 +59,7 @@ public class CheckOffDBContext : DbContext, ITenantFilteredDBContext, IDomainEve
         modelBuilder.AddTransactionalOutboxEntities(entity => entity.ToTable(entity.Metadata.GetDefaultTableName()!, "checkoff"));
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(CheckOffDBContext).Assembly,
-            t => t.Namespace?.Contains("Features.CheckOff.Configurations") == true);
+            t => t.Namespace?.Contains("Features.CheckOff.EntityConfigurations") == true);
         foreach (var entityType in modelBuilder.Model.GetEntityTypes().ToArray())
         {
             if (entityType.IsOwned() || entityType.BaseType is not null) continue;

@@ -10,7 +10,11 @@ using Microsoft.Extensions.Logging;
 
 namespace LS.Application.Features.IAM.ReferenceData.Commands;
 
-
+public sealed record CreateReferenceCatalogItemCommand(string CatalogType, ReferenceCatalogItemRequest Request, string UserId)
+    : IRequest<AppResponse<ReferenceCatalogItemResponse>>, ICacheInvalidatorRequest
+{
+    public IReadOnlyList<string> GroupVersionKeysToInvalidate => [CacheKeys.GroupVersion("iam-reference-data")];
+}
 
 internal sealed class CreateReferenceCatalogItemCommandHandler(IIamUnitOfWork unitOfWork, ILogger<CreateReferenceCatalogItemCommandHandler> logger)
     : IRequestHandler<CreateReferenceCatalogItemCommand, AppResponse<ReferenceCatalogItemResponse>>

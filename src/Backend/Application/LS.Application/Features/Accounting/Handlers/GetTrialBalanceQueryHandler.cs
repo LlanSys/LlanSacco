@@ -28,7 +28,7 @@ internal class GetTrialBalanceQueryHandler(IAccountingUnitOfWork unitOfWork, ILo
             {
                 var accountBalance = balances.TryGetValue(a.Id, out var bal) ? bal : 0m;
 
-                return new TrialBalanceRowDto
+                return new TrialBalanceRowResponse
                 {
                     AccountCode = a.AccountCode,
                     AccountName = a.AccountName,

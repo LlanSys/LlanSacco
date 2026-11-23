@@ -1,0 +1,310 @@
+[
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.ActivateTenantCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/ActivateTenantCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.ActivateTenantCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/ActivateTenantCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.AddTenantModuleCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/AddTenantModuleCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.AddTenantModuleCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/AddTenantModuleCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.ApproveTenantKYCCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/ApproveTenantKYCCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.ApproveTenantKYCCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/ApproveTenantKYCCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ChangePasswordCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/ChangePasswordCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ChangePasswordCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/ChangePasswordCommandHandler.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.CreateAppUserCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/CreateAppUserCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.CreateAppUser",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/CreateAppUser.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Stamps.Commands.CreateDeploymentStampCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Stamps/Commands/CreateDeploymentStampCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Stamps.CommandHandlers.CreateDeploymentStampCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Stamps/CommandHandlers/CreateDeploymentStampCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.CreateRoleCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/CreateRoleCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.CreateRole",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/CreateRole.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.CreateTenantCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/CreateTenantCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.CreateTenantCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/CreateTenantCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DeactivateAdminUserCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/DeactivateAdminUserCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.DeactivateAdminUser",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/DeactivateAdminUser.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DeleteRoleCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/DeleteRoleCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.DeleteRole",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/DeleteRole.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.DisableTotpCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/DisableTotpCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.DisableTotp",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/DisableTotp.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ExchangeSsoCodeCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/ExchangeSsoCodeCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ExchangeSsoCode",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/ExchangeSsoCode.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ForgotPasswordCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/ForgotPasswordCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ForgotPassword",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/ForgotPassword.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GetCurrentUserCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/GetCurrentUserCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.GetCurrentUser",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/GetCurrentUser.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GetOtpStatusCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/GetOtpStatusCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.GetOtpStatus",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/GetOtpStatus.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.GrantEmployeeSystemAccessCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/GrantEmployeeSystemAccessCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.GrantEmployeeSystemAccess",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/GrantEmployeeSystemAccess.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.InitiateTotpSetupCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/InitiateTotpSetupCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.InitiateTotpSetupCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/TotpSetup.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LinkEmployeeToExistingUserCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/LinkEmployeeToExistingUserCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.LinkEmployeeToExistingUser",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/LinkEmployeeToExistingUser.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LoginCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/LoginCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.Login",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/Login.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LoginWithPasskeyCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/LoginWithPasskeyCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.LoginWithPasskey",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/LoginWithPasskey.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.LogoutCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/LogoutCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.Logout",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/Logout.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ProcessSsoLoginCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/ProcessSsoLoginCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ProcessSsoLogin",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/ProcessSsoLogin.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RefreshTokenCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RefreshTokenCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RefreshToken",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RefreshToken.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RegisterPasskeyCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RegisterPasskeyCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RegisterPasskey",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RegisterPasskey.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.RemoveTenantModuleCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/RemoveTenantModuleCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.RemoveTenantModuleCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/RemoveTenantModuleCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RequestPasskeyLoginOptionsCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RequestPasskeyLoginOptionsCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RequestPasskeyLoginOptions",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RequestPasskeyLoginOptions.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RequestPasskeyRegistrationOptionsCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RequestPasskeyRegistrationOptionsCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RequestPasskeyRegistrationOptions",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RequestPasskeyRegistrationOptions.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.ResetPasswordCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/ResetPasswordCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.ResetPassword",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/ResetPassword.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RevokeEmployeeSystemAccessCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RevokeEmployeeSystemAccessCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RevokeEmployeeSystemAccess",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RevokeEmployeeSystemAccess.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.RevokeUserDeviceCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/RevokeUserDeviceCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.RevokeUserDevice",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/RevokeUserDevice.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.SendEmailOtpCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/SendEmailOtpCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.SendEmailOtp",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/SendEmailOtp.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.SuspendTenantCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/SuspendTenantCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.SuspendTenantCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/SuspendTenantCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateAdminUserCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/UpdateAdminUserCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateAdminUser",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateAdminUser.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Stamps.Commands.UpdateDeploymentStampCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Stamps/Commands/UpdateDeploymentStampCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Stamps.CommandHandlers.UpdateDeploymentStampCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Stamps/CommandHandlers/UpdateDeploymentStampCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateProfilePictureCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/UpdateProfilePictureCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateProfilePicture",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateProfilePicture.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateRoleCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/UpdateRoleCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateRole",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateRole.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Permissions.Commands.UpdateRolePermissionsCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Permissions/Commands/UpdateRolePermissionsCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateRolePermissions",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateRolePermissions.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.ControlPlane.Tenants.Commands.UpdateTenantCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/ControlPlane/Tenants/Commands/UpdateTenantCommand.cs",
+    "Handler": "LS.Infrastructure.Features.ControlPlane.Tenants.CommandHandlers.UpdateTenantCommandHandler",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/ControlPlane/Tenants/CommandHandlers/UpdateTenantCommandHandler.cs",
+    "Reason": "Infrastructure owns the Control Plane adapter with its provider-specific persistence or operational logging. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateUserPermissionsCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/UpdateUserPermissionsCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateUserPermissions",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateUserPermissions.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.UpdateUserRolesCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/UpdateUserRolesCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.UpdateUserRoles",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/UpdateUserRoles.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyEmailOtpCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/VerifyEmailOtpCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.VerifyEmailOtp",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/VerifyEmailOtp.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyOtpCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/VerifyOtpCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.VerifyTotpCode",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/VerifyTotpCode.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyPasswordCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/VerifyPasswordCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.VerifyPassword",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/VerifyPassword.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  },
+  {
+    "Symbol": "LS.Application.Features.IAM.Users.Commands.VerifyPasswordResetOtpCommand",
+    "RequestPath": "src/Backend/Application/LS.Application/Features/IAM/Users/Commands/VerifyPasswordResetOtpCommand.cs",
+    "Handler": "LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers.VerifyPasswordResetOtp",
+    "HandlerPath": "src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/AspNetCoreIdentity/CommandHandlers/VerifyPasswordResetOtp.cs",
+    "Reason": "Infrastructure owns the IAM adapter and its Identity, credential, session or delivery services. Application owns the request."
+  }
+]

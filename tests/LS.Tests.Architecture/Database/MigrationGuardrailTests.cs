@@ -1,6 +1,7 @@
 using LS.Domain.Shared.Contracts.Common;
 
 using LS.Persistence.Features.ControlPlane.DataContext;
+using LS.Persistence.Features.Dividends.DataContext;
 using LS.Persistence.Features.HR.DataContext;
 using LS.Persistence.Features.IAM.DataContext;
 using LS.Persistence.Features.Shared.DataContext;
@@ -59,6 +60,18 @@ public class MigrationGuardrailTests
     public void ControlPlanePostgreSql_ShouldNotHavePendingModelChanges()
     {
         AssertNoPendingModelChanges<ControlPlanePostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
+    }
+
+    [Fact]
+    public void DividendsSqlServer_ShouldNotHavePendingModelChanges()
+    {
+        AssertNoPendingModelChanges<DividendsSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
+    }
+
+    [Fact]
+    public void DividendsPostgreSql_ShouldNotHavePendingModelChanges()
+    {
+        AssertNoPendingModelChanges<DividendsPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
     }
 
     private static void AssertNoPendingModelChanges<TContext>(Action<DbContextOptionsBuilder> configureOptions) where TContext : DbContext

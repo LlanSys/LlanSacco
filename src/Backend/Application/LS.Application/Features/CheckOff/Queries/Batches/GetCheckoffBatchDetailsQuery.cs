@@ -13,14 +13,6 @@ public record GetCheckoffBatchDetailsQuery(Guid BatchId) : IRequest<AppResponse<
     string IUncachedQuery.CacheBypassReason => "Batch details include row errors and results updated by validation and posting.";
 }
 
-internal class GetCheckoffBatchDetailsQueryValidator : AbstractValidator<GetCheckoffBatchDetailsQuery>
-{
-    public GetCheckoffBatchDetailsQueryValidator()
-    {
-        RuleFor(x => x.BatchId).NotEmpty();
-    }
-}
-
 internal sealed class GetCheckoffBatchDetailsQueryHandler(
     ICheckOffUnitOfWork unitOfWork,
     ILogger<GetCheckoffBatchDetailsQueryHandler> logger)
@@ -77,4 +69,3 @@ internal sealed class GetCheckoffBatchDetailsQueryHandler(
         return new AppResponse<CheckoffBatchDetailsResponse>(response, "Batch details retrieved successfully.");
     }
 }
-

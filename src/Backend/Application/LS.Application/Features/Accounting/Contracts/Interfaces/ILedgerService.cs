@@ -16,7 +16,7 @@ public interface ILedgerService
         string referenceNumber,
         string description,
         DateTimeOffset transactionDate,
-        IEnumerable<CreateJournalEntryDto> entries,
+        IEnumerable<CreateJournalEntryRequest> entries,
         string createdBy,
         CancellationToken cancellationToken = default);
 }

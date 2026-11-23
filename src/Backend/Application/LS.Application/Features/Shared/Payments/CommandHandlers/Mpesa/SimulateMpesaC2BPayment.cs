@@ -1,0 +1,17 @@
+using LS.Application.Features.Shared.Payments.Contracts.Interfaces;
+using LS.SharedKernel.Dtos.Common;
+using MediatR;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace LS.Application.Features.Shared.Payments.CommandHandlers.Mpesa;
+
+public sealed record SimulateMpesaC2BPaymentCommand(decimal Amount, string PhoneNumber, string BillRefNumber) : IRequest<AppResponse<string>>;
+
+internal sealed class SimulateMpesaC2BPaymentCommandHandler(IMpesaC2BService mpesaC2BService) : IRequestHandler<SimulateMpesaC2BPaymentCommand, AppResponse<string>>
+{
+    public Task<AppResponse<string>> Handle(SimulateMpesaC2BPaymentCommand request, CancellationToken cancellationToken)
+    {
+        return mpesaC2BService.SimulatePaymentAsync(request.Amount, request.PhoneNumber, request.BillRefNumber, cancellationToken);
+    }
+}

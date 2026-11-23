@@ -100,7 +100,7 @@ public abstract partial class AccountingEventHandlerBase<TEvent> : IConsumer<TEv
     protected abstract string GetReferenceNumber(TEvent evt);
     protected abstract string GetDescription(TEvent evt);
     protected abstract Guid GetTenantId(TEvent evt);
-    protected abstract Task<IEnumerable<CreateJournalEntryDto>> CreateJournalEntriesAsync(TEvent evt, TransactionTypeGlMapping mapping);
+    protected abstract Task<IEnumerable<CreateJournalEntryRequest>> CreateJournalEntriesAsync(TEvent evt, TransactionTypeGlMapping mapping);
 
     protected Guid ResolveAccountId(string source, Guid? explicitId, Guid? channelId, Guid? productId)
         => source switch

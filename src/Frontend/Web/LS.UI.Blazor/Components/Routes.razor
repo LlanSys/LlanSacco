@@ -1,8 +1,15 @@
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
-            <NotAuthorized>
-                @{
+            <NotAuthorized Context="authentication">
+                @if (authentication.User.Identity?.IsAuthenticated == true)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="ma-4">
+                        Your account does not have access to this page.
+                    </MudAlert>
+                }
+                else
+                {
                     Navigation.NavigateTo("/iam/sign-in", forceLoad: true);
                 }
             </NotAuthorized>
@@ -15,6 +22,3 @@
     [Inject]
     private NavigationManager Navigation { get; set; } = default!;
 }
-
-
-

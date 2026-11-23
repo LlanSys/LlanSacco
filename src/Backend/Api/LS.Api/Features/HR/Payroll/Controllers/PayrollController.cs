@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using System.Security.Claims;
 using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.HR.Payroll.Commands;
@@ -79,7 +80,7 @@ public sealed class PayrollController(ISender sender) : BaseController
             request.HousingLevyRate,
             request.PersonalReliefAmount,
             request.PayeTaxBands,
-            User.Identity?.Name ?? "Admin"
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? LS.Domain.Shared.Contracts.Common.ICurrentActorProvider.SystemActor
         );
 
         var response = await sender.Send(command, cancellationToken);
@@ -96,4 +97,3 @@ public sealed class PayrollController(ISender sender) : BaseController
         return HandleResponse(response);
     }
 }
-

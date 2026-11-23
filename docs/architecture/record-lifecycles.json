@@ -1,0 +1,247 @@
+[
+  {
+    "Entity": "LS.Domain.Features.Accounting.Entities.Account",
+    "Mode": "BusinessLifecycle",
+    "Reason": "An inactive chart-of-accounts entry stays available to its historical journal lines."
+  },
+  {
+    "Entity": "LS.Domain.Features.Accounting.Entities.AccountingIntegrationError",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The status and original event reference support retry, deduplication and incident review."
+  },
+  {
+    "Entity": "LS.Domain.Features.Accounting.Entities.Journal",
+    "Mode": "FinancialHistory",
+    "Reason": "Journal references and posting status preserve the accounting entry and its replay identity."
+  },
+  {
+    "Entity": "LS.Domain.Features.Accounting.Entities.JournalLine",
+    "Mode": "FinancialHistory",
+    "Reason": "Debit and credit lines preserve the evidence and totals of the journal entry."
+  },
+  {
+    "Entity": "LS.Domain.Features.Accounting.Entities.TransactionTypeGlMapping",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Posting resolves a stable mapping by transaction code and updates its configuration in place."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Deposits.Entities.DepositAccount",
+    "Mode": "BusinessLifecycle",
+    "Reason": "An inactive account remains the parent of its deposits and withdrawals."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Deposits.Entities.DepositProduct",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Product activation controls new use while existing deposits keep their product reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Deposits.Entities.DepositTransaction",
+    "Mode": "FinancialHistory",
+    "Reason": "Amount, balance after posting and reference reconcile the deposit account."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.FOSA.Entities.FosaAccount",
+    "Mode": "BusinessLifecycle",
+    "Reason": "An inactive account remains the parent of its teller and FOSA transactions."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.FOSA.Entities.FosaTransaction",
+    "Mode": "FinancialHistory",
+    "Reason": "The posting reference, account, teller and amount reconcile over-the-counter movements."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.FOSA.Entities.TellerTill",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The status controls opening and closing. Cash movements and balancing records need the original till."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.FOSA.Entities.TillBalancingRecord",
+    "Mode": "FinancialHistory",
+    "Reason": "Physical and system counts preserve the reconciliation performed when the till was closed."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.FOSA.Entities.Vault",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The vault holds a running cash balance used by transfer reconciliation."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Savings.Entities.SavingsAccount",
+    "Mode": "BusinessLifecycle",
+    "Reason": "An inactive account remains the parent of savings postings and records the current balance and holds."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Savings.Entities.SavingsProduct",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Product activation controls use while existing accounts keep their terms reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Savings.Entities.SavingsTransaction",
+    "Mode": "FinancialHistory",
+    "Reason": "Savings postings and their external references support ledger and check-off replay."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Shares.Entities.ShareAccount",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Closing records the close date and keeps the account available to its ownership and transaction history."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Shares.Entities.ShareProduct",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation controls new use while share accounts preserve their product reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.Shares.Entities.ShareTransaction",
+    "Mode": "FinancialHistory",
+    "Reason": "Share movements and their references reconcile ownership and check-off replay."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.CheckoffBatch",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The batch status and reference support posting recovery and duplicate detection."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.CheckoffInstruction",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation determines which payroll deduction instruction applies to new batches."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.CheckoffStagingLoanAllocation",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The allocation ID is used as the receipt identity when a payroll deduction is replayed."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.CheckoffStagingRow",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The row ID, source values and processed status support recovery of a partially posted batch."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.Employer",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation controls participation while historical batches and employments keep their employer reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.CheckOff.Entities.MemberEmployment",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation governs new deductions. Payroll identity links remain available to instructions and batch review."
+  },
+  {
+    "Entity": "LS.Domain.Features.Dividends.Entities.DividendCalculation",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Per-member calculations and payout status support reconciliation against the declaration."
+  },
+  {
+    "Entity": "LS.Domain.Features.Dividends.Entities.DividendDeclaration",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The financial year and approval/distribution status preserve declaration history."
+  },
+  {
+    "Entity": "LS.Domain.Features.Dividends.Entities.DividendDistributionPreference",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The current member election is replaced in place and has one active record per member."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.EmployeePayrollComponent",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Deactivation removes the assignment from new payroll calculations while preserving the reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.EmployeeSalary",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Payroll updates current salary in place and freezes processed amounts on each payslip."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.PayrollComponent",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The component definition is updated in place while processed earnings and deductions are captured on payslips."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.PayrollPeriod",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Run and close status preserve the period identity and prevent a second processing run."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.PayrollStatutoryConfiguration",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Effective dates preserve rate configurations across payroll periods."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.Payslip",
+    "Mode": "FinancialHistory",
+    "Reason": "The posted payroll amounts preserve the calculation for the employee and period."
+  },
+  {
+    "Entity": "LS.Domain.Features.HR.Payroll.Entities.PayslipDetail",
+    "Mode": "FinancialHistory",
+    "Reason": "The allowance or deduction line preserves the inputs and breakdown of its payslip."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Collections.Entities.CollectionAction",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The dated action preserves the case’s contact and recovery history."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Collections.Entities.CollectionCase",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Resolution records the outcome and keeps associated promises and actions available."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Collections.Entities.CollectionPromise",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The due date, amount and status preserve the debtor’s commitment and follow-up history."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Entities.LoanApplication",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The loan lifecycle preserves approval, disbursement, guarantors, repayments and outstanding balances."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Entities.LoanGuarantor",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The pledge and its status preserve the guarantor’s consent and amount locked against the loan."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Entities.LoanProduct",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation controls new applications while existing loans retain their product reference."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Entities.LoanRepayment",
+    "Mode": "FinancialHistory",
+    "Reason": "Receipt identities and payment allocation preserve the loan’s repayment history and replay protection."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Entities.LoanRepaymentSchedule",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Installment identity preserves amortization and the status of applied repayments."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.GuarantorRequest",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Accept and reject record the consent decision and response date."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.Member",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Closure and suspension preserve the member’s identity for linked accounts, guarantees and financial history."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.MemberAccount",
+    "Mode": "BusinessLifecycle",
+    "Reason": "Activation controls use while the account remains available to its financial transactions."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.MemberGuarantor",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The relationship preserves the accepted guarantee and its link to lending records."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.MemberKycProfile",
+    "Mode": "BusinessLifecycle",
+    "Reason": "The profile records the member’s verification outcomes and verification timestamp."
+  },
+  {
+    "Entity": "LS.Domain.Features.Membership.Entities.MemberTransaction",
+    "Mode": "FinancialHistory",
+    "Reason": "The member transaction reference and amount preserve the account’s financial history."
+  }
+]

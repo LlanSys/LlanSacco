@@ -1,3 +1,4 @@
+using LS.Application.Extensions;
 using LS.Application.Features.Membership.Commands;
 using LS.Domain.Features.Accounting.Entities;
 using LS.Domain.Features.Accounting.Enums;
@@ -7,6 +8,7 @@ using LS.Domain.Features.Dividends.Entities;
 using LS.Domain.Features.Loans.Entities;
 using LS.Domain.Features.Loans.Enums;
 using LS.Domain.Features.Membership.Entities;
+using LS.Domain.Features.Membership.Enums;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using LS.Persistence.Features.Accounting.DataContext;
@@ -16,6 +18,8 @@ using LS.Persistence.Features.Dividends.DataContext;
 using LS.Persistence.Features.Loans.DataContext;
 using LS.Persistence.Features.Membership.DataContext;
 using LS.Persistence.Features.Membership.Extensions;
+using LS.SharedKernel.Features.Membership.Dtos;
+using LS.SharedKernel.Features.Shared.Common.Enums;
 using LS.Tests.Integration.TestFixtures;
 using MediatR;
 using Microsoft.Data.SqlClient;
@@ -131,6 +135,73 @@ public abstract class SaccoTenantIsolationTests<TFixture>(TFixture fixture) : IC
         Assert.True(retained.IsDeleted);
         Assert.Equal(ActorId, retained.DeletedBy);
         Assert.NotNull(retained.DeletedAt);
+    }
+
+    [Fact]
+    public async Task Accounting_journal_cannot_be_removed_from_financial_history()
+    {
+        var tenant = new Tenant(Guid.CreateVersion7());
+        var options = CreateOptions<AccountingDBContext>();
+        await using var context = new AccountingDBContext(options, tenant, new Actor());
+        await context.Database.EnsureCreatedAsync();
+        var journal = Journal.Create(tenant.TenantId, "TEST-RETENTION", "Retained journal", DateTimeOffset.UtcNow, ActorId);
+        context.Journals.Add(journal);
+        await context.SaveChangesAsync();
+        context.Journals.Remove(journal);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync());
+
+        context.ChangeTracker.Clear();
+        Assert.True(await context.Journals.AnyAsync(record => record.Id == journal.Id));
+    }
+
+    [Fact]
+    public async Task Membership_guarantor_response_requires_the_linked_nominee()
+    {
+        var tenant = new Tenant(Guid.CreateVersion7());
+        var options = CreateOptions<MembershipDBContext>();
+        await using var database = new MembershipDBContext(options);
+        var actor = new Actor();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:MembershipConnection"] = database.Database.GetConnectionString(),
+            ["DatabaseSettings:Provider"] = fixture is PostgreSqlDbFixture ? "PostgreSql" : "SqlServer"
+        })
+            .Build();
+
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton<ICurrentTenantProvider>(tenant);
+        services.AddSingleton<ICurrentActorProvider>(actor);
+        services.AddSingleton(Substitute.For<ITenantConnectionResolver>());
+        services.AddMembershipPersistence(configuration);
+        services.AddApplicationServices(configuration);
+
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<MembershipDBContext>();
+        await context.Database.MigrateAsync();
+        var caller = CreateMember(tenant.TenantId, 1);
+        caller.AppUserId = Guid.Parse(ActorId);
+        caller.Status = MemberStatus.Active;
+        var otherMember = CreateMember(tenant.TenantId, 2);
+        otherMember.Status = MemberStatus.Active;
+        var otherNominee = GuarantorRequest.Create(tenant.TenantId, caller.Id, otherMember.Id, 100, ActorId);
+        var callerNominee = GuarantorRequest.Create(tenant.TenantId, otherMember.Id, caller.Id, 100, ActorId);
+        context.AddRange(caller, otherMember, otherNominee, callerNominee);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+        var denied = await sender.Send(new RespondToGuarantorCommand(new RespondToGuarantorRequest(otherNominee.Id, true, null)));
+        Assert.Equal(ErrorType.NotFound, denied.Error?.Type);
+        Assert.Equal(GuarantorRequestStatus.Pending, (await context.GuarantorRequests.SingleAsync(record => record.Id == otherNominee.Id)).Status);
+
+        var accepted = await sender.Send(new RespondToGuarantorCommand(new RespondToGuarantorRequest(callerNominee.Id, true, null)));
+        Assert.True(accepted.IsSuccess, accepted.Error?.Message);
+        context.ChangeTracker.Clear();
+        Assert.Equal(GuarantorRequestStatus.Accepted, (await context.GuarantorRequests.SingleAsync(record => record.Id == callerNominee.Id)).Status);
+        var guarantee = Assert.Single(await context.MemberGuarantors.ToListAsync());
+        Assert.Equal(caller.Id, guarantee.GuarantorMemberId);
     }
 
     private static DividendDeclaration CreateDividendDeclaration(Guid tenant, int _) =>

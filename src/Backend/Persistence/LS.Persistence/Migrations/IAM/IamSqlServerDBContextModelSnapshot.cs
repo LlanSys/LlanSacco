@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.IAM
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -310,6 +310,7 @@ namespace LS.Persistence.Migrations.IAM
                             ParentId = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c10901"),
                             Placement = "Hr",
                             RequiredModule = "core",
+                            RequiredPermissionKey = "hr.payroll.view",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
                             Title = "Payroll",
@@ -329,6 +330,7 @@ namespace LS.Persistence.Migrations.IAM
                             ParentId = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c10901"),
                             Placement = "Hr",
                             RequiredModule = "core",
+                            RequiredPermissionKey = "hr.payroll.settings",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
                             Title = "Payroll Settings",
@@ -348,6 +350,7 @@ namespace LS.Persistence.Migrations.IAM
                             ParentId = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c10901"),
                             Placement = "Hr",
                             RequiredModule = "core",
+                            RequiredPermissionKey = "checkoff.view",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
                             Title = "Checkoff",
@@ -1389,6 +1392,291 @@ namespace LS.Persistence.Migrations.IAM
                             Resource = "transactions",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d5f-7902-9430-1ce4ec5562c9"),
+                            Action = "view",
+                            Context = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View integration failure summaries.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "accounting-integrations.view",
+                            Resource = "accounting-integrations",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-7c8d-91b5-e505e23f0d68"),
+                            Action = "retry",
+                            Context = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Replay failed accounting events.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "accounting-integrations.retry",
+                            Resource = "accounting-integrations",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-74bd-aa17-eeb1ba2ffbbc"),
+                            Action = "view",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View banking products.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-products.view",
+                            Resource = "banking-products",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-7d98-a492-2aee5ad38552"),
+                            Action = "manage",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Maintain deposit, savings and share products.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-products.manage",
+                            Resource = "banking-products",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-7191-a608-ae2202a6708a"),
+                            Action = "view",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View member banking accounts.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-accounts.view",
+                            Resource = "banking-accounts",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-7580-9ac2-4f9a9298c180"),
+                            Action = "open",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Open member banking accounts.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-accounts.open",
+                            Resource = "banking-accounts",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-71ea-bb31-1a70f75367d8"),
+                            Action = "post",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Post banking transactions.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-transactions.post",
+                            Resource = "banking-transactions",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-78ec-90da-6e691c73eac8"),
+                            Action = "manage",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Open and close teller tills.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "teller-tills.manage",
+                            Resource = "teller-tills",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d63-7d8e-939f-6c2960120723"),
+                            Action = "create",
+                            Context = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Transfer cash from a teller till to the vault.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "vault-transfers.create",
+                            Resource = "vault-transfers",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7157-9414-0262f9f8d530"),
+                            Action = "view",
+                            Context = "CheckOff",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View check-off batches and employers.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "checkoff.view",
+                            Resource = "checkoff",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7b09-913d-2e2aeb429c9f"),
+                            Action = "prepare",
+                            Context = "CheckOff",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Prepare and validate check-off batches.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "checkoff.prepare",
+                            Resource = "checkoff",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-79bf-bdb1-7f4b0dd7ff85"),
+                            Action = "post",
+                            Context = "CheckOff",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Post validated check-off deductions.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "checkoff.post",
+                            Resource = "checkoff",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7425-a488-6ed6904e1fdb"),
+                            Action = "view",
+                            Context = "Loans",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View collection cases and promises.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "collections.view",
+                            Resource = "collections",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7399-8bc5-b0fb72d44f60"),
+                            Action = "manage",
+                            Context = "Loans",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Maintain collection cases, actions and promises.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "collections.manage",
+                            Resource = "collections",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-778c-b95e-c79716ba6413"),
+                            Action = "disburse",
+                            Context = "Loans",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Disburse approved loan applications.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "applications.disburse",
+                            Resource = "applications",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9a7-7156-a0dd-0d98c3d5a34a"),
+                            Action = "view",
+                            Context = "HR",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View payroll periods, summaries, and payslips.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "hr.payroll.view",
+                            Resource = "hr.payroll",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ab-781c-8205-f7e45e20ff03"),
+                            Action = "run",
+                            Context = "HR",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Run payroll for a period.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "hr.payroll.run",
+                            Resource = "hr.payroll",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ab-7b37-8add-a1468ed88e5e"),
+                            Action = "close",
+                            Context = "HR",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Close a processed payroll period.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "hr.payroll.close",
+                            Resource = "hr.payroll",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ab-7a9e-a2ab-2dc3066cc88b"),
+                            Action = "settings",
+                            Context = "HR",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Read and maintain payroll configuration.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "hr.payroll.settings",
+                            Resource = "hr.payroll",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
                         });
                 });
 
@@ -2270,6 +2558,123 @@ namespace LS.Persistence.Migrations.IAM
                             Label = "Administer",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-7fd6-8137-a19db0ee0d30"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Manage the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "manage",
+                            Label = "Manage",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-7409-96fc-ef9be0737d63"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Open the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "open",
+                            Label = "Open",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-793f-97cd-1f28fc8e1a3e"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Post the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "post",
+                            Label = "Post",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-73d1-b02a-1e46b43bbc6b"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Prepare the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "prepare",
+                            Label = "Prepare",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-7968-ae28-c53da13177c8"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Retry the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "retry",
+                            Label = "Retry",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d68-75dc-b278-e86c93cf4bb6"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Disburse the applicable operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "disburse",
+                            Label = "Disburse",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ac-73e4-a2a9-9b58a43faa56"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Run for the selected operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "run",
+                            Label = "Run",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ad-76eb-b38b-2c628ec05f75"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Close for the selected operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "close",
+                            Label = "Close",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ad-7e24-b7e5-875dbc5e193c"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Settings for the selected operation.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "settings",
+                            Label = "Settings",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
                         });
                 });
 
@@ -2401,6 +2806,45 @@ namespace LS.Persistence.Migrations.IAM
                             IsDeleted = false,
                             Key = "Shared",
                             Label = "Shared",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-734c-a76d-af07344ad421"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Accounting operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "Accounting",
+                            Label = "Accounting",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-74cb-924a-c2b7fc80dcfc"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "CheckOff operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "CheckOff",
+                            Label = "CheckOff",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-70bd-8750-72c87b5a85b1"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Loans operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "Loans",
+                            Label = "Loans",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
                         });
@@ -2589,6 +3033,146 @@ namespace LS.Persistence.Migrations.IAM
                             IsDeleted = false,
                             Key = "payments",
                             Label = "Payments",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7286-ad6a-aa845861e1e1"),
+                            ContextKey = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Accounting integrations operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "accounting-integrations",
+                            Label = "Accounting integrations",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-739f-97e8-58248c469132"),
+                            ContextKey = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Banking products operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-products",
+                            Label = "Banking products",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7614-bc45-2101b553c789"),
+                            ContextKey = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Banking accounts operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-accounts",
+                            Label = "Banking accounts",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-78c5-a609-825ab678a8bd"),
+                            ContextKey = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Banking transactions operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-transactions",
+                            Label = "Banking transactions",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7238-a409-21e5dd782ad3"),
+                            ContextKey = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Teller tills operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "teller-tills",
+                            Label = "Teller tills",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-707f-bd5e-99454f749c7b"),
+                            ContextKey = "Banking",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Vault transfers operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "vault-transfers",
+                            Label = "Vault transfers",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7316-9f44-d15fd2a67243"),
+                            ContextKey = "CheckOff",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Check-off operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "checkoff",
+                            Label = "Check-off",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7ad6-9330-b48828498b6c"),
+                            ContextKey = "Loans",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Collections operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "collections",
+                            Label = "Collections",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20921-9d64-7afa-abd0-86f52a7c5564"),
+                            ContextKey = "Loans",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Loan applications operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "applications",
+                            Label = "Loan applications",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a20929-f9ad-7254-9d94-0fb71645df4a"),
+                            ContextKey = "HR",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Payroll operations.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "hr.payroll",
+                            Label = "Payroll",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
                         });

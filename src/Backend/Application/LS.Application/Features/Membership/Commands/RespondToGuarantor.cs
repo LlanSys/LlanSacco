@@ -1,4 +1,4 @@
-using LS.Application.Features.Membership.Handlers;
+using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Domain.Features.Membership.Contracts;
 using LS.Domain.Features.Membership.Entities;
 using LS.Domain.Features.Membership.Enums;
@@ -13,12 +13,13 @@ using System.Threading.Tasks;
 
 namespace LS.Application.Features.Membership.Commands;
 
-public record RespondToGuarantorCommand(RespondToGuarantorRequest Request, string CurrentUser) : IRequest<AppResponse<bool>>;
+public record RespondToGuarantorCommand(RespondToGuarantorRequest Request) : IRequest<AppResponse<bool>>;
 
 internal partial class RespondToGuarantorCommandHandler(
     IMembershipUnitOfWork unitOfWork,
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider,
+    ICurrentMemberResolver currentMember,
     ILogger<RespondToGuarantorCommandHandler> logger) : IRequestHandler<RespondToGuarantorCommand, AppResponse<bool>>
 {
     private readonly IMembershipUnitOfWork _unitOfWork = unitOfWork;
@@ -29,6 +30,7 @@ internal partial class RespondToGuarantorCommandHandler(
     public async Task<AppResponse<bool>> Handle(RespondToGuarantorCommand request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.TenantId;
+
         if (tenantId == Guid.Empty)
         {
             LogTenantMissing(_logger);
@@ -36,18 +38,19 @@ internal partial class RespondToGuarantorCommandHandler(
         }
 
         var guarantorRequest = await _unitOfWork.GuarantorRequestRepository.FindByIdAsync(request.Request.RequestId, cancellationToken).ConfigureAwait(false);
-        if (guarantorRequest == null)
-            return AppResponses.Failure<bool>(AppError.NotFound("Guarantor request not found."));
+        var memberId = await currentMember.FindActiveMemberIdAsync(cancellationToken).ConfigureAwait(false);
+
+        if (guarantorRequest is null || memberId != guarantorRequest.NominatedGuarantorMemberId)
+        {
+            return AppResponses.NotFound<bool>("Guarantor request not found.");
+        }
 
         if (guarantorRequest.Status != GuarantorRequestStatus.Pending)
         {
             return AppResponses.Failure<bool>(AppError.BusinessRule("This guarantor request has already been processed."));
         }
 
-        // Ideally, we'd verify the CurrentUser maps to guarantorRequest.NominatedGuarantorMemberId.
-        // Assuming CurrentUser is an IAM user, we need a mapping, but for now, we'll assume the client passed validation or the actor ID matches.
-        
-        var updatedBy = _actorProvider.ActorId.ToString() ?? request.CurrentUser;
+        var updatedBy = _actorProvider.ActorId;
 
         if (request.Request.IsAccepted)
         {

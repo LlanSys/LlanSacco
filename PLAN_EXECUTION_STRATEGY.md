@@ -308,6 +308,6 @@ Before we move from one phase to another:
 
 Follow [Architecture Remediation And Repository Governance Plan](docs/architecture/architecture-remediation-plan.md) before expanding product features. It tracks repository and Unit of Work alignment, AppResponse, behaviours and caching, validator placement, operation-named command slices and the protected GitHub PR workflow.
 
-Phases 0–6 are on main through [PR #10](https://github.com/LlanSys/LlanSacco/pull/10). Phase 7 is in progress. See the [Phase 7 verification report](docs/architecture/phase-7-verification.md) for the changes, evidence, and remaining closure work.
+Phases 0–6 are on main through [PR #10](https://github.com/LlanSys/LlanSacco/pull/10). Phase 7 remediation is in review. The [Phase 7 verification report](docs/architecture/phase-7-verification.md) records the completed work and the remaining release verification.
 
 The 2026-11-21 direction is to improve the established LlanSacco application incrementally using selected StarterTemplate platform improvements. Preserve SACCO workflows, migration history and application identities. Keep LlanSacco's architecture and CI gates in force.

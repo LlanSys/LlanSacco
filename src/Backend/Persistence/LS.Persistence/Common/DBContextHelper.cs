@@ -28,6 +28,7 @@ internal static class DBContextHelper
             if (((DbContext)context).Database.IsNpgsql())
             {
                 var rowVersionProp = entityType.FindProperty(nameof(BaseEntity.RowVersion));
+
                 if (rowVersionProp != null)
                 {
                     rowVersionProp.SetDefaultValue(Array.Empty<byte>());
@@ -36,10 +37,13 @@ internal static class DBContextHelper
                 foreach (var index in entityType.GetIndexes())
                 {
                     var filter = index.GetFilter();
+
                     if (!string.IsNullOrEmpty(filter))
                     {
                         var newFilter = filter.Replace("[", "\"").Replace("]", "\"")
-                            .Replace(" = 0", " = false").Replace(" = 1", " = true");
+                            .Replace(" = 0", " = false")
+                            .Replace(" = 1", " = true");
+
                         index.SetFilter(newFilter);
                     }
                 }
@@ -65,6 +69,11 @@ internal static class DBContextHelper
 
     public static void UpdateAuditAndSoftDelete(ChangeTracker changeTracker, string userId, Guid tenantId)
     {
+        if (changeTracker.Entries<IRetainedFinancialRecord>().Any(entry => entry.State == EntityState.Deleted))
+        {
+            throw new InvalidOperationException("Financial history cannot be deleted through a feature unit of work.");
+        }
+
         StampTenantIds(changeTracker, tenantId);
 
         var now = DateTimeOffset.UtcNow;
@@ -106,16 +115,24 @@ internal static class DBContextHelper
     public static List<IDomainEvent> CollectDomainEvents(ChangeTracker changeTracker)
     {
         var events = new List<IDomainEvent>();
+
         foreach (var entry in changeTracker.Entries<IHasDomainEvents>())
+        {
             if (entry.Entity.DomainEvents.Any())
+            {
                 events.AddRange(entry.Entity.DomainEvents);
+            }
+        }
+
         return events;
     }
 
     public static void ClearDomainEventsFromAggregates(ChangeTracker changeTracker)
     {
         foreach (var entry in changeTracker.Entries<IHasDomainEvents>())
+        {
             entry.Entity.ClearDomainEvents();
+        }
     }
 
     public static LambdaExpression CreateSoftDeleteFilter(Type type)
@@ -127,6 +144,7 @@ internal static class DBContextHelper
             [typeof(bool)],
             parameter,
             Expression.Constant(nameof(ISoftDeletable.IsDeleted)));
+
         var comparison = Expression.Equal(property, Expression.Constant(false));
         return Expression.Lambda(comparison, parameter);
     }
@@ -175,10 +193,7 @@ internal static class DBContextHelper
 
     private static Expression<Func<TEntity, bool>> CreateTenantFilter<TEntity, TContext>(TContext context)
         where TEntity : class
-        where TContext : DbContext, ITenantFilteredDBContext
-    {
-        return e => EF.Property<Guid>(e, nameof(BaseEntity.TenantId)) == context.CurrentTenantId;
-    }
+        where TContext : DbContext, ITenantFilteredDBContext => e => EF.Property<Guid>(e, nameof(BaseEntity.TenantId)) == context.CurrentTenantId;
 
     private static LambdaExpression CombineFilters(Type type, LambdaExpression? left, LambdaExpression right)
     {
@@ -193,10 +208,7 @@ internal static class DBContextHelper
         return Expression.Lambda(Expression.AndAlso(leftBody, rightBody), parameter);
     }
 
-    private static bool HasTenantId(IMutableEntityType entityType)
-    {
-        return entityType.FindProperty(nameof(BaseEntity.TenantId))?.ClrType == typeof(Guid);
-    }
+    private static bool HasTenantId(IMutableEntityType entityType) => entityType.FindProperty(nameof(BaseEntity.TenantId))?.ClrType == typeof(Guid);
 
     private static void StampTenantIds(ChangeTracker changeTracker, Guid tenantId)
     {

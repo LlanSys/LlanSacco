@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.HR
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -450,7 +450,7 @@ namespace LS.Persistence.Migrations.HR
             modelBuilder.Entity("LS.Domain.Features.HR.Payroll.Entities.PayeTaxBand", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                        .ValueGeneratedNever()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("ConfigurationId")
@@ -462,6 +462,16 @@ namespace LS.Persistence.Migrations.HR
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<decimal>("LowerLimit")
                         .HasColumnType("decimal(18,2)");

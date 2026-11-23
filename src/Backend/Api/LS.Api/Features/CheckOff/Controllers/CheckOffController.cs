@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.CheckOff.Commands.Batches;
 using LS.Application.Features.CheckOff.Commands.Instructions;
@@ -14,6 +15,7 @@ namespace LS.Api.Features.CheckOff.Controllers;
 public class CheckOffController(IMediator mediator) : BaseController
 {
     [HttpGet("employers")]
+    [RequirePermission("checkoff.view")]
     public async Task<IActionResult> GetEmployers()
     {
         var query = new GetEmployersQuery();
@@ -22,6 +24,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpGet("batches")]
+    [RequirePermission("checkoff.view")]
     public async Task<IActionResult> GetBatches()
     {
         var query = new GetCheckoffBatchesQuery();
@@ -30,6 +33,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpGet("batches/{batchId:guid}")]
+    [RequirePermission("checkoff.view")]
     public async Task<IActionResult> GetBatchDetails(Guid batchId)
     {
         var query = new GetCheckoffBatchDetailsQuery(batchId);
@@ -38,6 +42,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpPost("instructions")]
+    [RequirePermission("checkoff.prepare")]
     public async Task<IActionResult> CreateInstruction([FromBody] CreateCheckoffInstructionCommand command)
     {
         var response = await mediator.Send(command, HttpContext.RequestAborted).ConfigureAwait(false);
@@ -45,6 +50,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpPost("batches/upload")]
+    [RequirePermission("checkoff.prepare")]
     public async Task<IActionResult> UploadBatch([FromBody] UploadCheckoffBatchCommand command)
     {
         var response = await mediator.Send(command, HttpContext.RequestAborted).ConfigureAwait(false);
@@ -52,6 +58,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpPost("batches/{batchId:guid}/validate")]
+    [RequirePermission("checkoff.prepare")]
     public async Task<IActionResult> ValidateBatch(Guid batchId)
     {
         var command = new ValidateCheckoffBatchCommand(batchId);
@@ -60,6 +67,7 @@ public class CheckOffController(IMediator mediator) : BaseController
     }
 
     [HttpPost("batches/{batchId:guid}/post")]
+    [RequirePermission("checkoff.post")]
     public async Task<IActionResult> PostBatch(Guid batchId)
     {
         var command = new PostCheckoffBatchCommand(batchId);

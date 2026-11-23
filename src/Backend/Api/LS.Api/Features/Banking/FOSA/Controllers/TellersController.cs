@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using System;
 using System.Threading;
@@ -17,6 +18,7 @@ namespace LS.Api.Features.Banking.FOSA.Controllers;
 public class TellersController(IMediator mediator) : BaseController
 {
     [HttpPost("open")]
+    [RequirePermission("teller-tills.manage")]
     public async Task<IActionResult> OpenTill([FromBody] OpenTillRequest request, CancellationToken cancellationToken)
     {
         var command = new OpenTillCommand(request.TellerTillId, request.TellerUserId);
@@ -25,24 +27,40 @@ public class TellersController(IMediator mediator) : BaseController
     }
 
     [HttpPost("close")]
+    [RequirePermission("teller-tills.manage")]
     public async Task<IActionResult> CloseTill([FromBody] CloseTillRequest request, CancellationToken cancellationToken)
     {
         var breakdown = new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(
-            request.Note1000Count, request.Note500Count, request.Note200Count, request.Note100Count, request.Note50Count,
-            request.Coin20Count, request.Coin10Count, request.Coin5Count, request.Coin1Count);
-        
+            request.Note1000Count,
+            request.Note500Count,
+            request.Note200Count,
+            request.Note100Count,
+            request.Note50Count,
+            request.Coin20Count,
+            request.Coin10Count,
+            request.Coin5Count,
+            request.Coin1Count);
+
         var command = new CloseTillCommand(request.TellerTillId, breakdown, request.Remarks);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return HandleResponse(response);
     }
 
     [HttpPost("vault-transfer")]
+    [RequirePermission("vault-transfers.create")]
     public async Task<IActionResult> TransferToVault([FromBody] VaultTransferRequest request, CancellationToken cancellationToken)
     {
         var breakdown = new LS.Domain.Features.Banking.FOSA.ValueObjects.DenominationBreakdown(
-            request.Note1000Count, request.Note500Count, request.Note200Count, request.Note100Count, request.Note50Count,
-            request.Coin20Count, request.Coin10Count, request.Coin5Count, request.Coin1Count);
-            
+            request.Note1000Count,
+            request.Note500Count,
+            request.Note200Count,
+            request.Note100Count,
+            request.Note50Count,
+            request.Coin20Count,
+            request.Coin10Count,
+            request.Coin5Count,
+            request.Coin1Count);
+
         var command = new VaultTransferCommand(request.TellerTillId, request.VaultId, breakdown, request.Remarks, request.RequestId);
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return HandleResponse(response);

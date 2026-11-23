@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         var mediatrSettings = configuration.GetSection(MediatRSettings.SectionName).Get<MediatRSettings>() ?? new MediatRSettings();
         var licenseKey = mediatrSettings.LicenseKey;
+
         if (string.IsNullOrWhiteSpace(licenseKey))
         {
             licenseKey = "your-community-license-key-here";
@@ -58,6 +59,7 @@ public static class DependencyInjection
 
         services.AddScoped<IEmployeeNumberGenerator, EmployeeNumberGenerator>();
         services.AddScoped<IMemberNumberGenerator, MemberNumberGenerator>();
+        services.AddScoped<ICurrentMemberResolver, CurrentMemberResolver>();
         services.AddScoped<IServiceManager, ServiceManager>();
         services.AddScoped<ILedgerService, LedgerService>();
         services.AddScoped<IKenyaTaxCalculatorService, KenyaTaxCalculatorService>();

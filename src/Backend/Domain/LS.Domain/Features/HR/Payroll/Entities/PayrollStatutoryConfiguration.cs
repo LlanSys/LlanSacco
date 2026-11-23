@@ -8,25 +8,27 @@ namespace LS.Domain.Features.HR.Payroll.Entities;
 public class PayrollStatutoryConfiguration : BaseEntity
 {
     public DateTimeOffset EffectiveDate { get; private set; }
-    
+
     // NSSF
     public decimal NssfTier1Limit { get; private set; }
     public decimal NssfTier2Limit { get; private set; }
     public decimal NssfRate { get; private set; }
-    
+
     // SHIF / NHIF
     public decimal ShifRate { get; private set; }
-    
+
     // Housing Levy
     public decimal HousingLevyRate { get; private set; }
-    
+
     // PAYE Personal Relief
     public decimal PersonalReliefAmount { get; private set; }
 
     private readonly List<PayeTaxBand> _payeTaxBands = [];
-    public IReadOnlyCollection<PayeTaxBand> PayeTaxBands => _payeTaxBands.AsReadOnly();
+    public IReadOnlyCollection<PayeTaxBand> PayeTaxBands => _payeTaxBands.Where(band => !band.IsDeleted).ToArray();
 
-    private PayrollStatutoryConfiguration() { }
+    private PayrollStatutoryConfiguration()
+    {
+    }
 
     public static PayrollStatutoryConfiguration Create(
         DateTimeOffset effectiveDate,
@@ -74,7 +76,8 @@ public class PayrollStatutoryConfiguration : BaseEntity
 
     public void AddOrUpdatePayeTaxBand(decimal lowerLimit, decimal? upperLimit, decimal rate)
     {
-        var existing = _payeTaxBands.FirstOrDefault(x => x.LowerLimit == lowerLimit);
+        var existing = _payeTaxBands.FirstOrDefault(x => x.LowerLimit == lowerLimit && !x.IsDeleted);
+
         if (existing != null)
         {
             existing.Update(upperLimit, rate);
@@ -85,12 +88,9 @@ public class PayrollStatutoryConfiguration : BaseEntity
         }
     }
 
-    public void RemovePayeTaxBand(Guid bandId)
+    public void RemovePayeTaxBand(Guid bandId, string updatedBy)
     {
-        var existing = _payeTaxBands.FirstOrDefault(x => x.Id == bandId);
-        if (existing != null)
-        {
-            _payeTaxBands.Remove(existing);
-        }
+        var existing = _payeTaxBands.FirstOrDefault(x => x.Id == bandId && !x.IsDeleted);
+        existing?.MarkAsDeleted(updatedBy);
     }
 }

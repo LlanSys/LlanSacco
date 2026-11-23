@@ -7,7 +7,6 @@ using LS.Application.Features.Accounting.Queries.GetIntegrationErrors;
 using LS.SharedKernel.Features.Accounting.Dtos;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
@@ -119,7 +118,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="status">Optional status filter (e.g., PendingRetry, Resolved).</param>
     /// <returns>A list of accounting integration errors.</returns>
     [HttpGet("integration-errors")]
-    [Authorize]
+    [RequirePermission("accounting-integrations.view")]
     [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIntegrationErrors([FromQuery] string? status = null)
     {
@@ -134,7 +133,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="id">The ID of the integration error.</param>
     /// <returns>Success or failure of the retry operation.</returns>
     [HttpPost("integration-errors/{id}/retry")]
-    [Authorize]
+    [RequirePermission("accounting-integrations.retry")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status404NotFound)]

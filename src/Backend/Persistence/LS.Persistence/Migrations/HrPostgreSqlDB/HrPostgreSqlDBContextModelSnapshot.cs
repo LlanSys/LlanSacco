@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.HrPostgreSqlDB
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -455,7 +455,7 @@ namespace LS.Persistence.Migrations.HrPostgreSqlDB
             modelBuilder.Entity("LS.Domain.Features.HR.Payroll.Entities.PayeTaxBand", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                        .ValueGeneratedNever()
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("ConfigurationId")
@@ -467,6 +467,16 @@ namespace LS.Persistence.Migrations.HrPostgreSqlDB
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("LowerLimit")
                         .HasColumnType("decimal(18,2)");

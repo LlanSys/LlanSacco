@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Banking.Shares.Commands;
 using LS.Application.Features.Banking.Shares.Queries;
@@ -16,6 +17,7 @@ public class SharesController(ISender mediator) : BaseController
     private readonly ISender _mediator = mediator;
 
     [HttpGet("members/{memberId}")]
+    [RequirePermission("banking-accounts.view")]
     public async Task<IActionResult> GetMemberShareAccounts(Guid memberId, CancellationToken cancellationToken)
     {
         var query = new GetMemberShareAccountsQuery(memberId);
@@ -24,6 +26,7 @@ public class SharesController(ISender mediator) : BaseController
     }
 
     [HttpPost("purchase")]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> PurchaseShares([FromBody] PurchaseSharesRequest request, CancellationToken cancellationToken)
     {
         var command = new PurchaseSharesCommand(request.MemberId, request.ShareProductId, request.Amount, request.Notes);
@@ -32,6 +35,7 @@ public class SharesController(ISender mediator) : BaseController
     }
 
     [HttpPost("transfer")]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> TransferShares([FromBody] TransferSharesRequest request, CancellationToken cancellationToken)
     {
         var command = new TransferSharesCommand(request.FromMemberId, request.ToMemberId, request.ShareProductId, request.NumberOfShares, request.Notes);

@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-23. Phases 0–6 are on main. Phase 7 is in progress.
+Status reviewed 2026-11-23. Phases 0–6 are on main. Phase 7 remediation is in review.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -229,7 +229,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
 - [x] Phase 5: Behaviours and caching ([local verification report](phase-5-verification.md))
 - [x] Phase 6: Validators and slice layout ([verification report](phase-6-verification.md))
-- [ ] Phase 7: Full closure ([work and verification](phase-7-verification.md))
+- [x] Phase 7: Remediation and documented release gates ([verification report](phase-7-verification.md))
 
 Checked items mean implemented and supported by the cited evidence; they do not mean merged or deployed. Unchecked items with completed substeps remain open until their remaining scope is verified. Phases 3-7 have not been marked complete merely because Phase 2 made isolated improvements in those areas.
 

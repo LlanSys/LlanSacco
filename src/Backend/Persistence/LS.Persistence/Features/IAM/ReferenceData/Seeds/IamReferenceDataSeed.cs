@@ -13,7 +13,10 @@ internal static class IamReferenceDataSeed
         CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10102", "HR", "Human Resources", "Departments, employees, and staff operations."),
         CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10103", "IAM", "Identity and Access", "Users, roles, permissions, sessions, and devices."),
         CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10104", "Platform", "Platform", "Cross-cutting platform configuration and navigation."),
-        CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10105", "Shared", "Shared", "Cross-cutting platform services and reusable capability showcases.")
+        CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10105", "Shared", "Shared", "Cross-cutting platform services and reusable capability showcases."),
+        CreateContext("01a20921-9d64-734c-a76d-af07344ad421", "Accounting", "Accounting", "Accounting operations."),
+        CreateContext("01a20921-9d64-74cb-924a-c2b7fc80dcfc", "CheckOff", "CheckOff", "CheckOff operations."),
+        CreateContext("01a20921-9d64-70bd-8750-72c87b5a85b1", "Loans", "Loans", "Loans operations.")
     ];
 
     internal static IReadOnlyList<PermissionResource> PermissionResources =>
@@ -25,7 +28,17 @@ internal static class IamReferenceDataSeed
         CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10205", "permissions", "Permissions", "IAM", "Permission catalog and assignment surface."),
         CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10206", "roles", "Roles", "IAM", "Role catalog and permission bundles."),
         CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10207", "users", "Users", "IAM", "Application user accounts."),
-        CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10208", "payments", "Payments", "Shared", "Payment checkout, status, and provider administration." )
+        CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10208", "payments", "Payments", "Shared", "Payment checkout, status, and provider administration." ),
+        CreateResource("01a20921-9d64-7286-ad6a-aa845861e1e1", "accounting-integrations", "Accounting integrations", "Accounting", "Accounting integrations operations."),
+        CreateResource("01a20921-9d64-739f-97e8-58248c469132", "banking-products", "Banking products", "Banking", "Banking products operations."),
+        CreateResource("01a20921-9d64-7614-bc45-2101b553c789", "banking-accounts", "Banking accounts", "Banking", "Banking accounts operations."),
+        CreateResource("01a20921-9d64-78c5-a609-825ab678a8bd", "banking-transactions", "Banking transactions", "Banking", "Banking transactions operations."),
+        CreateResource("01a20921-9d64-7238-a409-21e5dd782ad3", "teller-tills", "Teller tills", "Banking", "Teller tills operations."),
+        CreateResource("01a20921-9d64-707f-bd5e-99454f749c7b", "vault-transfers", "Vault transfers", "Banking", "Vault transfers operations."),
+        CreateResource("01a20921-9d64-7316-9f44-d15fd2a67243", "checkoff", "Check-off", "CheckOff", "Check-off operations."),
+        CreateResource("01a20921-9d64-7ad6-9330-b48828498b6c", "collections", "Collections", "Loans", "Collections operations."),
+        CreateResource("01a20921-9d64-7afa-abd0-86f52a7c5564", "applications", "Loan applications", "Loans", "Loan applications operations."),
+        CreateResource("01a20929-f9ad-7254-9d94-0fb71645df4a", "hr.payroll", "Payroll", "HR", "Payroll operations.")
     ];
 
     internal static IReadOnlyList<PermissionAction> PermissionActions =>
@@ -37,7 +50,16 @@ internal static class IamReferenceDataSeed
         CreateAction("018fd81d-2c94-7ad0-a4a3-f1edb9d10305", "deactivate", "Deactivate", "Disable active records or accounts."),
         CreateAction("018fd81d-2c94-7ad0-a4a3-f1edb9d10306", "manage_permissions", "Manage permissions", "Assign or revoke permissions."),
         CreateAction("018fd81d-2c94-7ad0-a4a3-f1edb9d10307", "manage_roles", "Manage roles", "Assign or revoke roles."),
-        CreateAction("018fd81d-2c94-7ad0-a4a3-f1edb9d10308", "admin", "Administer", "Perform restricted provider administration actions.")
+        CreateAction("018fd81d-2c94-7ad0-a4a3-f1edb9d10308", "admin", "Administer", "Perform restricted provider administration actions."),
+        CreateAction("01a20921-9d68-7fd6-8137-a19db0ee0d30", "manage", "Manage", "Manage the applicable operation."),
+        CreateAction("01a20921-9d68-7409-96fc-ef9be0737d63", "open", "Open", "Open the applicable operation."),
+        CreateAction("01a20921-9d68-793f-97cd-1f28fc8e1a3e", "post", "Post", "Post the applicable operation."),
+        CreateAction("01a20921-9d68-73d1-b02a-1e46b43bbc6b", "prepare", "Prepare", "Prepare the applicable operation."),
+        CreateAction("01a20921-9d68-7968-ae28-c53da13177c8", "retry", "Retry", "Retry the applicable operation."),
+        CreateAction("01a20921-9d68-75dc-b278-e86c93cf4bb6", "disburse", "Disburse", "Disburse the applicable operation."),
+        CreateAction("01a20929-f9ac-73e4-a2a9-9b58a43faa56", "run", "Run", "Run for the selected operation."),
+        CreateAction("01a20929-f9ad-76eb-b38b-2c628ec05f75", "close", "Close", "Close for the selected operation."),
+        CreateAction("01a20929-f9ad-7e24-b7e5-875dbc5e193c", "settings", "Settings", "Settings for the selected operation.")
     ];
 
     internal static IReadOnlyList<MenuPlacement> MenuPlacements =>

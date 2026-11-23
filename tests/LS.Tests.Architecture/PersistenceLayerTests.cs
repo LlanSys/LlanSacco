@@ -18,8 +18,10 @@ public sealed class PersistenceLayerTests
         var result = Types.InAssembly(AssemblyReferences.Persistence)
             .That()
             .ImplementInterface(typeof(IEntityTypeConfiguration<>))
-            .And().AreNotAbstract()
-            .And().AreNotGeneric()
+            .And()
+            .AreNotAbstract()
+            .And()
+            .AreNotGeneric()
             .Should()
             .HaveNameEndingWith("Configuration")
             .GetResult();
@@ -50,8 +52,8 @@ public sealed class PersistenceLayerTests
 
         var misplacedTypes = configurationTypes
             .Where(t => t.Namespace is null ||
-                        !t.Namespace.StartsWith("LS.Persistence.Features.", StringComparison.Ordinal) ||
-                        !t.Namespace.Contains(".EntityConfigurations", StringComparison.Ordinal))
+                !t.Namespace.StartsWith("LS.Persistence.Features.", StringComparison.Ordinal) ||
+                !t.Namespace.Contains(".EntityConfigurations", StringComparison.Ordinal))
             .Select(t => t)
             .ToList();
 
@@ -80,14 +82,22 @@ public sealed class PersistenceLayerTests
     }
 
     [Fact]
-    public void Declared_DbSet_Entities_Should_Support_Soft_Delete()
+    public void Declared_DbSet_Entities_Should_Have_An_Enforced_Lifecycle()
     {
-        var hardDeleteOnlyEntities = GetDeclaredDbSetEntityTypes()
-            .Where(t => !typeof(ISoftDeletable).IsAssignableFrom(t) &&
-                        !(t.Namespace?.Contains(".ControlPlane.") ?? false) &&
-                        !(t.Namespace?.Contains(".Shared.") ?? false))
-            .Select(t => t)
-            .ToList();
+        var reviewed = Guardrails.ReviewedRecordLifecycles.Read();
+        var entities = GetDeclaredDbSetEntityTypes()
+            .Where(type => !typeof(ISoftDeletable).IsAssignableFrom(type) &&
+                !(type.Namespace?.Contains(".ControlPlane.") ?? false) &&
+                !(type.Namespace?.Contains(".Shared.") ?? false))
+            .ToDictionary(type => type.FullName!, StringComparer.Ordinal);
+
+        foreach (var record in reviewed.Values)
+        {
+            Assert.True(entities.TryGetValue(record.Entity, out var entity), $"Stale lifecycle decision for {record.Entity}.");
+            Assert.Equal(record.Mode == "FinancialHistory", typeof(IRetainedFinancialRecord).IsAssignableFrom(entity));
+        }
+
+        var hardDeleteOnlyEntities = entities.Where(entry => !reviewed.ContainsKey(entry.Key)).Select(entry => entry.Value);
 
         Guardrails.ArchitectureDebt.AssertMembers("EF004", hardDeleteOnlyEntities, "DbSet entity lacks ISoftDeletable; review ledger retention policy before changing", 7);
     }
@@ -96,8 +106,8 @@ public sealed class PersistenceLayerTests
     public void Declared_DbSet_Entities_Should_Be_Tenant_Scoped()
     {
         var entitiesWithoutTenantId = GetDeclaredDbSetEntityTypes()
-            .Where(t => t.GetProperty("TenantId") is null && 
-                        !(t.Namespace?.Contains(".ControlPlane.") ?? false))
+            .Where(t => t.GetProperty("TenantId") is null &&
+                !(t.Namespace?.Contains(".ControlPlane.") ?? false))
             .Select(t => t)
             .ToList();
 
@@ -139,8 +149,8 @@ public sealed class PersistenceLayerTests
             .Inherit(typeof(DbContext))
             .GetTypes()
             .SelectMany(t => t.GetProperties(System.Reflection.BindingFlags.Instance |
-                                             System.Reflection.BindingFlags.Public |
-                                             System.Reflection.BindingFlags.DeclaredOnly))
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.DeclaredOnly))
             .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>))
             .Select(p => p.PropertyType.GetGenericArguments()[0])
             .Distinct()
@@ -162,6 +172,7 @@ public sealed class PersistenceLayerTests
                     interfaceType.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>))
                 {
                     var configuredType = interfaceType.GetGenericArguments()[0];
+
                     if (!configuredType.IsGenericParameter)
                     {
                         yield return configuredType;
@@ -222,11 +233,13 @@ public sealed class PersistenceLayerTests
             .Select(t => t.Name)
             .ToList();
 
-        dbContextTypeNames.Should().Contain([
-            "SharedDBContext",
-            "IamDBContext",
-            "HrDBContext"
-        ], because: "the modular monolith requires one DBContext per bounded context.");
+        dbContextTypeNames.Should().Contain(
+            [
+                    "SharedDBContext",
+                    "IamDBContext",
+                    "HrDBContext"
+                ],
+            because: "the modular monolith requires one DBContext per bounded context.");
     }
 
     [Fact]
@@ -237,7 +250,7 @@ public sealed class PersistenceLayerTests
             .Inherit(typeof(DbContext))
             .GetTypes()
             .Where(t => t.GetProperty("CurrentTenantId") is null &&
-                        !(t.Namespace?.Contains(".ControlPlane.") ?? false))
+                !(t.Namespace?.Contains(".ControlPlane.") ?? false))
             .Select(t => t)
             .ToList();
 

@@ -59,8 +59,12 @@ builder.Services.AddSweetAlert2();
 
 builder.Services.AddAuthorizationCore(options =>
 {
-    options.AddPolicy("ControlPlane.Manage", policy =>
-        policy.RequireClaim("permission", "controlplane.manage"));
+    options.AddPolicy(
+        "ControlPlane.Manage",
+        policy =>
+            policy.RequireClaim("permission", "controlplane.manage"));
+
+    SaccoOperationPolicies.Configure(options);
 });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();

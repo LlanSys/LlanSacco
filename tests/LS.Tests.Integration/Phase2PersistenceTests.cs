@@ -38,6 +38,7 @@ using LS.SharedKernel.Features.Banking.Deposits.Dtos;
 using System.Data.Common;
 using LS.Application.Features.CheckOff.Commands.Batches;
 using LS.Application.Features.HR.Payroll.Commands;
+using LS.SharedKernel.Features.HR.Payroll.Dtos;
 using LS.Domain.Features.CheckOff.Contracts;
 using LS.Domain.Features.CheckOff.Entities;
 using LS.Domain.Features.CheckOff.Enums;
@@ -67,6 +68,56 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
     private readonly string _databaseName = "phase2_" + Guid.CreateVersion7().ToString("N");
     private sealed class Tenant : ICurrentTenantProvider { public Guid TenantId { get; set; } = Guid.CreateVersion7(); }
     private sealed class Actor : ICurrentActorProvider { public string ActorId => "00000000-0000-0000-0000-000000000001"; }
+
+    [Fact]
+    public async Task Payroll_configuration_keeps_removed_tax_bands_for_audit()
+    {
+        var tenant = new Tenant();
+        var options = Options<HrDBContext>();
+        var actor = new Actor();
+        Guid removedId;
+
+        await using (var db = new HrDBContext(options, tenant, actor))
+        {
+            await db.Database.EnsureCreatedAsync();
+            var configuration = PayrollStatutoryConfiguration.Create(
+                DateTimeOffset.UtcNow.AddDays(-1), 8000, 60000, 6, 2.75m, 1.5m, 2400, actor.ActorId);
+
+            configuration.AddOrUpdatePayeTaxBand(0, 24000, 10);
+            configuration.AddOrUpdatePayeTaxBand(24001, null, 25);
+            removedId = configuration.PayeTaxBands.Single(band => band.LowerLimit == 24001).Id;
+            db.Add(configuration);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new HrDBContext(options, tenant, actor))
+        await using (var services = Services(db, tenant))
+        {
+            var sender = services.GetRequiredService<ISender>();
+            var result = await sender.Send(new UpdatePayrollConfigurationCommand(
+                8000,
+                60000,
+                6,
+                2.75m,
+                1.5m,
+                2400,
+                [new PayeTaxBandResponse(Guid.Empty, 0, 30000, 10), new PayeTaxBandResponse(Guid.Empty, 30001, null, 25)],
+                actor.ActorId));
+
+            Assert.True(result.IsSuccess, result.Error?.Message);
+        }
+
+        await using var fresh = new HrDBContext(options, tenant, actor);
+        var current = await fresh.Set<PayrollStatutoryConfiguration>().SingleAsync();
+        Assert.Equal([0m, 30001m], current.PayeTaxBands.Select(band => band.LowerLimit).Order());
+        var removed = await fresh.Set<PayeTaxBand>().IgnoreQueryFilters()
+            .SingleAsync(band => band.TenantId == tenant.TenantId && band.Id == removedId);
+
+        Assert.True(removed.IsDeleted);
+        Assert.Equal(actor.ActorId, removed.DeletedBy);
+        Assert.NotNull(removed.DeletedAt);
+    }
+
     private sealed class Reads : DbCommandInterceptor
     {
         public int Count { get; set; }

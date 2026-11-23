@@ -4,7 +4,8 @@ using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Dividends.Dtos;
 using MediatR;
 using System.Collections.Generic;
-using System.Linq;
+using LS.Application.Features.Membership.Contracts.Interfaces;
+using LS.Domain.Shared.Contracts.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,20 +17,28 @@ public record GetDividendPreferencesQuery : IRequest<AppResponse<IEnumerable<Div
 }
 
 internal class GetDividendPreferencesQueryHandler(
-    IDividendsUnitOfWork uow) : IRequestHandler<GetDividendPreferencesQuery, AppResponse<IEnumerable<DividendPreferenceResponse>>>
+    IDividendsUnitOfWork uow,
+    ICurrentMemberResolver currentMember,
+    ICurrentActorProvider actorProvider) : IRequestHandler<GetDividendPreferencesQuery, AppResponse<IEnumerable<DividendPreferenceResponse>>>
 {
     public async Task<AppResponse<IEnumerable<DividendPreferenceResponse>>> Handle(GetDividendPreferencesQuery request, CancellationToken cancellationToken)
     {
-        var preferences = await uow.DividendDistributionPreferenceRepository.ListAsync(ct: cancellationToken);
-
-        var dtos = preferences.Select(p => new DividendPreferenceResponse
+        if (await currentMember.FindActiveMemberIdAsync(cancellationToken).ConfigureAwait(false) is not Guid memberId)
         {
-            MemberId = p.MemberId,
-            CapitalizePercentage = p.CapitalizePercentage,
-            FosaPercentage = p.FosaPercentage,
-            ExternalBankPercentage = p.ExternalBankPercentage
-        });
+            return AppResponses.Failure<IEnumerable<DividendPreferenceResponse>>(AppError.Forbidden("An active membership is required."));
+        }
 
-        return AppResponses.Success(dtos);
+        var preference = await DividendPreferenceLookup.FindAsync(uow, memberId, actorProvider.ActorId, cancellationToken).ConfigureAwait(false);
+        IEnumerable<DividendPreferenceResponse> responses = preference is null
+            ? []
+            : [new DividendPreferenceResponse
+            {
+                MemberId = memberId,
+                CapitalizePercentage = preference.CapitalizePercentage,
+                FosaPercentage = preference.FosaPercentage,
+                ExternalBankPercentage = preference.ExternalBankPercentage
+            }];
+
+        return AppResponses.Success(responses);
     }
 }

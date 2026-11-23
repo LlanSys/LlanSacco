@@ -7,7 +7,6 @@ using LS.Application.Features.Loans.LoanApplications.Queries;
 using LS.Application.Features.Loans.LoanRepayments.Commands;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -81,7 +80,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/disburse")]
-    [Authorize]
+    [RequirePermission("applications.disburse")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Disburse(Guid id)
     {
@@ -90,7 +89,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/guarantors/accept")]
-    [Authorize]
+    [MemberSelfService]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AcceptGuarantor(Guid id, [FromBody] AcceptGuarantorPledgeRequest request)
     {
@@ -103,4 +102,3 @@ public class LoanApplicationsController(ISender sender) : BaseController
         return HandleResponse(result);
     }
 }
-

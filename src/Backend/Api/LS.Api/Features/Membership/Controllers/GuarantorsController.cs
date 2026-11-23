@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Membership.Commands;
 using LS.SharedKernel.Features.Membership.Dtos;
@@ -20,6 +21,7 @@ public class GuarantorsController(ISender mediator) : BaseController
     private readonly ISender _mediator = mediator;
 
     [HttpPost("requests")]
+    [MemberSelfService]
     public async Task<IActionResult> NominateGuarantor([FromBody] NominateGuarantorRequest request, CancellationToken cancellationToken)
     {
         var command = new NominateGuarantorCommand(request);
@@ -28,17 +30,15 @@ public class GuarantorsController(ISender mediator) : BaseController
     }
 
     [HttpPost("requests/{id:guid}/respond")]
+    [MemberSelfService]
     public async Task<IActionResult> RespondToGuarantor(Guid id, [FromBody] RespondToGuarantorRequest request, CancellationToken cancellationToken)
     {
         if (id != request.RequestId)
         {
             return BadRequest("Route ID must match Request ID");
         }
-        
-        // Retrieve logged-in user from context (we assume User.Identity.Name is populated via the IAM token).
-        var currentUser = User.Identity?.Name ?? "Unknown";
-        
-        var command = new RespondToGuarantorCommand(request, currentUser);
+
+        var command = new RespondToGuarantorCommand(request);
         var response = await _mediator.Send(command, cancellationToken);
         return HandleResponse(response);
     }

@@ -1,9 +1,10 @@
+using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using System;
 
 namespace LS.Domain.Features.Loans.Entities;
 
-public class LoanRepayment : BaseEntity
+public class LoanRepayment : BaseEntity, IRetainedFinancialRecord
 {
     public Guid LoanApplicationId { get; set; }
     public required string ReceiptNumber { get; set; }

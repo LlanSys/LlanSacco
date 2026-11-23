@@ -1,10 +1,11 @@
+using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using LS.Domain.Features.Membership.Enums;
 using System;
 
 namespace LS.Domain.Features.Membership.Entities;
 
-public class MemberTransaction : BaseEntity
+public class MemberTransaction : BaseEntity, IRetainedFinancialRecord
 {
     public Guid MemberId { get; set; }
     public Guid MemberAccountId { get; set; }

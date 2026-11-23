@@ -39,6 +39,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("preferences")]
+    [MemberSelfService]
     [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendPreferenceResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPreferences()
     {
@@ -99,6 +100,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("preferences")]
+    [MemberSelfService]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SetPreferences([FromBody] SetDividendPreferenceRequest request)

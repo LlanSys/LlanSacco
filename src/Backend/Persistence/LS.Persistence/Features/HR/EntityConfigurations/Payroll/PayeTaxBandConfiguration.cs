@@ -10,9 +10,11 @@ internal sealed class PayeTaxBandConfiguration : IEntityTypeConfiguration<PayeTa
     {
         builder.ToTable("Hr_PayeTaxBands");
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
 
         builder.Property(x => x.LowerLimit).HasColumnType("decimal(18,2)");
         builder.Property(x => x.UpperLimit).HasColumnType("decimal(18,2)");
         builder.Property(x => x.Rate).HasColumnType("decimal(5,2)");
+        builder.Property(x => x.DeletedBy).HasMaxLength(256);
     }
 }

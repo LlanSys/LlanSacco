@@ -62,15 +62,24 @@ internal static partial class DependencyInjection
         services.AddSignalR();
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("ProvisioningCallback", policy =>
-            {
-                policy.RequireAuthenticatedUser();
-                // When GitHub Actions authenticates via Entra ID Workload Identity, 
-                // we can assert that the token contains the specific 'Provisioner' app role,
-                // or validate specific OIDC claims.
-                policy.RequireClaim("roles", "Provisioner");
-            });
+            options.AddPolicy(
+                MemberSelfServiceAttribute.PolicyName,
+                policy => policy
+                    .RequireAuthenticatedUser()
+                    .RequireClaim(System.Security.Claims.ClaimTypes.NameIdentifier));
+
+            options.AddPolicy(
+                "ProvisioningCallback",
+                policy =>
+                {
+                    policy.RequireAuthenticatedUser();
+                    // When GitHub Actions authenticates via Entra ID Workload Identity,
+                    // we can assert that the token contains the specific 'Provisioner' app role,
+                    // or validate specific OIDC claims.
+                    policy.RequireClaim("roles", "Provisioner");
+                });
         });
+
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddApiVersioning(config =>
@@ -96,6 +105,7 @@ internal static partial class DependencyInjection
     private static void ConfigureHttpResilience(IServiceCollection services, IConfiguration configuration)
     {
         var resilienceSettings = configuration.GetSection(ResilienceSettings.SectionName).Get<ResilienceSettings>() ?? new ResilienceSettings();
+
         if (!resilienceSettings.Enabled)
         {
             return;
@@ -145,6 +155,7 @@ internal static partial class DependencyInjection
             dataProtectionBuilder.PersistKeysToStackExchangeRedis(
                 () => ConnectionMultiplexer.Connect(dpSettings.RedisKeyRingConnectionString).GetDatabase(),
                 key);
+
             ConfigureDataProtectionKeyEncryption(dataProtectionBuilder, dpSettings);
             return;
         }
@@ -263,6 +274,7 @@ internal static partial class DependencyInjection
             .Find(System.Security.Cryptography.X509Certificates.X509FindType.FindByThumbprint, thumbprint, validOnly: false)
             .OfType<System.Security.Cryptography.X509Certificates.X509Certificate2>()
             .FirstOrDefault();
+
         store.Close();
 
         if (cert is null)
@@ -280,6 +292,7 @@ internal static partial class DependencyInjection
         dataProtectionBuilder.ProtectKeysWithCertificate(cert);
         DataProtectionLogging.CertificateLoaded(logger, thumbprint);
     }
+
     private static void ConfigureResponseCompression(IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<ResponseCompressionSettings>()
@@ -323,51 +336,54 @@ internal static partial class DependencyInjection
             ?? new RateLimitSettings();
 
         services.AddRateLimiter(options =>
+        {
+            AddFixedWindowPolicy(options, "LoginPolicy", settings.LoginPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "AuthPolicy", settings.AuthPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "ApiPolicy", settings.ApiPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "PasswordResetPolicy", settings.PasswordResetPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "TwoFactorPolicy", settings.TwoFactorPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "FileUploadPolicy", settings.FileUploadPolicy, settings.Enabled);
+            AddFixedWindowPolicy(options, "RefreshTokenPolicy", settings.RefreshTokenPolicy, settings.Enabled);
+
+            // Rate limit exceeded response
+            options.OnRejected = async (context, token) =>
             {
-                AddFixedWindowPolicy(options, "LoginPolicy", settings.LoginPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "AuthPolicy", settings.AuthPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "ApiPolicy", settings.ApiPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "PasswordResetPolicy", settings.PasswordResetPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "TwoFactorPolicy", settings.TwoFactorPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "FileUploadPolicy", settings.FileUploadPolicy, settings.Enabled);
-                AddFixedWindowPolicy(options, "RefreshTokenPolicy", settings.RefreshTokenPolicy, settings.Enabled);
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
-                // Rate limit exceeded response
-                options.OnRejected = async (context, token) =>
+                var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
+                    ? retryAfterValue.TotalSeconds.ToString(CultureInfo.InvariantCulture)
+                    : "60";
+
+                context.HttpContext.Response.Headers.RetryAfter = retryAfter;
+
+                var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
                 {
-                    context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                    
-                    var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfterValue)
-                        ? retryAfterValue.TotalSeconds.ToString(CultureInfo.InvariantCulture)
-                        : "60";
-
-                    context.HttpContext.Response.Headers.RetryAfter = retryAfter;
-
-                    var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
-                    {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Title = "Too Many Requests",
-                        Detail = $"Rate limit exceeded. Try again in {retryAfter} seconds.",
-                        Instance = context.HttpContext.Request.Path
-                    };
-                    problemDetails.Extensions["retryAfter"] = retryAfter;
-                    problemDetails.Extensions["error"] = "rate_limit_exceeded";
-
-                    if (context.HttpContext.RequestServices.GetService<IProblemDetailsService>() is { } problemDetailsService)
-                    {
-                        await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-                        {
-                            HttpContext = context.HttpContext,
-                            ProblemDetails = problemDetails
-                        }).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        context.HttpContext.Response.ContentType = "application/problem+json";
-                        await context.HttpContext.Response.WriteAsync(
-                            JsonSerializer.Serialize(problemDetails), token).ConfigureAwait(false);
-                    }
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Too Many Requests",
+                    Detail = $"Rate limit exceeded. Try again in {retryAfter} seconds.",
+                    Instance = context.HttpContext.Request.Path
                 };
+
+                problemDetails.Extensions["retryAfter"] = retryAfter;
+                problemDetails.Extensions["error"] = "rate_limit_exceeded";
+
+                if (context.HttpContext.RequestServices.GetService<IProblemDetailsService>() is { } problemDetailsService)
+                {
+                    await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+                    {
+                        HttpContext = context.HttpContext,
+                        ProblemDetails = problemDetails
+                    })
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    context.HttpContext.Response.ContentType = "application/problem+json";
+                    await context.HttpContext.Response.WriteAsync(
+                        JsonSerializer.Serialize(problemDetails), token)
+                        .ConfigureAwait(false);
+                }
+            };
 
         });
     }
@@ -378,28 +394,32 @@ internal static partial class DependencyInjection
         RateLimitPolicySettings policy,
         bool enabled)
     {
-        options.AddPolicy(policyName, context =>
-        {
-            if (!enabled)
+        options.AddPolicy(
+            policyName,
+            context =>
             {
-                return RateLimitPartition.GetNoLimiter("disabled");
-            }
-
-            // Partition by TenantId if available, otherwise by IP address, otherwise global.
-            var tenantClaim = context.User?.FindFirst("tenant_id")?.Value;
-            var partitionKey = !string.IsNullOrEmpty(tenantClaim) 
-                ? $"Tenant_{tenantClaim}" 
-                : context.Connection.RemoteIpAddress?.ToString() ?? "Global";
-
-            return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ =>
-                new FixedWindowRateLimiterOptions
+                if (!enabled)
                 {
-                    PermitLimit = policy.PermitLimit,
-                    Window = TimeSpan.FromSeconds(policy.WindowSeconds),
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = policy.QueueLimit
-                });
-        });
+                    return RateLimitPartition.GetNoLimiter("disabled");
+                }
+
+                // Partition by TenantId if available, otherwise by IP address, otherwise global.
+                var tenantClaim = context.User?.FindFirst("tenant_id")?.Value;
+                var partitionKey = !string.IsNullOrEmpty(tenantClaim)
+                    ? $"Tenant_{tenantClaim}"
+                    : context.Connection.RemoteIpAddress?.ToString() ?? "Global";
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey,
+                _ =>
+                    new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = policy.PermitLimit,
+                        Window = TimeSpan.FromSeconds(policy.WindowSeconds),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = policy.QueueLimit
+                    });
+            });
     }
 
     private static bool HasValidRateLimitSettings(RateLimitSettings settings)
@@ -425,22 +445,35 @@ internal static partial class DependencyInjection
     {
         var messagingSettings = configuration.GetSection(MessagingSettings.SectionName).Get<MessagingSettings>() ?? new MessagingSettings();
         services.AddScoped(typeof(IContextEventPublisher<>), typeof(LS.Infrastructure.Contracts.Implementations.Common.DisabledContextEventPublisher<>));
+
         if (!messagingSettings.Enabled)
         {
             return services;
         }
 
         var databaseProvider = configuration.GetSection(LS.Persistence.Common.Configuration.DatabaseSettings.SectionName)
-            .Get<LS.Persistence.Common.Configuration.DatabaseSettings>()?.Provider ?? "SqlServer";
+            .Get<LS.Persistence.Common.Configuration.DatabaseSettings>()?
+            .Provider ?? "SqlServer";
+
         var usePostgres = databaseProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase);
+
         if (!usePostgres && !databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException("Unsupported database provider for transactional messaging.");
-        services.AddScoped<IContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork>,
+        }
+
+        services.AddScoped<
+            IContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork>,
             LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork, LS.Persistence.Features.Banking.DataContext.BankingDBContext>>();
-        services.AddScoped<IContextEventPublisher<LS.Domain.Features.CheckOff.Contracts.ICheckOffUnitOfWork>,
+
+        services.AddScoped<
+            IContextEventPublisher<LS.Domain.Features.CheckOff.Contracts.ICheckOffUnitOfWork>,
             LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.CheckOff.Contracts.ICheckOffUnitOfWork, LS.Persistence.Features.CheckOff.DataContext.CheckOffDBContext>>();
-        services.AddScoped<IContextEventPublisher<LS.Domain.Features.Loans.Contracts.ILoansUnitOfWork>,
+
+        services.AddScoped<
+            IContextEventPublisher<LS.Domain.Features.Loans.Contracts.ILoansUnitOfWork>,
             LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.Loans.Contracts.ILoansUnitOfWork, LS.Persistence.Features.Loans.DataContext.LoansDBContext>>();
+
         var assembly = typeof(IntegrationEventEmailConsumer<>).Assembly;
 
         services.Configure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherOptions>(options =>
@@ -454,16 +487,32 @@ internal static partial class DependencyInjection
             // EF Outbox
             x.AddEntityFrameworkOutbox<SharedDBContext>(o =>
             {
-                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                if (usePostgres)
+                {
+                    o.UsePostgres(false);
+                }
+                else
+                {
+                    o.UseSqlServer(false);
+                }
+
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
                 o.QueryDelay = TimeSpan.FromSeconds(30);
                 o.QueryMessageLimit = 100;
             });
-            
+
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.Banking.DataContext.BankingDBContext>(o =>
             {
-                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                if (usePostgres)
+                {
+                    o.UsePostgres(false);
+                }
+                else
+                {
+                    o.UseSqlServer(false);
+                }
+
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
                 o.QueryDelay = TimeSpan.FromSeconds(30);
@@ -472,14 +521,32 @@ internal static partial class DependencyInjection
 
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.CheckOff.DataContext.CheckOffDBContext>(o =>
             {
-                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                if (usePostgres)
+                {
+                    o.UsePostgres(false);
+                }
+                else
+                {
+                    o.UseSqlServer(false);
+                }
+
                 o.UseBusOutbox();
             });
+
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.Loans.DataContext.LoansDBContext>(o =>
             {
-                if (usePostgres) o.UsePostgres(false); else o.UseSqlServer(false);
+                if (usePostgres)
+                {
+                    o.UsePostgres(false);
+                }
+                else
+                {
+                    o.UseSqlServer(false);
+                }
+
                 o.UseBusOutbox();
             });
+
             x.UseDefaultEntityFrameworkBusOutbox<SharedDBContext>();
 
             // Register all consumers from assemblies
@@ -487,14 +554,18 @@ internal static partial class DependencyInjection
 
             // Global retry configuration
             var messagingTransport = GetMessagingTransport(messagingSettings);
+
             switch (messagingTransport)
             {
                 case MessagingTransport.AzureServiceBus:
                     x.UsingAzureServiceBus((context, cfg) =>
                     {
                         var connectionString = messagingSettings.AzureServiceBus.ConnectionString;
+
                         if (string.IsNullOrWhiteSpace(connectionString))
+                        {
                             throw new InvalidOperationException("Messaging:AzureServiceBus:ConnectionString is required when Messaging:Transport is AzureServiceBus");
+                        }
 
                         cfg.Host(connectionString);
 
@@ -597,24 +668,24 @@ internal static partial class DependencyInjection
         var environment = app.ApplicationServices.GetRequiredService<IHostEnvironment>();
 
         return app.Use(async (context, next) =>
-            {
-                context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-                context.Response.Headers.Append("X-Frame-Options", "DENY");
-                context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
-                context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        {
+            context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+            context.Response.Headers.Append("X-Frame-Options", "DENY");
+            context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+            context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
-                var isScalarPage = environment.IsDevelopment()
-                    && context.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase);
+            var isScalarPage = environment.IsDevelopment()
+                && context.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase);
 
-                var contentSecurityPolicy = isScalarPage
-                    ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
-                    : "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';";
+            var contentSecurityPolicy = isScalarPage
+                ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';"
+                : "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';";
 
-                context.Response.Headers.Append("Content-Security-Policy", contentSecurityPolicy);
+            context.Response.Headers.Append("Content-Security-Policy", contentSecurityPolicy);
 
-                // API-specific headers
-                context.Response.Headers.Append("X-API-Version", "1.0");
-                context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            // API-specific headers
+            context.Response.Headers.Append("X-API-Version", "1.0");
+            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
 
             await next().ConfigureAwait(false);
         });

@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-23. Phases 0–6 are on main. Phase 7 remediation is in review.
+Status reviewed 2026-11-23. Phases 0–7 are on main through PR #11. Sections 5 and 6 record the workflow and enforcement checks.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -203,21 +203,32 @@ GitHub references:
 - https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
 - https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks
 
+### Section 5 verification
+
+The active [Guardrails ruleset](https://github.com/LlanSys/LlanSacco/settings/rules/22747730) applies to the default branch. GitHub readback confirmed pull requests, squash merges, resolved review threads, current required checks, and protections against force pushes and deletion. The ruleset has no bypass actors. Repository settings delete merged branches, give workflow tokens read access by default, and disable approvals from Actions.
+
+[CODEOWNERS](../../.github/CODEOWNERS) assigns the sensitive paths to the verified repository maintainer. One maintainer currently has write access. The solo-maintainer policy keeps pull requests and required checks in place and uses independent approval once another eligible reviewer is available.
+
+[`verify-baseline.ps1`](../../scripts/verify-baseline.ps1) is the shared validation entry point. The required PR gate covers API, Blazor, architecture, unit, both-provider integration, source and package guardrails, and the Gitleaks history scan. The supplemental full-solution workflow covers backend, web, and mobile. The contribution guide and PR template record validation, contract impact and rollout details. The package and formatting comparison used [StarterTemplate at a361bda](https://github.com/LlanSys/starter-template/tree/a361bda27aece09199e20f4ddad3847570165aff).
+
+Deployment and publishing remain manual and use the existing LlanSacco opt-in variables. The repository-level opt-ins were unset during verification. Azure workflows use OIDC. The existing ignore and editor configuration covers local artifacts and source diagnostics. NuGet restore audits transitive dependencies and reports existing advisories. The GitHub dependency-review endpoint returned 403 during verification, so the required gate uses the available NuGet and repository package-policy checks.
+
 ## 6. Enforcement Matrix
 
-| Rule                                           | Enforcement                                                                        |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Named UoW repository types and suffix          | Reflection/semantic architecture tests                                             |
-| No raw repositories/DbContexts in handlers     | Constructor and dependency checks with exact exceptions                            |
-| Thin repositories; no premature saves          | Semantic checks for known forbidden calls plus behavioral integration tests/review |
-| Separate validators and operation file pairing | Roslyn source structure tests excluding generated sources only                     |
-| Validators actually execute                    | DI and IMediator/API tests                                                         |
-| Typed failure outcomes                         | Source checks plus HTTP contract tests                                             |
-| Cache policy coverage and invalidation         | Request inventory checks plus pipeline/integration tests                           |
-| No tracking-loss/N+1/partial commits           | Fresh-context, query-count, rollback and idempotency tests                         |
-| Inward dependencies and bounded contexts       | Assembly/namespace architecture tests and explicit context registry                |
-| Provider and tenant correctness                | Dual-provider integration, migration/model, filter/audit tests                     |
-| Remote merge policy                            | Rules/protection readback and required-check verification                          |
+| Rule | Required check and evidence |
+| --- | --- |
+| Named UoW repository types and suffix | Architecture. [Roslyn repository and naming rules](../../tests/LS.Tests.Architecture/Guardrails/SourceArchitectureRules.cs) enforce UOW001–004. |
+| Handler persistence and thin repositories | Architecture and Integration. DEP001 rejects raw repository and EF context dependencies. [Persistence standards](persistence-standards.md) and transaction tests cover the intended write patterns. |
+| Separate validators and operation file pairing | Architecture. VAL001 and LAY001/002 run with [negative fixtures and exact exceptions](../../tests/LS.Tests.Architecture/Guardrails/SourceArchitectureTests.cs). |
+| Validator execution | Integration. [Phase 6 validation tests](../../tests/LS.Tests.Integration/Phase6ValidationTests.cs) check runtime discovery and rejection before handler execution. |
+| Typed failures and sanitized responses | Architecture and Integration. ERR001 and [HTTP/client contract tests](../../tests/LS.Tests.Integration/Phase4ResponseContractTests.cs). |
+| Cache policy, tenant scope and invalidation | Architecture and Integration. CACHE001/002 plus [pipeline tests](../../tests/LS.Tests.Integration/Phase5CacheBehaviorTests.cs) and [tenant cache tests](../../tests/LS.Tests.Integration/Phase5TenantCacheTests.cs). |
+| Tracking, query counts, rollback and replay | Integration. [Phase 2 provider suite](../../tests/LS.Tests.Integration/Phase2PersistenceTests.cs) exercises target workflows. Review query behavior for new access paths. |
+| Inward dependencies and context ownership | Architecture. [Project dependency tests](../../tests/LS.Tests.Architecture/ProjectDependencyTests.cs), [assembly dependency tests](../../tests/LS.Tests.Architecture/LayerDependencyTests.cs), and the [context registry](bounded-contexts.json). |
+| Provider models, tenant isolation and retained records | Architecture and Integration. [Migration model comparisons](../../tests/LS.Tests.Architecture/Database/MigrationGuardrailTests.cs), explicit EF configuration and lifecycle rules, and [both-provider isolation and audit tests](../../tests/LS.Tests.Integration/SaccoTenantIsolationTests.cs). |
+| Feature permissions and member ownership | Architecture and Integration. AUTH001 plus [operation policy tests](../../tests/LS.Tests.Integration/SaccoOperationAuthorizationTests.cs) and the member-owned cases in the provider suite. |
+| Package and formatter policy | Guardrails. Central package and NuGet audit policy, negative package-policy cases, and formatter fixtures. Run the [scoped formatter](../development/package-management-and-formatting.md) on changed source. |
+| Remote merge policy | [Required / Remediation](../../.github/workflows/remediation-ci.yml) aggregates all baseline jobs and the Secrets job. Protected-main settings enforce the result. |
 
 Structural tests cannot prove all business semantics or absence of N+1 queries. Keep behavioral tests and review evidence for those properties.
 
@@ -230,7 +241,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
 - [x] Phase 5: Behaviours and caching ([local verification report](phase-5-verification.md))
 - [x] Phase 6: Validators and slice layout ([verification report](phase-6-verification.md))
-- [x] Phase 7: Remediation and documented release gates ([verification report](phase-7-verification.md))
+- [x] Phase 7: Remediation and documented release gates ([PR #11](https://github.com/LlanSys/LlanSacco/pull/11) and [verification report](phase-7-verification.md))
 
 Checked items mean implemented and supported by the cited evidence; they do not mean merged or deployed. Unchecked items with completed substeps remain open until their remaining scope is verified. Phases 3-7 have not been marked complete merely because Phase 2 made isolated improvements in those areas.
 

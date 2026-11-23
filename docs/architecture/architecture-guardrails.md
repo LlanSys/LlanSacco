@@ -52,8 +52,8 @@ Commands affecting cached reads use ICacheInvalidatorRequest and real invalidati
 
 ## Commit Ownership And Exceptions
 
-Repositories stage ordinary mutations. CompleteAsync(ct) commits once, or ExecuteInTransactionAsync(operation, ct) owns save/commit. Do not double-save. Existing retry/domain-event inconsistencies remain Phase 2 debt. ControlPlane remains a global catalog with its existing distinct UoW contract; entity repositories still need named interfaces and Repository suffixes. Specialized IAM/non-entity repositories may have persistence-specific contracts.
+Repositories stage ordinary mutations. CompleteAsync(ct) commits once, or ExecuteInTransactionAsync(operation, ct) owns save/commit. Do not double-save. The Phase 2 verification report records the tested retry and domain-event boundaries. ControlPlane remains a global catalog with its existing distinct UoW contract; entity repositories still need named interfaces and Repository suffixes. Specialized IAM/non-entity repositories may have persistence-specific contracts.
 
 ## Review Policy
 
-Changes to AGENTS.md, this document, the debt register, cache decisions, context registry, and architecture tests must explain the rule impact in the PR. Main requires a successful remediation gate and resolved review conversations. The current repository has no independent human approval requirement; this is not a claim that an author can independently approve their own change. Do not bypass the gate or expand baselines to hide a failure.
+Changes to AGENTS.md, this document, the debt register, cache decisions, context registry, and architecture tests must explain the rule impact in the PR. Main requires a successful remediation gate and resolved review conversations. CODEOWNERS identifies the verified maintainer. The solo-maintainer policy requires the merge checks and resolved review threads. Request independent approval when a second eligible reviewer is available. Do not bypass the gate or expand baselines to hide a failure.

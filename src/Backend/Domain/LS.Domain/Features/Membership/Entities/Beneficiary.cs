@@ -1,9 +1,10 @@
+using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using System;
 
 namespace LS.Domain.Features.Membership.Entities;
 
-public class Beneficiary : BaseEntity
+public class Beneficiary : BaseEntity, ISoftDeletable
 {
     public Guid MemberId { get; set; }
     public required string FullName { get; set; }
@@ -13,7 +14,20 @@ public class Beneficiary : BaseEntity
     public decimal AllocationPercentage { get; set; }
     public bool IsNextOfKin { get; set; }
 
+    public bool IsDeleted { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
+
     public Member Member { get; set; } = null!;
+
+    public void MarkAsDeleted(string deletedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deletedBy);
+
+        IsDeleted = true;
+        DeletedAt = DateTimeOffset.UtcNow;
+        DeletedBy = deletedBy;
+    }
 
     public static Beneficiary Create(
         Guid tenantId,

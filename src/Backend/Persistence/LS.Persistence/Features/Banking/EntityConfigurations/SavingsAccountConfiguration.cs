@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LS.Persistence.Features.Banking.EntityConfigurations;
 
-public class SavingsAccountConfiguration : IEntityTypeConfiguration<SavingsAccount>
+internal sealed class SavingsAccountConfiguration : IEntityTypeConfiguration<SavingsAccount>
 {
     public void Configure(EntityTypeBuilder<SavingsAccount> builder)
     {

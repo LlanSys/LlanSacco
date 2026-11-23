@@ -1,7 +1,7 @@
 # Architecture Remediation And Repository Governance Plan
 
 Date: 2026-09-10
-Status reviewed 2026-11-23. Phases 0–5 are on main. Phase 6 is complete for review. Phase 7 remains pending.
+Status reviewed 2026-11-23. Phases 0–6 are on main. Phase 7 is in progress.
 Repository: https://github.com/LlanSys/LlanSacco
 
 ## 1. Objective And Authority
@@ -176,7 +176,7 @@ Gate: DI-level tests prove participation and ordering; integration tests prove s
 
 Gate: all validators are standalone, all relevant input writes validate at runtime, operation files follow the default or carry reviewed exceptions, and public-type guardrails still reject unrelated bundling.
 
-**Complete for review.** All 181 Phase 6 findings are resolved. The runtime inventory confirms validator discovery and early rejection for input-bearing commands. Both relocated Dividends provider models match their snapshots. See the [Phase 6 verification report](phase-6-verification.md).
+**Merged in PR #10.** All 181 Phase 6 findings are resolved. The runtime inventory confirms validator discovery and early rejection for input-bearing commands. Both relocated Dividends provider models match their snapshots. See the [Phase 6 verification report](phase-6-verification.md).
 
 ### Phase 7 - Full Closure
 
@@ -229,7 +229,7 @@ Structural tests cannot prove all business semantics or absence of N+1 queries. 
 - [x] Phase 4: AppResponse alignment ([verification report](phase-4-verification.md))
 - [x] Phase 5: Behaviours and caching ([local verification report](phase-5-verification.md))
 - [x] Phase 6: Validators and slice layout ([verification report](phase-6-verification.md))
-- [ ] Phase 7: Full closure
+- [ ] Phase 7: Full closure ([work and verification](phase-7-verification.md))
 
 Checked items mean implemented and supported by the cited evidence; they do not mean merged or deployed. Unchecked items with completed substeps remain open until their remaining scope is verified. Phases 3-7 have not been marked complete merely because Phase 2 made isolated improvements in those areas.
 

@@ -9,8 +9,8 @@ internal sealed class DividendDistributionPreferenceConfiguration : IEntityTypeC
     public void Configure(EntityTypeBuilder<DividendDistributionPreference> builder)
     {
         builder.HasKey(x => x.Id);
-        
-        builder.HasIndex(x => x.MemberId).IsUnique();
+
+        builder.HasIndex(x => new { x.TenantId, x.MemberId }).IsUnique();
 
         builder.Property(x => x.CapitalizePercentage).HasColumnType("decimal(5,2)");
         builder.Property(x => x.FosaPercentage).HasColumnType("decimal(5,2)");

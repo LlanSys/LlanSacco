@@ -53,6 +53,8 @@ public class DividendsDBContext : DbContext, ITenantFilteredDBContext, IDomainEv
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(DividendsDBContext).Assembly,
             t => t.Namespace?.Contains("Features.Dividends.EntityConfigurations") == true);
+
+        DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);
     }
 
     public Guid CurrentTenantId => _tenantProvider?.TenantId ?? Guid.Empty;
@@ -76,23 +78,36 @@ public class DividendsDBContext : DbContext, ITenantFilteredDBContext, IDomainEv
         catch (DbUpdateConcurrencyException ex)
         {
             foreach (var entry in ex.Entries)
+            {
                 if (_logger is not null)
+                {
                     PersistenceLogDefinitions.LogDatabaseError(_logger, entry.Entity.GetType().Name, ex);
+                }
+            }
+
             _collectedDomainEvents?.Clear();
             throw;
         }
         catch (DbUpdateException ex)
         {
             foreach (var entry in ex.Entries)
+            {
                 if (_logger is not null)
+                {
                     PersistenceLogDefinitions.LogDatabaseError(_logger, entry.Entity.GetType().Name, ex);
+                }
+            }
+
             _collectedDomainEvents?.Clear();
             throw;
         }
         catch (Exception ex)
         {
             if (_logger is not null)
+            {
                 PersistenceLogDefinitions.LogDBContextSaveChangesError(_logger, nameof(DividendsDBContext), ex);
+            }
+
             _collectedDomainEvents?.Clear();
             throw;
         }

@@ -6,7 +6,6 @@ using LS.Application.Features.HR.Payroll.Queries;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.HR.Payroll.Dtos;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,7 +27,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     }
 
     [HttpGet("/api/v{version:apiVersion}/hr/dashboard-stats")]
-    [Authorize]
+    [RequirePermission("hr.payroll.view")]
     [ProducesResponseType(typeof(AppResponse<HrDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats(CancellationToken cancellationToken)
     {
@@ -82,6 +81,7 @@ public sealed class PayrollController(ISender sender) : BaseController
             request.PayeTaxBands,
             User.Identity?.Name ?? "Admin"
         );
+
         var response = await sender.Send(command, cancellationToken);
         return HandleResponse(response);
     }

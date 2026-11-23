@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LS.Persistence.Features.Accounting.EntityConfigurations;
 
-public class AccountingIntegrationErrorConfiguration : IEntityTypeConfiguration<AccountingIntegrationError>
+internal sealed class AccountingIntegrationErrorConfiguration : IEntityTypeConfiguration<AccountingIntegrationError>
 {
     public void Configure(EntityTypeBuilder<AccountingIntegrationError> builder)
     {

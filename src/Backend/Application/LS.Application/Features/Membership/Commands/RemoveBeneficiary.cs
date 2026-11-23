@@ -1,4 +1,3 @@
-using LS.Application.Features.Membership.Handlers;
 using LS.Domain.Features.Membership.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.SharedKernel.Dtos.Common;
@@ -21,10 +20,14 @@ internal class RemoveBeneficiaryCommandHandler(
     public async Task<AppResponse<bool>> Handle(RemoveBeneficiaryCommand request, CancellationToken cancellationToken)
     {
         var beneficiary = await _unitOfWork.BeneficiaryRepository.FindByIdAsync(request.BeneficiaryId, cancellationToken);
-        if (beneficiary == null || beneficiary.MemberId != request.MemberId)
-            return AppResponses.Failure<bool>(AppError.NotFound("Beneficiary not found."));
 
-        await _unitOfWork.BeneficiaryRepository.SoftDeleteAsync(beneficiary.Id, cancellationToken);
+        if (beneficiary == null || beneficiary.MemberId != request.MemberId)
+        {
+            return AppResponses.Failure<bool>(AppError.NotFound("Beneficiary not found."));
+        }
+
+        beneficiary.MarkAsDeleted(_actorProvider.ActorId);
+        await _unitOfWork.BeneficiaryRepository.UpdateAsync(beneficiary, cancellationToken);
         await _unitOfWork.CompleteAsync(cancellationToken);
 
         return AppResponses.Success(true);

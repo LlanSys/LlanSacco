@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Accounting.Commands;
 using LS.Application.Features.Accounting.Queries;
@@ -29,7 +30,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="endDate">The end date (optional, defaults to now).</param>
     /// <returns>The trial balance.</returns>
     [HttpGet("trial-balance")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<TrialBalanceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTrialBalance([FromQuery] DateTimeOffset? asOfDate)
     {
@@ -42,7 +43,7 @@ public class FinanceController(ISender sender) : BaseController
     /// Gets the dashboard statistics for the accounting module.
     /// </summary>
     [HttpGet("dashboard-stats")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<AccountingDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats()
     {
@@ -57,7 +58,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="endDate">The end date (optional, defaults to now).</param>
     /// <returns>The income statement.</returns>
     [HttpGet("income-statement")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<IncomeStatementResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncomeStatement([FromQuery] DateTimeOffset? startDate, [FromQuery] DateTimeOffset? endDate)
     {
@@ -74,7 +75,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="asOfDate">The date to generate the balance sheet for (optional, defaults to now).</param>
     /// <returns>The balance sheet.</returns>
     [HttpGet("balance-sheet")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<BalanceSheetResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBalanceSheet([FromQuery] DateTimeOffset? asOfDate)
     {
@@ -88,7 +89,7 @@ public class FinanceController(ISender sender) : BaseController
     /// </summary>
     /// <returns>A list of accounts.</returns>
     [HttpGet("accounts")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IReadOnlyList<AccountResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccounts()
     {
@@ -103,7 +104,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="request">The journal entry details.</param>
     /// <returns>The ID of the posted journal.</returns>
     [HttpPost("journals")]
-    [Authorize]
+    [RequirePermission("transactions.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PostJournal([FromBody] CreateJournalRequest request)

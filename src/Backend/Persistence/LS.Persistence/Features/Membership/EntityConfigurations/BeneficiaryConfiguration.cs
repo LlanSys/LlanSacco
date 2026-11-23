@@ -15,6 +15,7 @@ internal sealed class BeneficiaryConfiguration : IEntityTypeConfiguration<Benefi
         builder.Property(x => x.IdentificationNumber).HasMaxLength(100);
         builder.Property(x => x.PhoneNumber).HasMaxLength(50);
         builder.Property(x => x.AllocationPercentage).HasPrecision(5, 2);
+        builder.Property(x => x.DeletedBy).HasMaxLength(256);
 
         builder.HasIndex(x => new { x.TenantId, x.MemberId });
     }

@@ -9,8 +9,8 @@ internal sealed class DividendCalculationConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<DividendCalculation> builder)
     {
         builder.HasKey(x => x.Id);
-        
-        builder.HasIndex(x => new { x.DeclarationId, x.MemberId }).IsUnique();
+
+        builder.HasIndex(x => new { x.TenantId, x.DeclarationId, x.MemberId }).IsUnique();
 
         builder.Property(x => x.WeightedShareBalance).HasColumnType("decimal(18,2)");
         builder.Property(x => x.GrossShareDividend).HasColumnType("decimal(18,2)");

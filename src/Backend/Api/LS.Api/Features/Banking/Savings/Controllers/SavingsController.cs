@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Banking.Savings.Commands;
 using LS.Application.Features.Banking.Savings.Queries;
@@ -17,6 +18,7 @@ namespace LS.Api.Features.Banking.Savings.Controllers;
 public class SavingsController(IMediator mediator) : BaseController
 {
     [HttpGet("members/{memberId}")]
+    [RequirePermission("banking-accounts.view")]
     public async Task<IActionResult> GetMemberAccounts(Guid memberId)
     {
         var response = await mediator.Send(new GetMemberSavingsAccountsQuery(memberId)).ConfigureAwait(false);
@@ -24,6 +26,7 @@ public class SavingsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("deposit")]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> Deposit(DepositSavingsRequest request)
     {
         var response = await mediator.Send(new DepositSavingsCommand(request)).ConfigureAwait(false);
@@ -31,6 +34,7 @@ public class SavingsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("withdraw")]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> Withdraw(WithdrawSavingsRequest request)
     {
         var response = await mediator.Send(new WithdrawSavingsCommand(request)).ConfigureAwait(false);

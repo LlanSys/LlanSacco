@@ -25,8 +25,13 @@ internal class UpdatePayrollConfigurationCommandHandler(IHrUnitOfWork unitOfWork
 {
     public async Task<AppResponse<Guid>> Handle(UpdatePayrollConfigurationCommand request, CancellationToken cancellationToken)
     {
-        var configs = await unitOfWork.PayrollStatutoryConfigurationRepository.ListAsync(null, cancellationToken);
-        var config = configs.OrderByDescending(c => c.EffectiveDate).FirstOrDefault();
+        var repository = unitOfWork.PayrollStatutoryConfigurationRepository;
+        var configurationId = await repository.FirstOrDefaultAsync(
+            query => query.OrderByDescending(item => item.EffectiveDate).Select(item => (Guid?)item.Id), cancellationToken);
+
+        var config = configurationId is Guid id
+            ? await repository.FindByIdAsync(id, cancellationToken)
+            : null;
 
         if (config == null)
         {
@@ -46,7 +51,7 @@ internal class UpdatePayrollConfigurationCommandHandler(IHrUnitOfWork unitOfWork
                 config.AddOrUpdatePayeTaxBand(band.LowerLimit, band.UpperLimit, band.Rate);
             }
 
-            await unitOfWork.PayrollStatutoryConfigurationRepository.CreateAsync(config, cancellationToken);
+            await repository.CreateAsync(config, cancellationToken);
         }
         else
         {
@@ -63,13 +68,13 @@ internal class UpdatePayrollConfigurationCommandHandler(IHrUnitOfWork unitOfWork
 
             // Synchronize bands
             var existingBands = config.PayeTaxBands.ToList();
-            
+
             // Remove bands that are no longer there
             foreach (var existing in existingBands)
             {
                 if (!request.PayeTaxBands.Any(x => x.LowerLimit == existing.LowerLimit))
                 {
-                    config.RemovePayeTaxBand(existing.Id);
+                    config.RemovePayeTaxBand(existing.Id, request.UpdatedBy);
                 }
             }
 
@@ -79,7 +84,6 @@ internal class UpdatePayrollConfigurationCommandHandler(IHrUnitOfWork unitOfWork
                 config.AddOrUpdatePayeTaxBand(band.LowerLimit, band.UpperLimit, band.Rate);
             }
 
-            await unitOfWork.PayrollStatutoryConfigurationRepository.UpdateAsync(config, cancellationToken);
         }
 
         await unitOfWork.CompleteAsync(cancellationToken);

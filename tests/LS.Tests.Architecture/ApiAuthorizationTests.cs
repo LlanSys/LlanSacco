@@ -26,6 +26,15 @@ public sealed class ApiAuthorizationTests
         "ProfileController.UpdateProfilePicture"
     ];
 
+    private static readonly string[] MemberOwnedActions =
+    [
+        "DividendsController.GetPreferences",
+        "DividendsController.SetPreferences",
+        "GuarantorsController.NominateGuarantor",
+        "GuarantorsController.RespondToGuarantor",
+        "LoanApplicationsController.AcceptGuarantor"
+    ];
+
     private static readonly string[] AuthControllerAllowedActions =
     [
         "ForgotPassword",
@@ -67,9 +76,19 @@ public sealed class ApiAuthorizationTests
     [Fact]
     public void Feature_Controller_Actions_Should_Use_Permission_Requirements()
     {
+        var memberActions = GetControllerActions().Where(action => action.Method.IsDefined(typeof(MemberSelfServiceAttribute))).ToArray();
+        Assert.Equal(
+            MemberOwnedActions.Order(StringComparer.Ordinal),
+            memberActions
+                .Select(action => $"{action.Controller.Name}.{action.Method.Name}")
+                .Order(StringComparer.Ordinal));
+
+        Assert.All(memberActions, action => Assert.False(HasAttribute<AllowAnonymousAttribute>(action.Controller, action.Method)));
+
         var actionsWithoutPermissions = GetControllerActions()
             .Where(action => !ControllersAllowedWithoutPermissionRequirement.Contains(action.Controller.Name, StringComparer.Ordinal))
             .Where(action => !ActionsAllowedWithoutPermissionRequirement.Contains($"{action.Controller.Name}.{action.Method.Name}", StringComparer.Ordinal))
+            .Where(action => !action.Method.IsDefined(typeof(MemberSelfServiceAttribute)))
             .Where(action => !HasPermissionRequirement(action.Controller, action.Method))
             .Select(action => action.Method)
             .OrderBy(method => method.DeclaringType!.FullName + "." + method.Name, StringComparer.Ordinal)
@@ -105,10 +124,7 @@ public sealed class ApiAuthorizationTests
                 .Select(method => (controller, method)));
     }
 
-    private static bool HasHttpMethodAttribute(MethodInfo method)
-    {
-        return method.GetCustomAttributes(inherit: true).OfType<HttpMethodAttribute>().Any();
-    }
+    private static bool HasHttpMethodAttribute(MethodInfo method) => method.GetCustomAttributes(inherit: true).OfType<HttpMethodAttribute>().Any();
 
     private static bool HasAuthorizationIntent(Type controller, MethodInfo method)
     {
@@ -116,10 +132,7 @@ public sealed class ApiAuthorizationTests
             || HasAttribute<AuthorizeAttribute>(controller, method);
     }
 
-    private static bool HasPermissionRequirement(Type controller, MethodInfo method)
-    {
-        return HasAttribute<RequirePermissionAttribute>(controller, method);
-    }
+    private static bool HasPermissionRequirement(Type controller, MethodInfo method) => HasAttribute<RequirePermissionAttribute>(controller, method);
 
     private static bool HasAttribute<TAttribute>(Type controller, MethodInfo method)
         where TAttribute : Attribute

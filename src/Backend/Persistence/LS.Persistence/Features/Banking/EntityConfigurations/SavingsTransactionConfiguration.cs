@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LS.Persistence.Features.Banking.EntityConfigurations;
 
-public class SavingsTransactionConfiguration : IEntityTypeConfiguration<SavingsTransaction>
+internal sealed class SavingsTransactionConfiguration : IEntityTypeConfiguration<SavingsTransaction>
 {
     public void Configure(EntityTypeBuilder<SavingsTransaction> builder)
     {
@@ -16,7 +16,7 @@ public class SavingsTransactionConfiguration : IEntityTypeConfiguration<SavingsT
         builder.Property(x => x.Type).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.Notes).HasMaxLength(500);
         builder.Property(x => x.ExternalReferenceId).HasMaxLength(100);
-        
+
         builder.HasIndex(x => x.SavingsAccountId);
         builder.HasIndex(x => new { x.TenantId, x.Type, x.ExternalReferenceId }).IsUnique().HasFilter("[ExternalReferenceId] IS NOT NULL"); // useful for checking if a webhook already processed
     }

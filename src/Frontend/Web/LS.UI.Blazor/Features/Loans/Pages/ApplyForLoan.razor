@@ -4,59 +4,102 @@
 @inject ILoanService LoanService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
-@attribute [Authorize]
+@attribute [Authorize(Policy = "applications.create")]
 @layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
 
 <PageTitle>Apply for Loan</PageTitle>
 
-<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/loans/applications" Class="mb-4">Back to Applications</MudButton>
+<MudButton Variant="Variant.Outlined"
+           StartIcon="@Icons.Material.Filled.ArrowBack"
+           Href="/loans/applications"
+           Class="mb-4">Back to Applications</MudButton>
 
-<MudText Typo="Typo.h6" Class="mb-4">Apply for Loan</MudText>
+<MudText Typo="Typo.h6"
+         Class="mb-4">Apply for Loan</MudText>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-4"
+          Elevation="1">
     <MudGrid>
-        <MudItem xs="12" md="6">
-            <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="LoanProductId" Label="Loan Product" Required="true" >
+        <MudItem xs="12"
+                 md="6">
+            <MudSelect Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       @bind-Value="LoanProductId"
+                       Label="Loan Product"
+                       Required="true">
                 @foreach (var product in _products)
                 {
                     <MudSelectItem Value="@product.Id">@product.ProductName (@product.InterestRate%)</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
-        <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="MemberIdString" Label="Member ID" Required="true"  HelperText="GUID of the applicant" />
+        <MudItem xs="12"
+                 md="6">
+            <MudTextField @bind-Value="MemberIdString"
+                          Label="Member ID"
+                          Required="true"
+                          HelperText="GUID of the applicant" />
         </MudItem>
-        <MudItem xs="12" md="6">
-            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="PrincipalAmount" Label="Principal Amount" Required="true"  />
+        <MudItem xs="12"
+                 md="6">
+            <MudNumericField Margin="Margin.Dense"
+                             Variant="Variant.Outlined"
+                             @bind-Value="PrincipalAmount"
+                             Label="Principal Amount"
+                             Required="true" />
         </MudItem>
-        <MudItem xs="12" md="6">
-            <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="TermInMonths" Label="Term (Months)" Required="true"  />
+        <MudItem xs="12"
+                 md="6">
+            <MudNumericField Margin="Margin.Dense"
+                             Variant="Variant.Outlined"
+                             @bind-Value="TermInMonths"
+                             Label="Term (Months)"
+                             Required="true" />
         </MudItem>
     </MudGrid>
 
-    <MudText Typo="Typo.subtitle1" Class="mt-6 mb-2">Guarantors</MudText>
+    <MudText Typo="Typo.subtitle1"
+             Class="mt-6 mb-2">Guarantors</MudText>
     @foreach (var guarantor in Guarantors)
     {
         <MudGrid>
-            <MudItem xs="12" md="5">
-                <MudTextField @bind-Value="guarantor.MemberIdString" Label="Guarantor Member ID"  />
+            <MudItem xs="12"
+                     md="5">
+                <MudTextField @bind-Value="guarantor.MemberIdString"
+                              Label="Guarantor Member ID" />
             </MudItem>
-            <MudItem xs="12" md="5">
-                <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="guarantor.Amount" Label="Guaranteed Amount"  />
+            <MudItem xs="12"
+                     md="5">
+                <MudNumericField Margin="Margin.Dense"
+                                 Variant="Variant.Outlined"
+                                 @bind-Value="guarantor.Amount"
+                                 Label="Guaranteed Amount" />
             </MudItem>
-            <MudItem xs="12" md="2" Class="d-flex align-end">
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => Guarantors.Remove(guarantor))">Remove</MudButton>
+            <MudItem xs="12"
+                     md="2"
+                     Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           OnClick="@(() => Guarantors.Remove(guarantor))">Remove</MudButton>
             </MudItem>
         </MudGrid>
     }
-    
-    <MudButton Variant="Variant.Outlined" Class="mt-2" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddGuarantor">Add Guarantor</MudButton>
+
+    <MudButton Variant="Variant.Outlined"
+               Class="mt-2"
+               Color="Color.Secondary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AddGuarantor">Add Guarantor</MudButton>
 
     <div class="mt-6">
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="Submit" Disabled="@IsSubmitting">
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   OnClick="Submit"
+                   Disabled="@IsSubmitting">
             @if (IsSubmitting)
             {
-                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+                <MudProgressCircular Class="ms-n1"
+                                     Indeterminate="true" />
                 <MudText Class="ms-2">Submitting...</MudText>
             }
             else
@@ -172,10 +215,3 @@
         public decimal Amount { get; set; }
     }
 }
-
-
-
-
-
-
-

@@ -1,11 +1,11 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.SharedKernel.Features.Loans.Dtos;
 using LS.Application.Features.Loans.LoanProducts.Commands;
 using LS.Application.Features.Loans.LoanProducts.Queries;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -20,7 +20,7 @@ namespace LS.Api.Features.Loans;
 public class LoanProductsController(ISender sender) : BaseController
 {
     [HttpPost]
-    [Authorize]
+    [RequirePermission("products.manage")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Create([FromBody] CreateLoanProductCommand command)
     {
@@ -29,19 +29,21 @@ public class LoanProductsController(ISender sender) : BaseController
     }
 
     [HttpPut("{id}")]
-    [Authorize]
+    [RequirePermission("products.manage")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLoanProductCommand command)
     {
         if (id != command.Id)
+        {
             return BadRequest();
-            
+        }
+
         var result = await sender.Send(command);
         return HandleResponse(result);
     }
 
     [HttpGet]
-    [Authorize]
+    [RequirePermission("products.view")]
     [ProducesResponseType(typeof(AppResponse<List<LoanProductResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProducts()
     {

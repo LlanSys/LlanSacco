@@ -1,4 +1,5 @@
 @page "/hr/payroll/settings"
+@attribute [Authorize(Policy = "hr.payroll.settings")]
 @using LS.UI.Rcl.Features.HR.Payroll.Contracts.Interfaces
 @using LS.SharedKernel.Features.HR.Payroll.Dtos
 @using CurrieTechnologies.Razor.SweetAlert2
@@ -17,7 +18,9 @@
                 <p style="font-size: 0.85rem;">Configure tax bands, NSSF limits, SHIF rates, and housing levy.</p>
             </div>
             <div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSettingsAsync"
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="SaveSettingsAsync"
                            StartIcon="@Icons.Material.Filled.Save">
                     Save Configuration
                 </MudButton>
@@ -26,35 +29,71 @@
 
         @if (_isLoading)
         {
-            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+            <MudProgressLinear Color="Color.Primary"
+                               Indeterminate="true"
+                               Class="mt-4" />
         }
         else
         {
             <MudGrid>
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="0" Outlined="true">
-                        <MudText Typo="Typo.h6" Class="mb-4" Style="font-size: 1rem; font-weight: 600;">General Deductions</MudText>
-                        <MudTextField @bind-Value="_config.PersonalReliefAmount" Label="Personal Relief Amount" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
-                        <MudTextField @bind-Value="_config.NssfTier1Limit" Label="NSSF Tier 1 Limit" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
-                        <MudTextField @bind-Value="_config.NssfTier2Limit" Label="NSSF Tier 2 Limit" Class="mb-2" Adornment="Adornment.Start" AdornmentText="KES" />
-                        <MudTextField @bind-Value="_config.NssfRate" Label="NSSF Rate (%)" Class="mb-2" />
-                        <MudTextField @bind-Value="_config.ShifRate" Label="SHIF Rate (%)" Class="mb-2" />
-                        <MudTextField @bind-Value="_config.HousingLevyRate" Label="Housing Levy Rate (%)" Class="mb-2" />
+                <MudItem xs="12"
+                         md="6">
+                    <MudPaper Class="pa-4"
+                              Elevation="0"
+                              Outlined="true">
+                        <MudText Typo="Typo.h6"
+                                 Class="mb-4"
+                                 Style="font-size: 1rem; font-weight: 600;">General Deductions</MudText>
+                        <MudTextField @bind-Value="_config.PersonalReliefAmount"
+                                      Label="Personal Relief Amount"
+                                      Class="mb-2"
+                                      Adornment="Adornment.Start"
+                                      AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfTier1Limit"
+                                      Label="NSSF Tier 1 Limit"
+                                      Class="mb-2"
+                                      Adornment="Adornment.Start"
+                                      AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfTier2Limit"
+                                      Label="NSSF Tier 2 Limit"
+                                      Class="mb-2"
+                                      Adornment="Adornment.Start"
+                                      AdornmentText="KES" />
+                        <MudTextField @bind-Value="_config.NssfRate"
+                                      Label="NSSF Rate (%)"
+                                      Class="mb-2" />
+                        <MudTextField @bind-Value="_config.ShifRate"
+                                      Label="SHIF Rate (%)"
+                                      Class="mb-2" />
+                        <MudTextField @bind-Value="_config.HousingLevyRate"
+                                      Label="Housing Levy Rate (%)"
+                                      Class="mb-2" />
                     </MudPaper>
                 </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                <MudItem xs="12"
+                         md="6">
+                    <MudPaper Class="pa-4"
+                              Elevation="0"
+                              Outlined="true">
                         <div class="d-flex justify-space-between align-center mb-4">
-                            <MudText Typo="Typo.h6" Style="font-size: 1rem; font-weight: 600;">PAYE Tax Bands</MudText>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddBand">Add Band</MudButton>
+                            <MudText Typo="Typo.h6"
+                                     Style="font-size: 1rem; font-weight: 600;">PAYE Tax Bands</MudText>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="AddBand">Add Band</MudButton>
                         </div>
-                        
-                        <MudTable Items="@_config.PayeTaxBands" Dense="true" Hover="true" Elevation="0">
+
+                        <MudTable Items="@_config.PayeTaxBands"
+                                  Dense="true"
+                                  Hover="true"
+                                  Elevation="0">
                             <HeaderContent>
                                 <MudTh>Lower Limit</MudTh>
                                 <MudTh>Upper Limit</MudTh>
                                 <MudTh>Rate (%)</MudTh>
-                                <MudTh></MudTh>
+                                <MudTh>
+                                </MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Lower Limit">
@@ -67,7 +106,9 @@
                                     <MudTextField @bind-Value="context.Rate" />
                                 </MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => RemoveBand(context))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => RemoveBand(context))" />
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
@@ -182,12 +223,3 @@
         public decimal Rate { get; set; }
     }
 }
-
-
-
-
-
-
-
-
-

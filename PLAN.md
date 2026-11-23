@@ -302,6 +302,6 @@ EventIds are structured by architectural layer to simplify searching in logs:
 
 Follow [Architecture Remediation And Repository Governance Plan](docs/architecture/architecture-remediation-plan.md) before expanding product features. It tracks repository and Unit of Work alignment, AppResponse, behaviours and caching, validator placement, operation-named command slices and the protected GitHub PR workflow.
 
-Phases 0–5 are on main through [PR #9](https://github.com/LlanSys/LlanSacco/pull/9). Phase 6 is complete for review. The [Phase 6 verification report](docs/architecture/phase-6-verification.md) records runtime validation, operation slices, transport compatibility and EF verification. Finish and verify each remediation phase, then present it for review before starting the next one.
+Phases 0–6 are on main through [PR #10](https://github.com/LlanSys/LlanSacco/pull/10). Phase 7 remediation is in review. The [Phase 7 verification report](docs/architecture/phase-7-verification.md) records the completed work and the remaining release verification.
 
 The 2026-11-21 direction is to improve the established LlanSacco application incrementally using selected StarterTemplate platform improvements. Preserve SACCO workflows, migration history and application identities. Keep LlanSacco's architecture and CI gates in force.

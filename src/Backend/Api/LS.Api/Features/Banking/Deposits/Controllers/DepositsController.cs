@@ -1,9 +1,9 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Banking.Deposits.Commands;
 using LS.Application.Features.Banking.Deposits.Queries;
 using LS.SharedKernel.Features.Banking.Deposits.Dtos;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -14,7 +14,7 @@ namespace LS.Api.Features.Banking.Deposits.Controllers;
 public class DepositsController(IMediator mediator) : BaseController
 {
     [HttpPost("products")]
-    [Authorize] // Requires appropriate policy like ControlPlane.Manage in real usage
+    [RequirePermission("banking-products.manage")]
     public async Task<IActionResult> CreateProduct(CreateDepositProductRequest request, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new CreateDepositProductCommand(request), cancellationToken);
@@ -22,7 +22,7 @@ public class DepositsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("products")]
-    [Authorize]
+    [RequirePermission("banking-products.view")]
     public async Task<IActionResult> GetProducts(CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new GetDepositProductsQuery(), cancellationToken);
@@ -30,7 +30,7 @@ public class DepositsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("accounts")]
-    [Authorize]
+    [RequirePermission("banking-accounts.open")]
     public async Task<IActionResult> OpenAccount(OpenDepositAccountRequest request, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new OpenDepositAccountCommand(request), cancellationToken);
@@ -38,7 +38,7 @@ public class DepositsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("accounts/member/{memberId}")]
-    [Authorize]
+    [RequirePermission("banking-accounts.view")]
     public async Task<IActionResult> GetMemberAccounts(Guid memberId, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new GetMemberDepositAccountsQuery(memberId), cancellationToken);
@@ -46,7 +46,7 @@ public class DepositsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("accounts/{accountId}/deposit")]
-    [Authorize]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> Deposit(Guid accountId, DepositTransactionRequest request, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new DepositToAccountCommand(accountId, request), cancellationToken);
@@ -54,7 +54,7 @@ public class DepositsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("accounts/{accountId}/withdraw")]
-    [Authorize]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> Withdraw(Guid accountId, DepositTransactionRequest request, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new WithdrawFromDepositCommand(accountId, request), cancellationToken);

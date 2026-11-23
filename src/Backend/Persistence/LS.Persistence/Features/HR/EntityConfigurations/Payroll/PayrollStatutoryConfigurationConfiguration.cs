@@ -18,10 +18,14 @@ internal sealed class PayrollStatutoryConfigurationConfiguration : IEntityTypeCo
         builder.Property(x => x.HousingLevyRate).HasColumnType("decimal(5,2)");
         builder.Property(x => x.PersonalReliefAmount).HasColumnType("decimal(18,2)");
 
-        builder.Navigation(x => x.PayeTaxBands).AutoInclude();
+        builder.Navigation(x => x.PayeTaxBands)
+            .HasField("_payeTaxBands")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .AutoInclude();
+
         builder.HasMany(x => x.PayeTaxBands)
-               .WithOne()
-               .HasForeignKey(x => x.ConfigurationId)
-               .OnDelete(DeleteBehavior.Cascade);
+            .WithOne()
+            .HasForeignKey(x => x.ConfigurationId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

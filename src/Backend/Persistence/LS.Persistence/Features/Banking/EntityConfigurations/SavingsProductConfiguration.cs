@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LS.Persistence.Features.Banking.EntityConfigurations;
 
-public class SavingsProductConfiguration : IEntityTypeConfiguration<SavingsProduct>
+internal sealed class SavingsProductConfiguration : IEntityTypeConfiguration<SavingsProduct>
 {
     public void Configure(EntityTypeBuilder<SavingsProduct> builder)
     {
@@ -19,7 +19,7 @@ public class SavingsProductConfiguration : IEntityTypeConfiguration<SavingsProdu
         builder.Property(x => x.InterestRate).HasPrecision(18, 4);
         builder.Property(x => x.MinimumBalance).HasPrecision(18, 4);
         builder.Property(x => x.WithdrawalFee).HasPrecision(18, 4);
-        
+
         builder.Property(x => x.DailyWithdrawalLimit).HasPrecision(18, 4);
         builder.Property(x => x.MonthlyWithdrawalLimit).HasPrecision(18, 4);
 

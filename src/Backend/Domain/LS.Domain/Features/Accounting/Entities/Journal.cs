@@ -1,3 +1,4 @@
+using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using LS.Domain.Features.Accounting.Enums;
 using System;
@@ -5,13 +6,13 @@ using System.Collections.Generic;
 
 namespace LS.Domain.Features.Accounting.Entities;
 
-public class Journal : BaseEntity
+public class Journal : BaseEntity, IRetainedFinancialRecord
 {
     public required string ReferenceNumber { get; set; }
     public required string Description { get; set; }
     public JournalStatus Status { get; set; }
     public DateTimeOffset TransactionDate { get; set; }
-    
+
     public ICollection<JournalLine> Lines { get; set; } = new List<JournalLine>();
 
     public static Journal Create(

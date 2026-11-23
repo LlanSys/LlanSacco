@@ -43,6 +43,7 @@ public abstract class HrTenantIsolationTests<TFixture> : IClassFixture<TFixture>
     }
 
     [Fact]
+    [Trait("TenantIsolation", nameof(HrDBContext))]
     public async Task Query_ShouldOnlyReturnDataForCurrentTenant()
     {
         // Arrange
@@ -64,6 +65,7 @@ public abstract class HrTenantIsolationTests<TFixture> : IClassFixture<TFixture>
 
         // Seed data acting as tenant 2
         tenantProvider.TenantId = tenant2;
+
         using (var context = new HrDBContext(_options, tenantProvider, actorProvider))
         {
             var dept2 = Department.Create("DEPT2", "Department 2", "Desc 2", "test");
@@ -73,6 +75,7 @@ public abstract class HrTenantIsolationTests<TFixture> : IClassFixture<TFixture>
 
         // Act - Query as tenant 1
         tenantProvider.TenantId = tenant1;
+
         using (var context = new HrDBContext(_options, tenantProvider, actorProvider))
         {
             var items = await context.Departments.ToListAsync();
@@ -81,9 +84,10 @@ public abstract class HrTenantIsolationTests<TFixture> : IClassFixture<TFixture>
             Assert.Contains(items, i => i.Code == "DEPT1");
             Assert.DoesNotContain(items, i => i.Code == "DEPT2");
         }
-        
+
         // Act - Query as tenant 2
         tenantProvider.TenantId = tenant2;
+
         using (var context = new HrDBContext(_options, tenantProvider, actorProvider))
         {
             var items = await context.Departments.ToListAsync();

@@ -18,7 +18,7 @@ internal static class MenuItemSeed
     internal static IReadOnlyList<MenuItem> Items =>
     [
         Create(DashboardId, null, null, "dashboard", "Dashboard", "Operations dashboard.", "/dashboard", "Dashboard", "Sidebar", null, "Core", 1),
-        
+
         Create(AccountingId, null, null, "accounting", "Accounting", "Financial operations and reports.", "/accounting", "AccountBalance", "Sidebar", null, "Core", 10),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c40104", AccountingId, null, "accounting-chart-of-accounts", "Chart of Accounts", "Manage Chart of Accounts.", "/accounting/chart-of-accounts", "AccountTree", "Accounting", null, "Core", 10),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c40105", AccountingId, null, "accounting-journal-entry", "Journal Entry", "Create new journal entries.", "/accounting/journal-entry", "EditNote", "Accounting", null, "Core", 20),
@@ -28,9 +28,9 @@ internal static class MenuItemSeed
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c40106", AccountingId, null, "accounting-dlq", "Integration DLQ", "Integration Errors (DLQ).", "/accounting/dlq", "SyncProblem", "Accounting", null, "Core", 60),
 
         Create(HrId, null, null, "hr", "HR & Payroll", "Human resources and payroll processing.", "/hr", "Badge", "Sidebar", null, "Core", 20),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70101", HrId, null, "hr-payroll", "Payroll", "Run and manage payroll.", "/hr/payroll", "Payments", "Hr", null, "Core", 10),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70102", HrId, null, "hr-payroll-settings", "Payroll Settings", "Configure payroll parameters.", "/hr/payroll/settings", "Settings", "Hr", null, "Core", 20),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70103", HrId, null, "hr-checkoff", "Checkoff", "Manage employer checkoff batches.", "/checkoff/batches", "FactCheck", "Hr", null, "Core", 30),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70101", HrId, null, "hr-payroll", "Payroll", "Run and manage payroll.", "/hr/payroll", "Payments", "Hr", "hr.payroll.view", "Core", 10),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70102", HrId, null, "hr-payroll-settings", "Payroll Settings", "Configure payroll parameters.", "/hr/payroll/settings", "Settings", "Hr", "hr.payroll.settings", "Core", 20),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70103", HrId, null, "hr-checkoff", "Checkoff", "Manage employer checkoff batches.", "/checkoff/batches", "FactCheck", "Hr", "checkoff.view", "Core", 30),
 
         Create(LoansId, null, null, "loans", "Loans", "Loan operations and management.", "/loans", "Money", "Sidebar", null, "Core", 30),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60101", LoansId, null, "loans-products", "Loan Products", "Manage loan products.", "/loans/products", "Category", "Loans", "controlplane.manage", "Core", 10),

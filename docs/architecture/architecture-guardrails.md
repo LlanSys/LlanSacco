@@ -20,7 +20,8 @@ AGENTS.md is canonical. This document describes enforcement, not alternative con
 | EF001 | Configuration type names end in Configuration | Phase 6 |
 | EF002 | Configuration implementations are internal | Phase 7 |
 | EF003 | Configuration namespace follows feature EntityConfigurations convention | Phase 6 |
-| EF004 | DbSet soft-delete policy: review financial retention before changing entities | Phase 7 |
+| EF004 | DbSet entities require soft delete or a reviewed record lifecycle | Phase 7 |
+| RET001 | Authored source cannot remove a record with a reviewed retained lifecycle | Phase 7 |
 | EF005 | Provider contexts live in registered DataContext namespaces | Phase 6 |
 | AUTH001 | Feature actions require permission policies | Phase 7 |
 | TENANT001 | Each tenant-filtered context has a named isolation integration test | Phase 7 |

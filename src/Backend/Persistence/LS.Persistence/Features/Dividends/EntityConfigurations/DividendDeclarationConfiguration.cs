@@ -9,14 +9,14 @@ internal sealed class DividendDeclarationConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<DividendDeclaration> builder)
     {
         builder.HasKey(x => x.Id);
-        
-        builder.HasIndex(x => x.FinancialYear).IsUnique();
+
+        builder.HasIndex(x => new { x.TenantId, x.FinancialYear }).IsUnique();
 
         builder.Property(x => x.ShareDividendRate).HasColumnType("decimal(5,4)");
         builder.Property(x => x.DepositInterestRate).HasColumnType("decimal(5,4)");
         builder.Property(x => x.ShareWhtRate).HasColumnType("decimal(5,4)");
         builder.Property(x => x.DepositWhtRate).HasColumnType("decimal(5,4)");
-        
+
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
 
         builder.HasMany(x => x.Calculations)

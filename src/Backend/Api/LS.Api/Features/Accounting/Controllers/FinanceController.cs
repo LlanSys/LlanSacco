@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Accounting.Commands;
 using LS.Application.Features.Accounting.Queries;
@@ -6,7 +7,6 @@ using LS.Application.Features.Accounting.Queries.GetIntegrationErrors;
 using LS.SharedKernel.Features.Accounting.Dtos;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
@@ -29,7 +29,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="endDate">The end date (optional, defaults to now).</param>
     /// <returns>The trial balance.</returns>
     [HttpGet("trial-balance")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<TrialBalanceResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTrialBalance([FromQuery] DateTimeOffset? asOfDate)
     {
@@ -42,7 +42,7 @@ public class FinanceController(ISender sender) : BaseController
     /// Gets the dashboard statistics for the accounting module.
     /// </summary>
     [HttpGet("dashboard-stats")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<AccountingDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats()
     {
@@ -57,7 +57,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="endDate">The end date (optional, defaults to now).</param>
     /// <returns>The income statement.</returns>
     [HttpGet("income-statement")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<IncomeStatementResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIncomeStatement([FromQuery] DateTimeOffset? startDate, [FromQuery] DateTimeOffset? endDate)
     {
@@ -74,7 +74,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="asOfDate">The date to generate the balance sheet for (optional, defaults to now).</param>
     /// <returns>The balance sheet.</returns>
     [HttpGet("balance-sheet")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<BalanceSheetResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBalanceSheet([FromQuery] DateTimeOffset? asOfDate)
     {
@@ -88,7 +88,7 @@ public class FinanceController(ISender sender) : BaseController
     /// </summary>
     /// <returns>A list of accounts.</returns>
     [HttpGet("accounts")]
-    [Authorize]
+    [RequirePermission("transactions.view")]
     [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IReadOnlyList<AccountResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccounts()
     {
@@ -103,7 +103,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="request">The journal entry details.</param>
     /// <returns>The ID of the posted journal.</returns>
     [HttpPost("journals")]
-    [Authorize]
+    [RequirePermission("transactions.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PostJournal([FromBody] CreateJournalRequest request)
@@ -118,7 +118,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="status">Optional status filter (e.g., PendingRetry, Resolved).</param>
     /// <returns>A list of accounting integration errors.</returns>
     [HttpGet("integration-errors")]
-    [Authorize]
+    [RequirePermission("accounting-integrations.view")]
     [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetIntegrationErrors([FromQuery] string? status = null)
     {
@@ -133,7 +133,7 @@ public class FinanceController(ISender sender) : BaseController
     /// <param name="id">The ID of the integration error.</param>
     /// <returns>Success or failure of the retry operation.</returns>
     [HttpPost("integration-errors/{id}/retry")]
-    [Authorize]
+    [RequirePermission("accounting-integrations.retry")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status404NotFound)]

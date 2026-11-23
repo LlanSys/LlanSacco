@@ -1,4 +1,5 @@
 using LS.SharedKernel.Dtos.Common;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Dividends.Commands;
 using LS.Application.Features.Dividends.Queries;
@@ -19,7 +20,7 @@ namespace LS.Api.Features.Dividends;
 public class DividendsController(IMediator mediator) : BaseController
 {
     [HttpGet("declarations")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendDeclarationResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDeclarations()
     {
@@ -28,7 +29,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("declarations/{declarationId:guid}")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(typeof(AppResponse<DividendDeclarationResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDeclarationById([FromRoute] Guid declarationId)
@@ -38,14 +39,16 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("preferences")]
+    [MemberSelfService]
     [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendPreferenceResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPreferences()
     {
         var result = await mediator.Send(new GetDividendPreferencesQuery());
         return HandleResponse(result);
     }
+
     [HttpPost("declare")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeclareDividends([FromBody] DeclareDividendsRequest request)
@@ -64,7 +67,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/calculate")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RunCalculation([FromRoute] Guid declarationId)
@@ -75,7 +78,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/approve")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ApproveDeclaration([FromRoute] Guid declarationId)
@@ -86,7 +89,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/distribute")]
-    [Authorize(Policy = "ControlPlane.Manage")]
+    [RequirePermission("controlplane.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PostDistributions([FromRoute] Guid declarationId)
@@ -97,6 +100,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("preferences")]
+    [MemberSelfService]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SetPreferences([FromBody] SetDividendPreferenceRequest request)

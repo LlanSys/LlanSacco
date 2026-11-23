@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.SharedKernel.Features.Loans.Dtos;
 using LS.Application.Features.Loans.LoanApplications.Commands;
@@ -6,7 +7,6 @@ using LS.Application.Features.Loans.LoanApplications.Queries;
 using LS.Application.Features.Loans.LoanRepayments.Commands;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -21,7 +21,7 @@ namespace LS.Api.Features.Loans;
 public class LoanApplicationsController(ISender sender) : BaseController
 {
     [HttpPost]
-    [Authorize]
+    [RequirePermission("applications.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Apply([FromBody] ApplyForLoanCommand command)
     {
@@ -30,7 +30,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpGet("/api/v{version:apiVersion}/loans/dashboard-stats")]
-    [Authorize]
+    [RequirePermission("applications.view")]
     [ProducesResponseType(typeof(AppResponse<LoanDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats()
     {
@@ -39,7 +39,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpGet]
-    [Authorize]
+    [RequirePermission("applications.view")]
     [ProducesResponseType(typeof(AppResponse<List<LoanApplicationResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetApplications([FromQuery] Guid? memberId)
     {
@@ -48,7 +48,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/approve")]
-    [Authorize]
+    [RequirePermission("applications.approve")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Approve(Guid id)
     {
@@ -57,7 +57,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/reject")]
-    [Authorize]
+    [RequirePermission("applications.approve")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Reject(Guid id, [FromBody] string reason)
     {
@@ -66,18 +66,21 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/repayments")]
-    [Authorize]
+    [RequirePermission("repayments.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ProcessRepayment(Guid id, [FromBody] ProcessRepaymentCommand command)
     {
         if (id != command.LoanApplicationId)
+        {
             return BadRequest();
-        
+        }
+
         var result = await sender.Send(command);
         return HandleResponse(result);
     }
+
     [HttpPost("{id}/disburse")]
-    [Authorize]
+    [RequirePermission("applications.disburse")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Disburse(Guid id)
     {
@@ -86,7 +89,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id}/guarantors/accept")]
-    [Authorize]
+    [MemberSelfService]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AcceptGuarantor(Guid id, [FromBody] AcceptGuarantorPledgeRequest request)
     {
@@ -95,7 +98,7 @@ public class LoanApplicationsController(ISender sender) : BaseController
             request.GuarantorMemberId,
             request.AcceptedAmount
         ));
+
         return HandleResponse(result);
     }
 }
-

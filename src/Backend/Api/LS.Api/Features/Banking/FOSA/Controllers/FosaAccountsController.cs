@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using System;
 using System.Threading;
@@ -17,6 +18,7 @@ namespace LS.Api.Features.Banking.FOSA.Controllers;
 public class FosaAccountsController(IMediator mediator) : BaseController
 {
     [HttpPost("open")]
+    [RequirePermission("banking-accounts.open")]
     public async Task<IActionResult> OpenAccount([FromBody] OpenFosaAccountRequest request, CancellationToken cancellationToken)
     {
         var command = new OpenFosaAccountCommand(request.MemberId);
@@ -25,6 +27,7 @@ public class FosaAccountsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("transactions/otc")]
+    [RequirePermission("banking-transactions.post")]
     public async Task<IActionResult> ProcessOtcTransaction([FromBody] OtcTransactionRequest request, CancellationToken cancellationToken)
     {
         if (!Enum.TryParse<LS.Domain.Features.Banking.FOSA.Enums.OtcTransactionType>(request.TransactionType, true, out var transactionType) || !Enum.IsDefined(transactionType))
@@ -39,7 +42,7 @@ public class FosaAccountsController(IMediator mediator) : BaseController
             transactionType,
             request.Amount,
             request.Reference);
-            
+
         var response = await mediator.Send(command, cancellationToken).ConfigureAwait(false);
         return HandleResponse(response);
     }

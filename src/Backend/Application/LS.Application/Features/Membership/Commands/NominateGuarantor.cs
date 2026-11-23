@@ -1,4 +1,4 @@
-using LS.Application.Features.Membership.Handlers;
+using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Domain.Features.Membership.Contracts;
 using LS.Domain.Features.Membership.Entities;
 using LS.Domain.Shared.Contracts.Common;
@@ -18,6 +18,7 @@ internal partial class NominateGuarantorCommandHandler(
     IMembershipUnitOfWork unitOfWork,
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider,
+    ICurrentMemberResolver currentMember,
     ILogger<NominateGuarantorCommandHandler> logger) : IRequestHandler<NominateGuarantorCommand, AppResponse<Guid>>
 {
     private readonly IMembershipUnitOfWork _unitOfWork = unitOfWork;
@@ -28,6 +29,7 @@ internal partial class NominateGuarantorCommandHandler(
     public async Task<AppResponse<Guid>> Handle(NominateGuarantorCommand request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantProvider.TenantId;
+
         if (tenantId == Guid.Empty)
         {
             LogTenantMissing(_logger);
@@ -42,16 +44,19 @@ internal partial class NominateGuarantorCommandHandler(
             return AppResponses.Failure<Guid>(AppError.BusinessRule("A member cannot guarantee themselves."));
         }
 
-        // Validate both members exist
-        var member = await _unitOfWork.MemberRepository.FindByIdAsync(memberId, cancellationToken).ConfigureAwait(false);
-        if (member == null)
-            return AppResponses.Failure<Guid>(AppError.NotFound("Member not found."));
+        if (await currentMember.FindActiveMemberIdAsync(cancellationToken).ConfigureAwait(false) != memberId)
+        {
+            return AppResponses.Failure<Guid>(AppError.Forbidden("You can only nominate a guarantor for your own membership."));
+        }
 
         var nominated = await _unitOfWork.MemberRepository.FindByIdAsync(nominatedId, cancellationToken).ConfigureAwait(false);
-        if (nominated == null)
-            return AppResponses.Failure<Guid>(AppError.NotFound("Nominated Guarantor not found."));
 
-        var createdBy = _actorProvider.ActorId.ToString() ?? "System";
+        if (nominated == null)
+        {
+            return AppResponses.Failure<Guid>(AppError.NotFound("Nominated Guarantor not found."));
+        }
+
+        var createdBy = _actorProvider.ActorId;
 
         var guarantorRequest = GuarantorRequest.Create(
             tenantId,

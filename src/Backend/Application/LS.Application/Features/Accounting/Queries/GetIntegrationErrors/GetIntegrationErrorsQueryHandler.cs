@@ -17,16 +17,18 @@ internal class GetIntegrationErrorsQueryHandler(IAccountingUnitOfWork unitOfWork
     public async Task<AppResponse<IEnumerable<AccountingIntegrationErrorResponse>>> Handle(GetIntegrationErrorsQuery request, CancellationToken cancellationToken)
     {
         var errors = await _unitOfWork.AccountingIntegrationErrorRepository
-            .ListAsync(q => q.Where(e => request.Status == null || e.Status == request.Status)
-                             .OrderByDescending(e => e.OccurredAt), cancellationToken)
+            .ListAsync(
+                q => q.Where(e => request.Status == null || e.Status == request.Status)
+                    .OrderByDescending(e => e.OccurredAt),
+                cancellationToken)
             .ConfigureAwait(false);
 
         var dtos = errors.Select(e => new AccountingIntegrationErrorResponse(
             e.Id,
             e.EventId,
             e.EventType,
-            e.EventPayload,
-            e.ErrorMessage,
+            string.Empty,
+            "Accounting could not process this event. Use the event reference to investigate the failure.",
             e.Status,
             e.OccurredAt
         ));
@@ -34,4 +36,3 @@ internal class GetIntegrationErrorsQueryHandler(IAccountingUnitOfWork unitOfWork
         return AppResponses.Success(dtos);
     }
 }
-

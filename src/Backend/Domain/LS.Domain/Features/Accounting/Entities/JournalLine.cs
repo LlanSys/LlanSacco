@@ -1,9 +1,10 @@
+using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Shared.Entities;
 using System;
 
 namespace LS.Domain.Features.Accounting.Entities;
 
-public class JournalLine : BaseEntity
+public class JournalLine : BaseEntity, IRetainedFinancialRecord
 {
     public Guid JournalId { get; set; }
     public Guid AccountId { get; set; }

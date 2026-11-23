@@ -1,4 +1,5 @@
 @page "/hr/payroll"
+@attribute [Authorize(Policy = "hr.payroll.view")]
 @using LS.UI.Rcl.Features.HR.Payroll.Contracts.Interfaces
 @using LS.SharedKernel.Features.HR.Payroll.Dtos
 @using CurrieTechnologies.Razor.SweetAlert2
@@ -17,35 +18,63 @@
                 <p style="font-size: 0.85rem;">Run current period payroll, close active periods, and view historical runs.</p>
             </div>
             <div class="d-flex gap-2">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/hr/payroll/settings"
-                           StartIcon="@Icons.Material.Filled.Settings">
-                    Configuration
-                </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RunPayrollAsync"
-                           StartIcon="@Icons.Material.Filled.PlayArrow">
-                    Run Payroll
-                </MudButton>
+                <AuthorizeView Policy="hr.payroll.settings"
+                               Context="authorization">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               Href="/hr/payroll/settings"
+                               StartIcon="@Icons.Material.Filled.Settings">
+                        Configuration
+                    </MudButton>
+                </AuthorizeView>
+                <AuthorizeView Policy="hr.payroll.run"
+                               Context="authorization">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="RunPayrollAsync"
+                               StartIcon="@Icons.Material.Filled.PlayArrow">
+                        Run Payroll
+                    </MudButton>
+                </AuthorizeView>
             </div>
         </div>
 
         @if (_isLoading)
         {
-            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+            <MudProgressLinear Color="Color.Primary"
+                               Indeterminate="true"
+                               Class="mt-4" />
         }
         else
         {
-            <MudPaper Elevation="0" Outlined="true" Class="mt-4 pa-4">
+            <MudPaper Elevation="0"
+                      Outlined="true"
+                      Class="mt-4 pa-4">
                 <div class="d-flex justify-space-between align-center mb-4">
-                    <MudText Typo="Typo.h6" Style="font-size: 1rem; font-weight: 600;">Payroll Periods</MudText>
-                    
+                    <MudText Typo="Typo.h6"
+                             Style="font-size: 1rem; font-weight: 600;">Payroll Periods</MudText>
+
                     <div class="d-flex gap-2">
-                        <MudNumericField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_filterYear" Label="Year" Style="width: 100px;" />
-                        <MudNumericField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_filterMonth" Label="Month" Style="width: 100px;" />
-                        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="LoadPeriodsAsync">Filter</MudButton>
+                        <MudNumericField Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         @bind-Value="_filterYear"
+                                         Label="Year"
+                                         Style="width: 100px;" />
+                        <MudNumericField Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         @bind-Value="_filterMonth"
+                                         Label="Month"
+                                         Style="width: 100px;" />
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   OnClick="LoadPeriodsAsync">Filter</MudButton>
                     </div>
                 </div>
 
-                <MudTable Items="@_periods" Dense="true" Hover="true" Elevation="0">
+                <MudTable Items="@_periods"
+                          Dense="true"
+                          Hover="true"
+                          Elevation="0">
                     <HeaderContent>
                         <MudTh>Period</MudTh>
                         <MudTh>Status</MudTh>
@@ -56,17 +85,25 @@
                     <RowTemplate>
                         <MudTd DataLabel="Period">@($"{context.Month:D2}/{context.Year}")</MudTd>
                         <MudTd DataLabel="Status">
-                            <MudChip T="string" Color="@(context.Status == "Closed" ? Color.Success : Color.Warning)">
+                            <MudChip T="string"
+                                     Color="@(context.Status == "Closed" ? Color.Success : Color.Warning)">
                                 @context.Status
                             </MudChip>
                         </MudTd>
                         <MudTd DataLabel="Processed At">@(context.ProcessedAt?.ToString("g") ?? "-")</MudTd>
                         <MudTd DataLabel="Processed By">@(context.ProcessedBy ?? "-")</MudTd>
                         <MudTd DataLabel="Actions">
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/hr/payroll/{context.Id}")">View Payslips</MudButton>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Primary"
+                                       Href="@($"/hr/payroll/{context.Id}")">View Payslips</MudButton>
                             @if (context.Status == "Open")
                             {
-                                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ClosePeriodAsync(context))">Close Period</MudButton>
+                                <AuthorizeView Policy="hr.payroll.close"
+                                               Context="authorization">
+                                    <MudButton Variant="Variant.Text"
+                                               Color="Color.Error"
+                                               OnClick="@(() => ClosePeriodAsync(context))">Close Period</MudButton>
+                                </AuthorizeView>
                             }
                         </MudTd>
                     </RowTemplate>
@@ -179,11 +216,3 @@
         }
     }
 }
-
-
-
-
-
-
-
-

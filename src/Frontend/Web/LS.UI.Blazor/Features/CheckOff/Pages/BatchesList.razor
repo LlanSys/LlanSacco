@@ -1,4 +1,5 @@
 @page "/checkoff/batches"
+@attribute [Authorize(Policy = "checkoff.view")]
 @using LS.SharedKernel.Features.CheckOff.Dtos
 @using LS.UI.Blazor.Features.CheckOff.Contracts.Interfaces
 @using LS.UI.Blazor.Features.CheckOff.Components
@@ -8,14 +9,25 @@
 
 <PageTitle>Checkoff Batches | LlanSacco</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">Checkoff Batches</MudText>
+<MudText Typo="Typo.h5"
+         Class="mb-4">Checkoff Batches</MudText>
 
-<MudTable Items="@Batches" Loading="@IsLoading" Hover="true" Breakpoint="Breakpoint.Sm" Striped="true" Elevation="1">
+<MudTable Items="@Batches"
+          Loading="@IsLoading"
+          Hover="true"
+          Breakpoint="Breakpoint.Sm"
+          Striped="true"
+          Elevation="1">
     <ToolBarContent>
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenUploadDialog" StartIcon="@Icons.Material.Filled.CloudUpload">
-            Upload Batch
-        </MudButton>
+        <AuthorizeView Policy="checkoff.prepare">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="OpenUploadDialog"
+                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                Upload Batch
+            </MudButton>
+        </AuthorizeView>
     </ToolBarContent>
     <HeaderContent>
         <MudTh>Reference</MudTh>
@@ -32,11 +44,15 @@
         <MudTd DataLabel="Period">@context.ProcessingPeriod.ToString("MMMM yyyy")</MudTd>
         <MudTd DataLabel="Total Amount">@context.TotalAmount.ToString("N2")</MudTd>
         <MudTd DataLabel="Status">
-            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+            <MudChip T="string"
+                     Color="@GetStatusColor(context.Status)"
+                     Size="Size.Small">@context.Status</MudChip>
         </MudTd>
         <MudTd DataLabel="Uploaded">@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
         <MudTd DataLabel="Actions">
-            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => ViewDetails(context.Id))">View</MudButton>
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Primary"
+                       OnClick="@(() => ViewDetails(context.Id))">View</MudButton>
         </MudTd>
     </RowTemplate>
 </MudTable>

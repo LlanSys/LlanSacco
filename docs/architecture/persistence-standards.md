@@ -153,7 +153,9 @@ Soft-deleteable entities should:
 - Use repository `SoftDeleteAsync` or aggregate methods such as `MarkAsDeleted`.
 - Preserve hard delete only for explicit purge/retention scenarios.
 
-Delete actions exposed to users should normally be soft deletes.
+Delete actions exposed to users should normally be soft deletes. The beneficiary and PAYE removal flows retain audit metadata and rely on default filters to hide removed records.
+
+The [record lifecycle register](record-lifecycles.json) records the reviewed alternatives. Business lifecycle records use activation, closure, status transitions, or parent-owned updates according to their existing domain rules. Financial history implements `IRetainedFinancialRecord`. The save path rejects ordinary EF deletion of that history. The source guard rejects typed delete and remove calls for registered records. An intentional retention purge requires its own reviewed lifecycle decision and persistence path.
 
 ---
 

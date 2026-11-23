@@ -1,4 +1,5 @@
 using LS.Application.Features.Loans.IntegrationEvents;
+using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Domain.Features.Loans.Contracts;
 using LS.Domain.Features.Loans.Enums;
 using LS.Domain.Shared.Contracts.Common;
@@ -21,13 +22,20 @@ public sealed record AcceptGuarantorPledgeCommand(
 internal sealed partial class AcceptGuarantorPledgeCommandHandler(
     ILoansUnitOfWork unitOfWork,
     ICurrentActorProvider actorProvider,
+    ICurrentMemberResolver currentMember,
     IPublisher publisher,
     ILogger<AcceptGuarantorPledgeCommandHandler> logger)
     : IRequestHandler<AcceptGuarantorPledgeCommand, AppResponse<bool>>
 {
     public async Task<AppResponse<bool>> Handle(AcceptGuarantorPledgeCommand request, CancellationToken cancellationToken)
     {
+        if (await currentMember.FindActiveMemberIdAsync(cancellationToken).ConfigureAwait(false) != request.GuarantorMemberId)
+        {
+            return AppResponses.NotFound<bool>("Guarantor not found on this loan application.");
+        }
+
         var loan = await unitOfWork.LoanApplicationRepository.FindByIdAsync(request.LoanApplicationId, cancellationToken).ConfigureAwait(false);
+
         if (loan == null)
         {
             return AppResponses.NotFound<bool>("Loan application not found.");
@@ -35,14 +43,15 @@ internal sealed partial class AcceptGuarantorPledgeCommandHandler(
 
         // Check if the guarantor exists on the application
         var guarantor = loan.Guarantors.FirstOrDefault(g => g.GuarantorMemberId == request.GuarantorMemberId);
+
         if (guarantor == null)
         {
-             return AppResponses.NotFound<bool>("Guarantor not found on this loan application.");
+            return AppResponses.NotFound<bool>("Guarantor not found on this loan application.");
         }
 
         if (guarantor.Status == GuarantorStatus.Accepted)
         {
-             return AppResponses.Failure<bool>("Guarantor pledge is already accepted.");
+            return AppResponses.Failure<bool>("Guarantor pledge is already accepted.");
         }
 
         if (request.AcceptedAmount <= 0)

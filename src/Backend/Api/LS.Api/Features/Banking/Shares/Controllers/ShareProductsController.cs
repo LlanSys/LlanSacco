@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Banking.Shares.Commands;
 using LS.Application.Features.Banking.Shares.Queries;
@@ -16,6 +17,7 @@ public class ShareProductsController(ISender mediator) : BaseController
     private readonly ISender _mediator = mediator;
 
     [HttpGet]
+    [RequirePermission("banking-products.view")]
     public async Task<IActionResult> GetShareProducts([FromQuery] bool includeInactive = false, CancellationToken cancellationToken = default)
     {
         var query = new GetShareProductsQuery(includeInactive);
@@ -24,6 +26,7 @@ public class ShareProductsController(ISender mediator) : BaseController
     }
 
     [HttpPost]
+    [RequirePermission("banking-products.manage")]
     public async Task<IActionResult> CreateShareProduct([FromBody] CreateShareProductRequest request, CancellationToken cancellationToken)
     {
         var command = new CreateShareProductCommand(request.Name, request.Code, request.Description ?? string.Empty, request.PricePerShare, request.MinimumShares);

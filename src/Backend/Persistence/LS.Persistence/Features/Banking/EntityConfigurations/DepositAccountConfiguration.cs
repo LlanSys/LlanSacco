@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LS.Persistence.Features.Banking.EntityConfigurations;
 
-public class DepositAccountConfiguration : IEntityTypeConfiguration<DepositAccount>
+internal sealed class DepositAccountConfiguration : IEntityTypeConfiguration<DepositAccount>
 {
     public void Configure(EntityTypeBuilder<DepositAccount> builder)
     {

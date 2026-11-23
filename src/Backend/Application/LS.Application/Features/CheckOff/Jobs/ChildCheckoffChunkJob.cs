@@ -18,92 +18,165 @@ public class ChildCheckoffChunkJob(ICheckOffUnitOfWork checkOffUnitOfWork,
     public async Task ExecuteAsync(Guid batchId, List<Guid> rowIds, CancellationToken cancellationToken)
     {
         var tenantId = tenantProvider.TenantId;
-        if (tenantId == Guid.Empty) throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+
+        if (tenantId == Guid.Empty)
+        {
+            throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
+        }
+
         foreach (var rowId in rowIds)
         {
-            await checkOffUnitOfWork.ExecuteInTransactionAsync(async () =>
-            {
-                var row = await checkOffUnitOfWork.CheckoffStagingRowRepository.FirstOrDefaultAsync(
-                    r => r.Id == rowId && r.CheckoffBatchId == batchId && r.TenantId == tenantId, cancellationToken)
-                    ?? throw new InvalidOperationException("Checkoff row was not found.");
-                if (row.Status == CheckoffRowStatus.Processed) return true;
-                if (row.Status != CheckoffRowStatus.Validated || row.ResolvedMemberId is not Guid memberId || memberId == Guid.Empty)
-                    throw new InvalidOperationException("Checkoff row is not validated.");
-                if (row.AmountForSavings < 0 || row.AmountForShares < 0 || row.AmountForLoans < 0 || row.TotalDeducted <= 0 ||
-                    row.TotalDeducted != row.AmountForSavings + row.AmountForShares + row.AmountForLoans)
-                    throw new InvalidOperationException("Checkoff row amounts are inconsistent.");
-                var allocations = await checkOffUnitOfWork.CheckoffStagingLoanAllocationRepository.ListAsync(
-                    q => q.Where(a => a.TenantId == tenantId && a.CheckoffStagingRowId == rowId), cancellationToken);
-                if (allocations.Any(a => a.Amount <= 0) || allocations.Sum(a => a.Amount) != row.AmountForLoans)
-                    throw new InvalidOperationException("Checkoff loan allocations do not match the deduction.");
-                foreach (var allocation in allocations)
+            await checkOffUnitOfWork.ExecuteInTransactionAsync(
+                async () =>
                 {
-                    var loan = await loansUnitOfWork.LoanApplicationRepository.FirstOrDefaultAsync(
-                        l => l.Id == allocation.LoanId && l.TenantId == tenantId && l.MemberId == memberId, cancellationToken);
-                    if (loan is null) throw new InvalidOperationException("Checkoff loan does not belong to the resolved member.");
-                }
-                if (row.AmountForSavings > 0)
-                {
-                    var reference = $"CHK:{row.Id:N}:S";
-                    var prior = await bankingUnitOfWork.SavingsTransactionRepository.FirstOrDefaultAsync(
-                        t => t.TenantId == tenantId && t.ExternalReferenceId == reference, cancellationToken);
-                    Guid productId;
-                    if (prior is not null)
+                    var row = await checkOffUnitOfWork.CheckoffStagingRowRepository.FirstOrDefaultAsync(
+                        r => r.Id == rowId && r.CheckoffBatchId == batchId && r.TenantId == tenantId, cancellationToken)
+                        ?? throw new InvalidOperationException("Checkoff row was not found.");
+
+                    if (row.Status == CheckoffRowStatus.Processed)
                     {
-                        var account = await bankingUnitOfWork.SavingsAccountRepository.FirstOrDefaultAsync(
-                            a => a.TenantId == tenantId && a.Id == prior.SavingsAccountId, cancellationToken)
-                            ?? throw new InvalidOperationException("Original savings account was not found.");
-                        productId = account.SavingsProductId;
+                        return true;
                     }
-                    else
+
+                    if (row.Status != CheckoffRowStatus.Validated || row.ResolvedMemberId is not Guid memberId || memberId == Guid.Empty)
                     {
-                        var products = await bankingUnitOfWork.SavingsProductRepository.ListAsync(q => q
-                            .Where(p => p.TenantId == tenantId && p.IsActive && p.IsDefaultCheckoffTarget).Take(2), cancellationToken);
-                        if (products.Count != 1) throw new InvalidOperationException("Exactly one active checkoff savings product is required.");
-                        productId = products.Single().Id;
+                        throw new InvalidOperationException("Checkoff row is not validated.");
                     }
-                    var result = await sender.SendAsync(new DepositSavingsCommand(new DepositSavingsRequest(
-                        memberId, productId, row.AmountForSavings, "Checkoff savings payment", reference)), cancellationToken);
-                    if (!result.IsSuccess) throw new InvalidOperationException("Checkoff savings payment was rejected.");
-                }
-                if (row.AmountForShares > 0)
-                {
-                    var reference = $"CHK:{row.Id:N}:H";
-                    var prior = await bankingUnitOfWork.ShareTransactionRepository.FirstOrDefaultAsync(
-                        t => t.TenantId == tenantId && t.ReferenceNumber == reference, cancellationToken);
-                    Guid productId;
-                    if (prior is not null)
+
+                    if (row.AmountForSavings < 0 || row.AmountForShares < 0 || row.AmountForLoans < 0 || row.TotalDeducted <= 0 ||
+                        row.TotalDeducted != row.AmountForSavings + row.AmountForShares + row.AmountForLoans)
                     {
-                        var account = await bankingUnitOfWork.ShareAccountRepository.FirstOrDefaultAsync(
-                            a => a.TenantId == tenantId && a.Id == prior.ShareAccountId, cancellationToken)
-                            ?? throw new InvalidOperationException("Original share account was not found.");
-                        productId = account.ShareProductId;
+                        throw new InvalidOperationException("Checkoff row amounts are inconsistent.");
                     }
-                    else
+
+                    var allocations = await checkOffUnitOfWork.CheckoffStagingLoanAllocationRepository.ListAsync(
+                        q => q.Where(a => a.TenantId == tenantId && a.CheckoffStagingRowId == rowId), cancellationToken);
+
+                    if (allocations.Any(a => a.Amount <= 0) || allocations.Sum(a => a.Amount) != row.AmountForLoans)
                     {
-                        var products = await bankingUnitOfWork.ShareProductRepository.ListAsync(q => q
-                            .Where(p => p.TenantId == tenantId && p.IsActive).Take(2), cancellationToken);
-                        if (products.Count != 1) throw new InvalidOperationException("Exactly one active checkoff share product is required.");
-                        productId = products.Single().Id;
+                        throw new InvalidOperationException("Checkoff loan allocations do not match the deduction.");
                     }
-                    var result = await sender.SendAsync(new PurchaseSharesCommand(memberId, productId,
-                        row.AmountForShares, "Checkoff share payment", reference), cancellationToken);
-                    if (!result.IsSuccess) throw new InvalidOperationException("Checkoff share payment was rejected.");
-                }
-                foreach (var allocation in allocations)
-                {
-                    var result = await sender.SendAsync(new ProcessRepaymentCommand
+
+                    if (allocations.Count > 0)
                     {
-                        LoanApplicationId = allocation.LoanId, Amount = allocation.Amount,
-                        ReceiptNumber = $"CHK:{allocation.Id:N}"
-                    }, cancellationToken);
-                    if (!result.IsSuccess) throw new InvalidOperationException("Checkoff loan payment was rejected.");
-                }
-                row.Status = CheckoffRowStatus.Processed;
-                row.ExceptionReason = null;
-                await checkOffUnitOfWork.CheckoffStagingRowRepository.UpdateAsync(row, cancellationToken);
-                return true;
-            }, cancellationToken);
+                        var loanIds = allocations.Select(allocation => allocation.LoanId).Distinct().ToArray();
+                        var matchedLoans = await loansUnitOfWork.LoanApplicationRepository.CountAsync(
+                            loan => loanIds.Contains(loan.Id) && loan.TenantId == tenantId && loan.MemberId == memberId, cancellationToken);
+
+                        if (matchedLoans != loanIds.Length)
+                        {
+                            throw new InvalidOperationException("Checkoff loan does not belong to the resolved member.");
+                        }
+                    }
+
+                    if (row.AmountForSavings > 0)
+                    {
+                        var reference = $"CHK:{row.Id:N}:S";
+                        var prior = await bankingUnitOfWork.SavingsTransactionRepository.FirstOrDefaultAsync(
+                            t => t.TenantId == tenantId && t.ExternalReferenceId == reference, cancellationToken);
+
+                        Guid productId;
+
+                        if (prior is not null)
+                        {
+                            var account = await bankingUnitOfWork.SavingsAccountRepository.FirstOrDefaultAsync(
+                                a => a.TenantId == tenantId && a.Id == prior.SavingsAccountId, cancellationToken)
+                                ?? throw new InvalidOperationException("Original savings account was not found.");
+
+                            productId = account.SavingsProductId;
+                        }
+                        else
+                        {
+                            var products = await bankingUnitOfWork.SavingsProductRepository.ListAsync(
+                            q => q
+                                .Where(p => p.TenantId == tenantId && p.IsActive && p.IsDefaultCheckoffTarget)
+                                .Take(2),
+                            cancellationToken);
+
+                            if (products.Count != 1)
+                            {
+                                throw new InvalidOperationException("Exactly one active checkoff savings product is required.");
+                            }
+
+                            productId = products.Single().Id;
+                        }
+                        var result = await sender.SendAsync(
+                        new DepositSavingsCommand(new DepositSavingsRequest(
+                            memberId, productId, row.AmountForSavings, "Checkoff savings payment", reference)),
+                        cancellationToken);
+
+                        if (!result.IsSuccess)
+                        {
+                            throw new InvalidOperationException("Checkoff savings payment was rejected.");
+                        }
+                    }
+
+                    if (row.AmountForShares > 0)
+                    {
+                        var reference = $"CHK:{row.Id:N}:H";
+                        var prior = await bankingUnitOfWork.ShareTransactionRepository.FirstOrDefaultAsync(
+                            t => t.TenantId == tenantId && t.ReferenceNumber == reference, cancellationToken);
+
+                        Guid productId;
+
+                        if (prior is not null)
+                        {
+                            var account = await bankingUnitOfWork.ShareAccountRepository.FirstOrDefaultAsync(
+                                a => a.TenantId == tenantId && a.Id == prior.ShareAccountId, cancellationToken)
+                                ?? throw new InvalidOperationException("Original share account was not found.");
+
+                            productId = account.ShareProductId;
+                        }
+                        else
+                        {
+                            var products = await bankingUnitOfWork.ShareProductRepository.ListAsync(
+                            q => q
+                                .Where(p => p.TenantId == tenantId && p.IsActive)
+                                .Take(2),
+                            cancellationToken);
+
+                            if (products.Count != 1)
+                            {
+                                throw new InvalidOperationException("Exactly one active checkoff share product is required.");
+                            }
+
+                            productId = products.Single().Id;
+                        }
+                        var result = await sender.SendAsync(
+                        new PurchaseSharesCommand(
+                        memberId,
+                        productId,
+                            row.AmountForShares,
+                        "Checkoff share payment",
+                        reference),
+                        cancellationToken);
+
+                        if (!result.IsSuccess)
+                        {
+                            throw new InvalidOperationException("Checkoff share payment was rejected.");
+                        }
+                    }
+
+                    foreach (var allocation in allocations)
+                    {
+                        var result = await sender.SendAsync(new ProcessRepaymentCommand
+                        {
+                            LoanApplicationId = allocation.LoanId,
+                            Amount = allocation.Amount,
+                            ReceiptNumber = $"CHK:{allocation.Id:N}"
+                        }, cancellationToken);
+
+                        if (!result.IsSuccess)
+                        {
+                            throw new InvalidOperationException("Checkoff loan payment was rejected.");
+                        }
+                    }
+                    row.Status = CheckoffRowStatus.Processed;
+                    row.ExceptionReason = null;
+                    await checkOffUnitOfWork.CheckoffStagingRowRepository.UpdateAsync(row, cancellationToken);
+                    return true;
+                },
+                cancellationToken);
         }
     }
 }

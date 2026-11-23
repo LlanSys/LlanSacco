@@ -1,4 +1,5 @@
-using FluentValidation;
+using LS.Application.Features.Dividends.Queries;
+using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Domain.Features.Dividends.Contracts;
 using LS.Domain.Features.Dividends.Entities;
 using LS.Domain.Shared.Contracts.Common;
@@ -18,30 +19,29 @@ public record SetDividendPreferenceCommand(
 internal class SetDividendPreferenceCommandHandler(
     IDividendsUnitOfWork uow,
     ICurrentActorProvider actorProvider,
+    ICurrentMemberResolver currentMember,
     ICurrentTenantProvider tenantProvider) : IRequestHandler<SetDividendPreferenceCommand, AppResponse<Guid>>
 {
     public async Task<AppResponse<Guid>> Handle(SetDividendPreferenceCommand request, CancellationToken cancellationToken)
     {
-        // For standard self-service flows, the Actor is the Member. 
-        // We'd parse the MemberId from the claims or fetch from IAM service.
-        // Assuming ActorId maps directly to MemberId for member accounts.
-        var memberIdString = actorProvider.ActorId;
-        if (!Guid.TryParse(memberIdString, out var memberId) || memberId == Guid.Empty)
-            return AppResponses.Failure<Guid>("Invalid user token or member reference.");
+        if (await currentMember.FindActiveMemberIdAsync(cancellationToken).ConfigureAwait(false) is not Guid memberId)
+        {
+            return AppResponses.Failure<Guid>(AppError.Forbidden("An active membership is required."));
+        }
 
-        var existingPref = await uow.DividendDistributionPreferenceRepository
-            .FirstOrDefaultAsync(x => x.MemberId == memberId, cancellationToken);
+        var existingPref = await DividendPreferenceLookup.FindAsync(uow, memberId, actorProvider.ActorId, cancellationToken).ConfigureAwait(false);
 
         if (existingPref != null)
         {
+            existingPref.AssignToMember(memberId);
             existingPref.UpdatePreferences(
                 request.CapitalizePercentage,
                 request.FosaPercentage,
                 request.ExternalBankPercentage);
-            
+
             await uow.DividendDistributionPreferenceRepository.UpdateAsync(existingPref, cancellationToken);
             await uow.CompleteAsync(cancellationToken);
-            
+
             return AppResponses.Success(existingPref.Id);
         }
 

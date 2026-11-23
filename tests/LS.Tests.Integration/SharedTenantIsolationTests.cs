@@ -43,6 +43,7 @@ public abstract class SharedTenantIsolationTests<TFixture> : IClassFixture<TFixt
     }
 
     [Fact]
+    [Trait("TenantIsolation", nameof(SharedDBContext))]
     public async Task Query_ShouldOnlyReturnDataForCurrentTenant()
     {
         // Arrange
@@ -64,6 +65,7 @@ public abstract class SharedTenantIsolationTests<TFixture> : IClassFixture<TFixt
 
         // Seed data acting as tenant 2
         tenantProvider.TenantId = tenant2;
+
         using (var context = new SharedDBContext(_options, tenantProvider, actorProvider))
         {
             var setting2 = new OrgSetting($"SETTING_2_{tenant2}", "Value 2", "test");
@@ -73,6 +75,7 @@ public abstract class SharedTenantIsolationTests<TFixture> : IClassFixture<TFixt
 
         // Act - Query as tenant 1
         tenantProvider.TenantId = tenant1;
+
         using (var context = new SharedDBContext(_options, tenantProvider, actorProvider))
         {
             var items = await context.OrgSettings.ToListAsync();
@@ -81,9 +84,10 @@ public abstract class SharedTenantIsolationTests<TFixture> : IClassFixture<TFixt
             Assert.Contains(items, i => i.Key == $"SETTING_1_{tenant1}");
             Assert.DoesNotContain(items, i => i.Key == $"SETTING_2_{tenant2}");
         }
-        
+
         // Act - Query as tenant 2
         tenantProvider.TenantId = tenant2;
+
         using (var context = new SharedDBContext(_options, tenantProvider, actorProvider))
         {
             var items = await context.OrgSettings.ToListAsync();

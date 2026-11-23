@@ -1,11 +1,11 @@
 using Asp.Versioning;
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Membership.Commands;
 using LS.Application.Features.Membership.Queries;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Membership.Dtos;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -26,7 +26,7 @@ public class MembersController(ISender sender) : BaseController
     /// Gets a specific member by ID.
     /// </summary>
     [HttpGet("{id}")]
-    [Authorize]
+    [RequirePermission("members.view")]
     [ProducesResponseType(typeof(AppResponse<MemberResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMember(Guid id)
     {
@@ -39,7 +39,7 @@ public class MembersController(ISender sender) : BaseController
     /// Gets all members.
     /// </summary>
     [HttpGet]
-    [Authorize] // Ideally needs 'membership.members.view' policy
+    [RequirePermission("members.view")]
     [ProducesResponseType(typeof(AppResponse<List<MemberResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMembers()
     {
@@ -52,7 +52,7 @@ public class MembersController(ISender sender) : BaseController
     /// Gets all members pending approval.
     /// </summary>
     [HttpGet("pending")]
-    [Authorize] // Ideally needs 'membership.onboard.check' policy
+    [RequirePermission("members.approve")]
     [ProducesResponseType(typeof(AppResponse<List<MemberResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPendingMembers()
     {
@@ -65,7 +65,7 @@ public class MembersController(ISender sender) : BaseController
     /// Gets the dashboard statistics for the membership module.
     /// </summary>
     [HttpGet("dashboard-stats")]
-    [Authorize]
+    [RequirePermission("members.view")]
     [ProducesResponseType(typeof(AppResponse<MembershipDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats()
     {
@@ -78,7 +78,7 @@ public class MembersController(ISender sender) : BaseController
     /// Onboards a new member (Maker step).
     /// </summary>
     [HttpPost("onboard")]
-    [Authorize] // Ideally needs 'membership.onboard.make' policy
+    [RequirePermission("members.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     public async Task<IActionResult> OnboardMember([FromBody] OnboardMemberRequest request)
     {
@@ -91,7 +91,7 @@ public class MembersController(ISender sender) : BaseController
     /// Approves a pending member (Checker step).
     /// </summary>
     [HttpPost("approve")]
-    [Authorize] // Ideally needs 'membership.onboard.check' policy
+    [RequirePermission("members.approve")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ApproveMember([FromBody] ApproveMemberRequest request)
     {
@@ -104,7 +104,7 @@ public class MembersController(ISender sender) : BaseController
     /// Rejects a pending member (Checker step).
     /// </summary>
     [HttpPost("reject")]
-    [Authorize] // Ideally needs 'membership.onboard.check' policy
+    [RequirePermission("members.approve")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> RejectMember([FromBody] RejectMemberRequest request)
     {
@@ -117,7 +117,7 @@ public class MembersController(ISender sender) : BaseController
     /// Triggers the KYC verification for a member.
     /// </summary>
     [HttpPost("{id}/verify-kyc")]
-    [Authorize] // Ideally needs 'membership.onboard.check' policy
+    [RequirePermission("members.approve")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyMemberKyc(Guid id)
     {
@@ -130,7 +130,7 @@ public class MembersController(ISender sender) : BaseController
     /// Suspends a member.
     /// </summary>
     [HttpPost("{id}/suspend")]
-    [Authorize] // Ideally needs 'membership.manage' policy
+    [RequirePermission("members.edit")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> SuspendMember(Guid id, [FromBody] string reason)
     {
@@ -143,7 +143,7 @@ public class MembersController(ISender sender) : BaseController
     /// Closes a member account.
     /// </summary>
     [HttpPost("{id}/close")]
-    [Authorize] // Ideally needs 'membership.manage' policy
+    [RequirePermission("members.edit")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> CloseMember(Guid id, [FromBody] string reason)
     {
@@ -156,7 +156,7 @@ public class MembersController(ISender sender) : BaseController
     /// Gets a member's beneficiaries.
     /// </summary>
     [HttpGet("{id}/beneficiaries")]
-    [Authorize]
+    [RequirePermission("members.view")]
     [ProducesResponseType(typeof(AppResponse<List<BeneficiaryResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBeneficiaries(Guid id)
     {
@@ -169,7 +169,7 @@ public class MembersController(ISender sender) : BaseController
     /// Adds a beneficiary to a member.
     /// </summary>
     [HttpPost("{id}/beneficiaries")]
-    [Authorize] // Ideally needs 'membership.manage' policy
+    [RequirePermission("members.edit")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AddBeneficiary(Guid id, [FromBody] AddBeneficiaryRequest request)
     {
@@ -182,7 +182,7 @@ public class MembersController(ISender sender) : BaseController
     /// Removes a beneficiary from a member.
     /// </summary>
     [HttpDelete("{id}/beneficiaries/{beneficiaryId}")]
-    [Authorize] // Ideally needs 'membership.manage' policy
+    [RequirePermission("members.edit")]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> RemoveBeneficiary(Guid id, Guid beneficiaryId)
     {

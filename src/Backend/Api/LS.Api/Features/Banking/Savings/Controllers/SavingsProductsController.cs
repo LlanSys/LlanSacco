@@ -1,3 +1,4 @@
+using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.Banking.Savings.Commands;
 using LS.Application.Features.Banking.Savings.Queries;
@@ -15,6 +16,7 @@ namespace LS.Api.Features.Banking.Savings.Controllers;
 public class SavingsProductsController(IMediator mediator) : BaseController
 {
     [HttpGet]
+    [RequirePermission("banking-products.view")]
     public async Task<IActionResult> Get([FromQuery] bool onlyActive = true)
     {
         var response = await mediator.Send(new GetSavingsProductsQuery(onlyActive));
@@ -22,6 +24,7 @@ public class SavingsProductsController(IMediator mediator) : BaseController
     }
 
     [HttpPost]
+    [RequirePermission("banking-products.manage")]
     public async Task<IActionResult> Create(CreateSavingsProductRequest request)
     {
         var response = await mediator.Send(new CreateSavingsProductCommand(request));

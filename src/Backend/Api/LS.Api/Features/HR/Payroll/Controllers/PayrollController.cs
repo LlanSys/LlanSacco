@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using System.Security.Claims;
 using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
 using LS.Application.Features.HR.Payroll.Commands;
@@ -6,7 +7,6 @@ using LS.Application.Features.HR.Payroll.Queries;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.HR.Payroll.Dtos;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,7 +28,7 @@ public sealed class PayrollController(ISender sender) : BaseController
     }
 
     [HttpGet("/api/v{version:apiVersion}/hr/dashboard-stats")]
-    [Authorize]
+    [RequirePermission("hr.payroll.view")]
     [ProducesResponseType(typeof(AppResponse<HrDashboardStatsResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDashboardStats(CancellationToken cancellationToken)
     {
@@ -80,8 +80,9 @@ public sealed class PayrollController(ISender sender) : BaseController
             request.HousingLevyRate,
             request.PersonalReliefAmount,
             request.PayeTaxBands,
-            User.Identity?.Name ?? "Admin"
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? LS.Domain.Shared.Contracts.Common.ICurrentActorProvider.SystemActor
         );
+
         var response = await sender.Send(command, cancellationToken);
         return HandleResponse(response);
     }
@@ -96,4 +97,3 @@ public sealed class PayrollController(ISender sender) : BaseController
         return HandleResponse(response);
     }
 }
-

@@ -25,7 +25,7 @@ This file is the canonical source of truth and working contract for AI coding to
 - Product: LlanSacco
 - Root namespace prefix: `LS`
 - LlanSacco is the SACCO product, derived from BaseTemplate. Do not rerun template renaming on this established application.
-- Adopt proven StarterTemplate platform improvements selectively. Preserve SACCO workflows, migration history, LS namespaces and application identities; adopting a platform baseline does not certify open remediation gates.
+- StarterTemplate is the default reference for platform and architecture work. Use BaseTemplate as a reference only when explicitly requested. Adopt proven StarterTemplate improvements selectively and preserve SACCO workflows, migration history, LS namespaces and application identities. Verify LlanSacco’s remediation gates independently.
 - After protected data has been issued, `DataProtection:ApplicationName` is immutable without an explicit migration or security reset.
 - Target framework: `.NET 10`
 - Architecture: modular monolith with Clean Architecture boundaries and bounded-context feature folders.
@@ -64,7 +64,7 @@ This file is the canonical source of truth and working contract for AI coding to
 
 - Every declared `DbSet<T>` entity must have explicit EF configuration.
 - Custom persistence context-related types use the project `DB` acronym, for example `IamDBContext`, `DBContextHelper`, and `ITenantFilteredDBContext`; keep Microsoft framework API names unchanged.
-- Respect tenant isolation, soft delete, and audit actor conventions.
+- Respect tenant isolation, soft delete, and audit actor conventions. Ordinary record removal uses soft delete. Preserve audited financial history and explicitly reviewed business lifecycles in the record lifecycle register. Update the policy and applicable guards together when introducing a new removal path.
 - `CreatedBy`, `UpdatedBy`, `ActivatedBy`, `DeactivatedBy`, and `DeletedBy` must store stable actor identifiers, not display names or labels such as `DevelopmentSeed`.
 - Every Unit of Work repository property uses a feature-specific interface and the `Repository` suffix, for example `IMemberTransactionRepository MemberTransactionRepository`. Entity repository interfaces inherit `IRepository<TEntity>`; never expose raw `IRepository<TEntity>` from a Unit of Work. Inject implementations; never construct generic repositories in property getters. Specialized non-entity/security contracts require a documented exception to inheritance, not naming.
 - Prefer inherited generic repository methods unless a concrete repository method is persistence-specific. Use specifications for reusable query rules; do not invent aliases such as GetAllAsync/GetByIdAsync when ListAsync/FindByIdAsync already exist.
@@ -89,7 +89,7 @@ This file is the canonical source of truth and working contract for AI coding to
 ## IAM And Security
 
 - IAM is a core platform capability, not an application-specific feature.
-- Administrative endpoints require permission-based authorization, not only `[Authorize]`.
+- Administrative endpoints require permission-based authorization, not only `[Authorize]`. For member self-service routes, use the exact member self-service policy and resolve ownership from the authenticated IAM actor and active membership in the current tenant. The route policy alone does not establish record ownership.
 - Admin MFA enforcement is intentional; non-admin MFA can be policy-driven.
 - Session lifecycle must expire cleanly, warn before timeout, and avoid stale UI state.
 - Blazor tokens use protected browser storage with a circuit-scoped in-memory fallback; do not mirror bearer or refresh tokens into Redis.

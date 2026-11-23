@@ -1,44 +1,9 @@
 # Pull Request Guidelines
 
-Pull requests should explain the outcome of the change, not just list files.
-Keep the description short enough to review quickly, but clear enough that a future maintainer can understand why the change exists.
+Start with the [PR template](../../.github/pull_request_template.md). Explain the problem, the outcome and the impact on contracts, data, permissions or configuration. Record the checks you ran and their results. Include provider migrations, deployment steps or release blockers when they apply.
 
-## Recommended Structure
+Use a short outcome-focused title, such as `Add dynamic menu authorization`. Keep reviewable changes together. For guardrail changes, link the rule, describe how it is enforced and include positive and negative test evidence where applicable.
 
-```md
-## Summary
-Describe the user-facing or architecture-facing outcome in one or two sentences.
+Read [AGENTS.md](../../AGENTS.md) for the conventions that apply to the change. Update the relevant documentation when a convention changes. Open a focused PR into `main`. Wait for **Required / Remediation** and resolve review conversations before squash-merging. CODEOWNERS identifies the maintainer for architecture and sensitive paths. Request an independent review when another eligible reviewer is available. The single-maintainer policy relies on the required checks and resolved conversations until independent approval is possible.
 
-## What Changed
-- Group changes by behavior or capability.
-- Prefer meaningful bullets over raw file lists.
-- Mention important architecture, data, API, UI, or configuration changes.
-
-## Notes
-- Call out dependencies, follow-up work, migrations, feature flags, secrets, rollout concerns, or known limitations.
-- If there are no special notes, write `None`.
-```
-
-## Title Convention
-
-Use a concise, outcome-focused title:
-
-```text
-Complete IAM foundation and admin reference flows
-```
-
-Good PR titles usually start with a verb and name the capability being changed.
-
-Examples:
-
-- `Add dynamic menu authorization`
-- `Harden refresh token rotation`
-- `Align lookup catalogs with soft delete`
-- `Add customer search and pagination`
-
-## Review Expectations
-
-- Keep PRs focused where practical.
-- Explain any intentional tradeoffs.
-- Document migration or configuration impact.
-- Do not include secrets, local machine paths, generated build output, or screenshots containing sensitive data.
+See the [CI workflow](ci-cd-workflow.md) for the local command and hosted status checks.

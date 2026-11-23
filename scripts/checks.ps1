@@ -4,56 +4,15 @@ param(
     [switch]$SkipRestore
 )
 
-$ErrorActionPreference = "Stop"
-
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-Set-Location $repoRoot
-
-function Invoke-GuardrailCommand {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Description,
-
-        [Parameter(Mandatory = $true)]
-        [string[]]$Command
-    )
-
-    Write-Host $Description
-    & $Command[0] @($Command | Select-Object -Skip 1)
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Description failed with exit code $LASTEXITCODE."
-    }
-}
-
-if (-not $SkipRestore) {
-    Invoke-GuardrailCommand `
-        -Description "Restoring API project..." `
-        -Command @("dotnet", "restore", "src\Backend\Api\LS.Api\LS.Api.csproj")
-
-    Invoke-GuardrailCommand `
-        -Description "Restoring architecture test project..." `
-        -Command @("dotnet", "restore", "tests\LS.Tests.Architecture\LS.Tests.Architecture.csproj")
-}
+$ErrorActionPreference = 'Stop'
+$verify = Join-Path $PSScriptRoot 'verify-baseline.ps1'
 
 if (-not $SkipBuild) {
-    Invoke-GuardrailCommand `
-        -Description "Running API build..." `
-        -Command @("dotnet", "build", "src\Backend\Api\LS.Api\LS.Api.csproj", "--no-restore")
+    & $verify -Check Api -Configuration Debug -NoRestore:$SkipRestore
 }
 
 if (-not $SkipArchitecture) {
-    Invoke-GuardrailCommand `
-        -Description "Running architecture tests..." `
-        -Command @("dotnet", "test", "tests\LS.Tests.Architecture\LS.Tests.Architecture.csproj", "--no-restore")
+    & $verify -Check Architecture -Configuration Debug -NoRestore:$SkipRestore
 }
 
-Write-Host "Local guardrails passed."
-
-#You can run this script with the following command:
-#powershell -NoProfile -ExecutionPolicy Bypass -File scripts\checks.ps1
-
-#If you ever need to bypass the pre-push hook temporarily:
-#git push --no-verify
-#$env:SKIP_GUARDRAILS="1"
-#git push
+Write-Host 'Local pre-push checks passed.'

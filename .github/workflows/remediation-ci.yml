@@ -21,35 +21,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [Api, Blazor, Unit, Architecture, Integration]
+        check: [Api, Blazor, Unit, Architecture, Integration, Guardrails]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - name: Reject expansion of architecture debt
-        if: github.event_name == 'pull_request' && matrix.check == 'Architecture'
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Verify baseline
         shell: pwsh
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: ./scripts/check-architecture-debt.ps1 -BaseRef $env:PR_BASE_SHA
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-      - name: Verify package policy and formatter
-        if: matrix.check == 'Architecture'
-        shell: pwsh
+          BASELINE_CHECK: ${{ matrix.check }}
         run: |
-          ./scripts/check-package-policy.ps1
-          ./scripts/test-package-policy.ps1
-          dotnet tool restore --configfile nuget.config
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet run --project tools/LS.SourceFormatting/LS.SourceFormatting.csproj --configuration Release -- --self-test
-      - name: Verify baseline
-        shell: pwsh
-        run: ./scripts/verify-baseline.ps1 -Check ${{ matrix.check }} -Configuration Release
+          $options = @{ Check = $env:BASELINE_CHECK; Configuration = 'Release' }
+          if ($env:BASELINE_CHECK -eq 'Guardrails' -and $env:GITHUB_EVENT_NAME -eq 'pull_request') {
+              if (-not $env:PR_BASE_SHA) { throw 'The pull request base SHA is required.' }
+              $options.BaseRef = $env:PR_BASE_SHA
+          }
+          ./scripts/verify-baseline.ps1 @options
       - name: Upload test diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: baseline-${{ matrix.check }}
           path: |
@@ -61,9 +57,10 @@ jobs:
     name: Baseline / Secrets
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Download and verify Gitleaks
         env:
           GH_TOKEN: ${{ github.token }}

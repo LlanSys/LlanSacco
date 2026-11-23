@@ -1,0 +1,14 @@
+# The active maintainer can assign independent reviewers when they are available.
+/.github/ @odhiamboally
+/.githooks/ @odhiamboally
+/AGENTS.md @odhiamboally
+/docs/architecture/ @odhiamboally
+/scripts/check-architecture-debt.ps1 @odhiamboally
+/scripts/check-package-policy.ps1 @odhiamboally
+/scripts/verify-baseline.ps1 @odhiamboally
+/src/Backend/Domain/ @odhiamboally
+/src/Backend/Persistence/ @odhiamboally
+/src/Backend/Application/LS.Application/Features/IAM/ @odhiamboally
+/src/Backend/Infrastructure/LS.Infrastructure/Features/IAM/ @odhiamboally
+/src/Backend/Api/LS.Api/Features/IAM/ @odhiamboally
+/tests/LS.Tests.Architecture/ @odhiamboally

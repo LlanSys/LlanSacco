@@ -17,6 +17,6 @@ Use `-WrapLongLines` when wrapping is part of the edit. The default scope covers
 
 ## CI
 
-The Architecture job in Required / Remediation checks the package policy, exercises the rejection cases, restores the pinned tools and runs the formatter fixtures. Existing source can be formatted as part of its feature work.
+The Guardrails job in Required / Remediation checks the package policy, exercises the rejection cases, restores the pinned tools and runs the formatter fixtures. Existing source can be formatted as part of its feature work.
 
 The implementation takes the formatter and package policy patterns from [StarterTemplate at a361bda](https://github.com/LlanSys/starter-template/tree/a361bda27aece09199e20f4ddad3847570165aff). LlanSacco's versions and application targets come from its own dependency graph.

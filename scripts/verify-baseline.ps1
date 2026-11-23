@@ -1,8 +1,9 @@
 param(
-    [ValidateSet('All', 'Api', 'Blazor', 'Unit', 'Architecture', 'Integration')]
+    [ValidateSet('All', 'Api', 'Blazor', 'Unit', 'Architecture', 'Integration', 'Guardrails')]
     [string]$Check = 'All',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
+    [string]$BaseRef,
     [switch]$NoRestore
 )
 $ErrorActionPreference = 'Stop'
@@ -17,6 +18,29 @@ $projects = [ordered]@{
 $failed = [System.Collections.Generic.List[string]]::new()
 Push-Location $repoRoot
 try {
+    if ($Check -in @('All', 'Guardrails')) {
+        if ($BaseRef) {
+            & ./scripts/check-architecture-debt.ps1 -BaseRef $BaseRef
+        }
+
+        & ./scripts/check-package-policy.ps1
+        & ./scripts/test-package-policy.ps1
+
+        if (-not $NoRestore) {
+            dotnet tool restore --configfile nuget.config
+            if ($LASTEXITCODE -ne 0) { throw 'Local tool restore failed.' }
+        }
+
+        $formatArguments = @('run', '--project', 'tools/LS.SourceFormatting/LS.SourceFormatting.csproj',
+            '--configuration', $Configuration, '-p:UseSharedCompilation=false')
+        if ($NoRestore) { $formatArguments += '--no-restore' }
+        & dotnet @formatArguments -- --self-test
+        if ($LASTEXITCODE -ne 0) { throw 'Formatter fixtures failed.' }
+    }
+    elseif ($BaseRef) {
+        throw 'Select All or Guardrails when comparing the debt register to a base ref.'
+    }
+
     foreach ($entry in $projects.GetEnumerator()) {
         if ($Check -ne 'All' -and $entry.Key -ne $Check) { continue }
         $verb = if ($entry.Key -in @('Api', 'Blazor')) { 'build' } else { 'test' }

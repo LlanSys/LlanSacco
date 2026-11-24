@@ -52,21 +52,24 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
             new DbContextOptionsBuilder<IamDBContext>().UseInMemoryDatabase(databaseName).Options,
             new FixedTenantProvider(TenantId),
             new FixedActorProvider(Staff)));
+
         services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddIdentityCore<AppUser>(DependencyInjection.ConfigureIdentityOptions)
             .AddRoles<AppRole>()
             .AddEntityFrameworkStores<IamDBContext>()
             .AddDefaultTokenProviders()
             .AddTokenProvider<AccountActivationTokenProvider>(AccountActivationTokenProvider.ProviderName);
+
         _provider = services.BuildServiceProvider();
         _scope = _provider.CreateAsyncScope();
 
         // The fake Unit of Work runs each transactional callback once (the InMemory provider has no transactions).
         _uow.ExecuteInTransactionWithRetryAsync(
-                Arg.Any<Func<Task<AppResponse<bool>>>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>(), Arg.Any<Func<AppResponse<bool>, bool>?>())
+            Arg.Any<Func<Task<AppResponse<bool>>>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>(), Arg.Any<Func<AppResponse<bool>, bool>?>())
             .Returns(call => call.Arg<Func<Task<AppResponse<bool>>>>()());
+
         _uow.ExecuteInTransactionWithRetryAsync(
-                Arg.Any<Func<Task<bool>>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>(), Arg.Any<Func<bool, bool>?>())
+            Arg.Any<Func<Task<bool>>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>(), Arg.Any<Func<bool, bool>?>())
             .Returns(call => call.Arg<Func<Task<bool>>>()());
 
         _email.SendEmailAsync(Arg.Any<SendEmailRequest>(), Arg.Any<CancellationToken>())
@@ -135,6 +138,7 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
             Substitute.For<IHttpContextAccessor>(),
             Substitute.For<IPublisher>(),
             NullLogger<ResetPassword>.Instance);
+
         var command = new ResetPasswordCommand(new ResetPasswordRequest(user.Email!, "Chosen-By-User1!", null, "Chosen-By-User1!", token));
 
         var first = await handler.Handle(command, CancellationToken.None);
@@ -198,6 +202,7 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
 
         Assert.Equal(passwords.Count, passwords.Distinct(StringComparer.Ordinal).Count());
         var user = AppUser.CreateSystemUser(TenantId, "policy-check", "policy@example.test", Staff);
+
         foreach (var validator in Users.PasswordValidators)
         {
             Assert.True((await validator.ValidateAsync(Users, user, passwords[0])).Succeeded);
@@ -270,6 +275,7 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
     {
         var roles = _scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>();
         var roleName = Roles.Customer.ToDisplayString();
+
         if (!await roles.RoleExistsAsync(roleName))
         {
             Assert.True((await roles.CreateAsync(new AppRole { Name = roleName })).Succeeded);
@@ -278,6 +284,7 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
         var suffix = Guid.CreateVersion7().ToString("N");
         var user = AppUser.CreateForMember(
             TenantId, Guid.CreateVersion7(), $"member-{suffix}", "Test", "Member", $"{suffix}@example.test", "+254700000000", "12345678", Staff);
+
         if (isActive)
         {
             user.GrantAccess(Staff, [roleName]);
@@ -285,6 +292,7 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
         }
 
         Assert.True((await Users.CreateAsync(user, KnownPassword)).Succeeded);
+
         if (isActive)
         {
             Assert.True((await Users.AddToRoleAsync(user, roleName)).Succeeded);

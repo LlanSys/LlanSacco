@@ -93,6 +93,7 @@ public sealed class PasswordChangeEnforcementMiddlewareTests
         context.Response.Body = new MemoryStream();
 
         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, UserId) };
+
         if (flagged)
         {
             claims.Add(new Claim(IamCustomClaimTypes.PasswordChangeRequired, "true"));

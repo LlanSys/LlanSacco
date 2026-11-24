@@ -37,6 +37,7 @@ else if (AuthSession.IsAuthenticated)
     public bool RedirectToLogin { get; set; } = true;
 
     private bool _hasResolved;
+    private bool _isDisposed;
     private bool _hasError;
     private string _errorMessage = "We could not confirm your session. Please sign in again.";
 
@@ -55,6 +56,13 @@ else if (AuthSession.IsAuthenticated)
         try
         {
             await AuthSession.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(12));
+
+            // AuthorizeRouteView briefly renders the default layout (and this gate) while authorizing a page that uses
+            // another layout, such as the anonymous reset-password page. A gate disposed meanwhile must not redirect.
+            if (_isDisposed)
+            {
+                return;
+            }
 
             if (!AuthSession.IsAuthenticated)
             {
@@ -90,7 +98,10 @@ else if (AuthSession.IsAuthenticated)
         finally
         {
             _hasResolved = true;
-            StateHasChanged();
+            if (!_isDisposed)
+            {
+                StateHasChanged();
+            }
         }
     }
 
@@ -116,6 +127,7 @@ else if (AuthSession.IsAuthenticated)
 
     public void Dispose()
     {
+        _isDisposed = true;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 

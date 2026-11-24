@@ -23,8 +23,8 @@ foreach ($setting in @{
 }
 
 $massTransit = $central.SelectSingleNode('/Project/PropertyGroup/MassTransitVersion').InnerText
-if ($massTransit -notmatch '^9\.\d+\.\d+$') {
-    $issues.Add('LlanSacco requires its reviewed MassTransit 9.x line.')
+if ($massTransit -notmatch '^8\.\d+\.\d+$') {
+    $issues.Add('MassTransit must retain its approved Apache-2.0 8.x pin; v9 is commercially licensed.')
 }
 $versions = @{}
 foreach ($version in $central.SelectNodes('/Project/ItemGroup/PackageVersion')) {

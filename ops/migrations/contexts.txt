@@ -1,0 +1,13 @@
+# Every bounded-context DbContext that owns migrations, in apply order.
+# Deployment workflows build and run one migration bundle per line.
+# LS.Tests.Architecture fails if a provider-specific context is missing here.
+ControlPlane
+Iam
+Shared
+Hr
+Membership
+Banking
+Loans
+Accounting
+Dividends
+CheckOff

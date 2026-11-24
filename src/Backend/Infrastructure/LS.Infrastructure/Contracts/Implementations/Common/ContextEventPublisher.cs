@@ -1,4 +1,6 @@
+using MassTransit.DependencyInjection;
 using MassTransit.EntityFrameworkCoreIntegration;
+using MassTransit.Middleware.Outbox;
 using LS.Application.Contracts.Interfaces.Common;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
@@ -7,15 +9,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LS.Infrastructure.Contracts.Implementations.Common;
 
+/// <summary>
+/// Stages an integration event in the owning bounded context's EF outbox so it commits with that
+/// context's unit of work. MassTransit 8.x configures one default scoped bus outbox, so each
+/// context binds its own <see cref="EntityFrameworkScopedBusContext{TBus,TDbContext}"/> explicitly,
+/// following the StarterTemplate pattern.
+/// </summary>
 public sealed class ContextEventPublisher<TUnitOfWork, TContext>(
-    IScopedBusOutbox<TContext> outbox, TContext context,
+    IBus bus, TContext context, IBusOutboxNotification notification,
+    Bind<IBus, IClientFactory> clientFactory, IServiceProvider services,
     ICurrentTenantProvider tenantProvider, ICurrentActorProvider actorProvider)
     : IContextEventPublisher<TUnitOfWork>
     where TUnitOfWork : ITransactionalUnitOfWork
     where TContext : DbContext
 {
-    private OutboxState? _lastState;
-
     public async Task PublishAsync<TMessage>(TMessage message, CancellationToken cancellationToken = default) where TMessage : class
     {
         var tenantId = tenantProvider.TenantId;
@@ -25,18 +32,13 @@ public sealed class ContextEventPublisher<TUnitOfWork, TContext>(
             throw new LS.Domain.Shared.Exceptions.TenantNotResolvedException();
         }
 
-        // A UoW retry clears EF tracking after rollback. MassTransit's scoped publisher still
-        // references its state entity, so restore only that empty envelope before staging NEW messages.
-        // Never restore discarded business writes or outgoing messages from the failed attempt.
-        if (_lastState is not null && context.Entry(_lastState).State == EntityState.Detached)
-        {
-            var exists = await context.Set<OutboxState>().AsNoTracking()
-                .AnyAsync(x => x.OutboxId == _lastState.OutboxId, cancellationToken)
-                .ConfigureAwait(false);
+        // A fresh scoped context per event keeps each staged message independent of an earlier
+        // transaction attempt in this DI scope. A UoW retry clears EF tracking after rollback, so
+        // nothing from a failed attempt (business writes or messages) is carried forward.
+        using var outbox = new EntityFrameworkScopedBusContext<IBus, TContext>(
+            bus, context, notification, clientFactory.Value, services);
 
-            context.Entry(_lastState).State = exists ? EntityState.Unchanged : EntityState.Added;
-        }
-        await outbox.Publish(
+        await outbox.PublishEndpoint.Publish(
             message,
             sendContext =>
             {
@@ -45,9 +47,5 @@ public sealed class ContextEventPublisher<TUnitOfWork, TContext>(
             },
             cancellationToken)
             .ConfigureAwait(false);
-
-        _lastState = context.ChangeTracker.Entries<OutboxState>()
-            .FirstOrDefault(x => x.State == EntityState.Added)?
-            .Entity ?? _lastState;
     }
 }

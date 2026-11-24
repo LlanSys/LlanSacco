@@ -1229,8 +1229,13 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
 
         foreach (var db in new[] { bank, loans })
         {
+            // Roll back to the schema before the Phase 1 guarantor migration and upgrade again,
+            // independent of later migrations added on top of it.
             var migrations = db.Database.GetMigrations().ToArray();
-            await db.GetService<IMigrator>().MigrateAsync(migrations[^2]);
+            var phase1 = Array.FindIndex(migrations, id => id.EndsWith("_GuarantorReservationsAndRecovery", StringComparison.Ordinal)
+                || id.EndsWith("_ConfirmedGuarantorSecurity", StringComparison.Ordinal));
+            Assert.True(phase1 > 0, "The Phase 1 guarantor migration was not found.");
+            await db.GetService<IMigrator>().MigrateAsync(migrations[phase1 - 1]);
             await db.Database.MigrateAsync();
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         }

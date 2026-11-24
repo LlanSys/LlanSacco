@@ -23,7 +23,7 @@ try {
     $cases = @(
         @{ File = $project; From = 'Include="FluentValidation"'; To = 'Include="FluentValidation" Version="12.2.0"'; Error = 'per-project version or override' }
         @{ File = $project; From = 'Include="FluentValidation"'; To = 'Include="Unregistered.Package"'; Error = 'without a central version' }
-        @{ File = 'Directory.Packages.props'; From = 'Include="MassTransit.RabbitMQ" Version="[$(MassTransitVersion)]"'; To = 'Include="MassTransit.RabbitMQ" Version="9.2.4"'; Error = 'exact shared MassTransit pin' }
+        @{ File = 'Directory.Packages.props'; From = 'Include="MassTransit.RabbitMQ" Version="[$(MassTransitVersion)]"'; To = 'Include="MassTransit.RabbitMQ" Version="8.5.12"'; Error = 'exact shared MassTransit pin' }
         @{ File = 'nuget.config'; From = 'https://api.nuget.org/v3/index.json'; To = 'https://nuget.pkg.github.com/example/index.json'; Error = 'sole source' }
         @{ File = 'Directory.Build.props'; From = '<NuGetAudit>true</NuGetAudit>'; To = '<NuGetAudit>false</NuGetAudit>'; Error = 'bypasses the central package or NuGet audit policy' }
         @{ File = 'ops/docker/api.Dockerfile'; From = 'COPY ["Directory.Packages.props", "."]'; To = '# Missing central manifest'; Error = 'must copy the central manifest before restore' }

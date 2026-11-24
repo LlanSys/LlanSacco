@@ -77,6 +77,8 @@ This file is the canonical source of truth and working contract for AI coding to
 - **LlanSacco supports multiple database providers (PostgreSQL and SQL Server).** When adding EF Core migrations, you MUST generate separate migrations for each provider's DbContext and specify the correct output directory. For example, for the IAM bounded context: `dotnet ef migrations add <Name> -c IamSqlServerDBContext -o Migrations/IAM` and `dotnet ef migrations add <Name> -c IamPostgreSqlDBContext -o Migrations/IamPostgreSqlDB`. Do not rely on default output directories.
 - **Database Context Factories:** When creating `IDesignTimeDbContextFactory<T>` implementations, always specify a provider-specific fallback connection string using `DesignTimeConfigurationFactory.GetConnectionString(..., fallbackConnectionName: "DefaultPostgreSqlConnection")` (or `"DefaultSqlConnection"`) to prevent parsing crashes from incompatible connection string parameters.
 - **Idempotent Migrations:** EF Core index creations are globally intercepted by custom SQL generators (`IdempotentSqlServerMigrationsSqlGenerator` and `IdempotentNpgsqlMigrationsSqlGenerator`) to inject `IF NOT EXISTS` logic. Do not write manual raw SQL for idempotency on index creation—the generator handles this automatically.
+- Every bounded-context DbContext with migrations is listed in `ops/migrations/contexts.txt`. Deployment workflows build and run one bundle per listed context through `scripts/migration-bundles.sh`; architecture guardrails fail when a provider context is missing from the list or has pending model changes.
+- A bounded context references another context's aggregates by identity only (for example `MemberId`). Do not add navigation properties to another context's entities: EF would create duplicate copies of that context's tables in your migrations.
 
 ## Validation, Logging, And Caching
 
@@ -125,6 +127,8 @@ This file is the canonical source of truth and working contract for AI coding to
 ## Workflow Rules
 
 - Set NuGet package versions in `Directory.Packages.props`. Keep package references versionless and restore through the repository's NuGet.org-only configuration.
+- Keep MassTransit on the approved Apache-2.0 8.x exact shared pin, as StarterTemplate does. MassTransit v9 is commercially licensed and refuses to start without a licence key. Each context stages messages through its own `EntityFrameworkScopedBusContext` (`ContextEventPublisher`).
+- The API validates every service registration at startup in all environments. `Baseline / Startup` in CI starts the real API with RabbitMQ messaging and background jobs enabled (`scripts/test-app-startup.ps1`); keep it passing.
 - Run `./scripts/Format-Code.ps1 -Include <changed path>` for C# and Razor formatting, or add `-Check` to verify the result. See [package management and formatting](docs/development/package-management-and-formatting.md) for the workflow.
 
 - Preserve user changes. Do not revert unrelated work.

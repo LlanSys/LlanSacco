@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
-    <MassTransitVersion>9.2.4</MassTransitVersion>
+    <MassTransitVersion>8.5.12</MassTransitVersion>
     <RazorStyleVersion>2.0.1</RazorStyleVersion>
   </PropertyGroup>
 

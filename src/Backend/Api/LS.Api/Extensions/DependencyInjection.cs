@@ -547,7 +547,10 @@ internal static partial class DependencyInjection
                 o.UseBusOutbox();
             });
 
-            x.UseDefaultEntityFrameworkBusOutbox<SharedDBContext>();
+            // MassTransit 8.x: each context publisher binds its own outbox explicitly, and the default
+            // wake-up notifier has one waiter slot. Every delivery worker shares this notifier.
+            Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.RemoveAll<MassTransit.Middleware.Outbox.IBusOutboxNotification>(x);
+            x.AddSingleton<MassTransit.Middleware.Outbox.IBusOutboxNotification, LS.Api.Common.Messaging.OutboxDeliveryNotification>();
 
             // Register all consumers from assemblies
             x.AddConsumers(assembly);
@@ -601,6 +604,7 @@ internal static partial class DependencyInjection
                     {
                         cfg.Host(
                             messagingSettings.RabbitMq.Host,
+                            messagingSettings.RabbitMq.Port,
                             messagingSettings.RabbitMq.VirtualHost,
                             h =>
                             {

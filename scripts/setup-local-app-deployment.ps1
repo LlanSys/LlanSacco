@@ -77,10 +77,10 @@ if ($LASTEXITCODE -ne 0) {
 $environment = Read-EnvironmentFile $envFile
 
 if (-not $environment.Contains('APP_API_HOST_PORT')) {
-    Set-EnvironmentValue $envFile 'APP_API_HOST_PORT' '8080'
+    Set-EnvironmentValue $envFile 'APP_API_HOST_PORT' '8090'
 }
 if (-not $environment.Contains('APP_BLAZOR_HOST_PORT')) {
-    Set-EnvironmentValue $envFile 'APP_BLAZOR_HOST_PORT' '8081'
+    Set-EnvironmentValue $envFile 'APP_BLAZOR_HOST_PORT' '8091'
 }
 if (-not $environment.Contains('APP_JWT_SECRET') -or [string]::IsNullOrWhiteSpace($environment.APP_JWT_SECRET)) {
     Set-EnvironmentValue $envFile 'APP_JWT_SECRET' (New-LocalSecret)
@@ -125,4 +125,4 @@ Write-Host 'Local app deployment is ready:'
 Write-Host "  API:    http://localhost:$($environment.APP_API_HOST_PORT)"
 Write-Host "  Scalar: http://localhost:$($environment.APP_API_HOST_PORT)/scalar/v1"
 Write-Host "  UI:     http://localhost:$($environment.APP_BLAZOR_HOST_PORT)"
-Write-Host '  Mail:   http://localhost:8025'
+Write-Host '  Mail:   http://localhost:8036'

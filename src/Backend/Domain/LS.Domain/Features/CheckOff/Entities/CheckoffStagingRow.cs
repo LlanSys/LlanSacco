@@ -20,7 +20,6 @@ public class CheckoffStagingRow : BaseEntity
 
     // Navigation
     public CheckoffBatch Batch { get; set; } = null!;
-    public Member? ResolvedMember { get; set; }
     public ICollection<CheckoffStagingLoanAllocation> LoanAllocations { get; set; } = new List<CheckoffStagingLoanAllocation>();
 
     public static CheckoffStagingRow Create(

@@ -51,6 +51,14 @@ try
     var builder = WebApplication.CreateBuilder(args);
     ConfigurePlatformAssignedPort(builder.WebHost);
 
+    // Validate every service registration when the host starts, in every environment, so a missing
+    // dependency stops deployment at boot instead of failing a member's request later.
+    builder.Host.UseDefaultServiceProvider((context, options) =>
+    {
+        options.ValidateOnBuild = true;
+        options.ValidateScopes = context.HostingEnvironment.IsDevelopment();
+    });
+
     // ── Key Vault — production secrets ────────────────────────────────────────
     // Only runs outside Development — User Secrets handle dev.
     // DefaultAzureCredential tries, in order:

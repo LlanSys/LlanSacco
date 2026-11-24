@@ -47,7 +47,7 @@ Read [Renaming the template](docs/development/renaming-the-template.md) before c
 
 3. Configure SQL Server connection and required secrets with `dotnet user-secrets`.
 4. Run `LS.Api` and `LS.UI.Blazor` from Visual Studio.
-5. Open Mailpit at `http://localhost:8025` to inspect captured local emails.
+5. Open Mailpit at `http://localhost:8036` to inspect captured local emails.
 
 The local setup uses:
 

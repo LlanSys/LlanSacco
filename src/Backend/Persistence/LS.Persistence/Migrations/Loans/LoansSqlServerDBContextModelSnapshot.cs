@@ -886,6 +886,10 @@ namespace LS.Persistence.Migrations.Loans
 
                     b.HasKey("SequenceNumber");
 
+                    b.HasIndex("EnqueueTime");
+
+                    b.HasIndex("ExpirationTime");
+
                     b.HasIndex("OutboxId", "SequenceNumber")
                         .IsUnique()
                         .HasFilter("[OutboxId] IS NOT NULL");
@@ -902,10 +906,6 @@ namespace LS.Persistence.Migrations.Loans
                     b.Property<Guid>("OutboxId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("BusName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("datetime2");
@@ -926,7 +926,7 @@ namespace LS.Persistence.Migrations.Loans
 
                     b.HasKey("OutboxId");
 
-                    b.HasIndex("BusName", "Created");
+                    b.HasIndex("Created");
 
                     b.ToTable("OutboxState", "loans");
                 });

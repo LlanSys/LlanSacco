@@ -37,10 +37,8 @@ internal sealed class CheckoffStagingRowConfiguration : IEntityTypeConfiguration
             .WithMany(b => b.StagingRows)
             .HasForeignKey(e => e.CheckoffBatchId)
             .OnDelete(DeleteBehavior.Cascade);
-            
-        builder.HasOne(e => e.ResolvedMember)
-            .WithMany()
-            .HasForeignKey(e => e.ResolvedMemberId)
-            .OnDelete(DeleteBehavior.SetNull);
+
+        // ResolvedMemberId references Membership by identity only (no cross-context foreign key).
+        builder.HasIndex(e => e.ResolvedMemberId);
     }
 }

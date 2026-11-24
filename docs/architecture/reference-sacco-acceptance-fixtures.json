@@ -1,0 +1,515 @@
+{
+  "formatVersion": 1,
+  "profile": {
+    "id": "LLANSACCO-REFERENCE",
+    "version": "0.1",
+    "purpose": "Synthetic acceptance preparation only",
+    "developmentUse": "Authorized to proceed in chat on 2026-11-24",
+    "productionApproval": "Pending",
+    "productionActivationEnabled": false,
+    "currency": "KES",
+    "businessTimeZone": "Africa/Nairobi",
+    "regulatoryClassification": null,
+    "source": "reference-sacco-operating-profile.md",
+    "runtimeConfiguration": false
+  },
+  "isolation": {
+    "tenantA": "SYNTHETIC-TENANT-A",
+    "tenantB": "SYNTHETIC-TENANT-B",
+    "identifiers": "Symbolic fixture labels; not runtime GUIDs or real member identities",
+    "scenarioReset": "Reset between scenario families; guarantor and dividend examples do not modify the finance book"
+  },
+  "referenceRules": {
+    "credit": {
+      "minimumActiveMembershipMonths": 6,
+      "eligibleDepositMultiple": "3.00",
+      "maximumTotalPrincipalExposureRule": "Eligible deposits multiplied by 3, less existing principal and committed undisbursed exposure",
+      "productMaximumNewLoan": "1000000.00",
+      "maximumDebtServiceRatio": "0.40",
+      "nominalAnnualInterestRate": "0.12",
+      "monthlyInterestRate": "0.01",
+      "maximumTermMonths": 36,
+      "interestMethod": "Monthly reducing principal; equal installments",
+      "fees": "0.00",
+      "penalties": "0.00",
+      "rounding": "MidpointToEven",
+      "decimalPlaces": 2,
+      "prepayment": "Apply surplus to principal; retain installment and shorten term; no prepayment fee in the reference",
+      "pendingBorrowingCapacity": "Approved undisbursed commitments also consume the deposit-multiple capacity"
+    },
+    "guarantees": {
+      "minimumDistinctGuarantorsWhenRequired": 2,
+      "principalCoverageRatio": "1.00",
+      "eligibleGuarantorBalanceRatio": "1.00",
+      "unacceptedRequestExpiryDays": 14,
+      "acceptedPreDisbursementExpiryDays": 30,
+      "releaseDuringRepayment": "None automatically; approved substitution, full settlement or authorized recovery only",
+      "postDisbursementExpiry": false,
+      "expiryAndDisbursement": "Serialize activation versus expiry; an expired reservation cannot be reactivated by a delayed message",
+      "recovery": "Authorized principal-only recovery in the reference; remaining held coverage is retained until the loan's approved terminal settlement/release"
+    },
+    "dividends": {
+      "shareAnnualRate": "0.10",
+      "depositAnnualRate": "0.08",
+      "basis": "Daily closing eligible balance / actual days in year",
+      "rounding": "MidpointToEven",
+      "decimalPlaces": 2,
+      "tax": "Unconfirmed for production; fixture deductions below are supplied test amounts, not tax advice"
+    },
+    "payment": {
+      "inbound": "Proposed SACCO-controlled Paybill/STK",
+      "outbound": "Approved internal credit or verified bank/B2C route",
+      "providerAgreement": "Pending",
+      "receiptAllocation": "Explicit member/product or loan intent; unmatched receipts require controlled suspense"
+    },
+    "kyc": {
+      "candidateRoute": "Staff-assisted review using approved verification evidence",
+      "productionRouteApproval": "Pending",
+      "higherRiskReviewMonths": 12,
+      "standardRiskReviewMonths": 36,
+      "simulatorMayApproveProduction": false
+    }
+  },
+  "creditExample": {
+    "eligibleDeposits": "200000.00",
+    "existingPrincipal": "100000.00",
+    "committedUndisbursedPrincipal": "0.00",
+    "depositBasedAdditionalLimit": "500000.00",
+    "requestedPrincipal": "300000.00",
+    "termMonths": 36,
+    "firstDueOn": "2027-01-31",
+    "disbursedOn": "2026-12-31",
+    "monthlyInstallment": "9964.29",
+    "firstInterest": "3000.00",
+    "firstPrincipal": "6964.29",
+    "firstClosingPrincipal": "293035.71",
+    "guarantorAmounts": [
+      "150000.00",
+      "150000.00"
+    ],
+    "capacityWithAdditionalCommitment": {
+      "committedUndisbursedPrincipal": "250000.00",
+      "remainingAdditionalLimit": "250000.00",
+      "requestOf300000Allowed": false
+    }
+  },
+  "guarantorRace": {
+    "eligibleBalance": "200000.00",
+    "minimumBalanceAlreadyExcluded": "0.00",
+    "existingEncumbrance": "50000.00",
+    "requestedReservation": "100000.00",
+    "competingWithdrawal": "80000.00",
+    "holdWins": {
+      "closingBalance": "200000.00",
+      "totalEncumbered": "150000.00",
+      "unencumbered": "50000.00",
+      "withdrawalAllowed": false
+    },
+    "withdrawalWins": {
+      "closingBalance": "120000.00",
+      "totalEncumbered": "50000.00",
+      "unencumbered": "70000.00",
+      "reservationAllowed": false
+    },
+    "withdrawalProductPrecondition": "Only a product whose approved withdrawal rules permit this withdrawal; non-withdrawable product controls apply independently"
+  },
+  "guarantorRecovery": {
+    "originalPrincipal": "300000.00",
+    "outstandingPrincipal": "200000.00",
+    "remainingCommittedAmounts": [
+      "150000.00",
+      "150000.00"
+    ],
+    "approvedPrincipalRecovery": "100000.00",
+    "guarantorDebits": [
+      "50000.00",
+      "50000.00"
+    ],
+    "remainingReservations": [
+      "100000.00",
+      "100000.00"
+    ],
+    "remainingLoanPrincipal": "100000.00",
+    "followUp": "No further debit or excess release without the approved lifecycle decision; do not recover more principal than remains due"
+  },
+  "financeBook": {
+    "periodStartInclusive": "2026-12-01T00:00:00+03:00",
+    "periodEndExclusive": "2027-01-01T00:00:00+03:00",
+    "reportBasis": "PreClosing; no income/expense closing-transfer journal included",
+    "accounts": [
+      {
+        "code": "BANK",
+        "normalSide": "Debit"
+      },
+      {
+        "code": "CASH",
+        "normalSide": "Debit"
+      },
+      {
+        "code": "LOAN_PRINCIPAL",
+        "normalSide": "Debit"
+      },
+      {
+        "code": "MPESA_CLEARING",
+        "normalSide": "Debit"
+      },
+      {
+        "code": "PAYMENT_FEES",
+        "normalSide": "Debit"
+      },
+      {
+        "code": "MEMBER_SAVINGS",
+        "normalSide": "Credit"
+      },
+      {
+        "code": "MEMBER_DEPOSITS",
+        "normalSide": "Credit"
+      },
+      {
+        "code": "SHARE_CAPITAL",
+        "normalSide": "Credit"
+      },
+      {
+        "code": "RETAINED_SURPLUS",
+        "normalSide": "Credit"
+      },
+      {
+        "code": "INTEREST_INCOME",
+        "normalSide": "Credit"
+      }
+    ],
+    "members": [
+      {
+        "id": "SYN-M01",
+        "openingSavings": "100000.00",
+        "openingDeposits": "200000.00",
+        "openingShares": "60000.00",
+        "openingLoanPrincipal": "100000.00",
+        "closingSavings": "110000.00",
+        "closingLoanPrincipal": "90000.00"
+      },
+      {
+        "id": "SYN-M02",
+        "openingSavings": "90000.00",
+        "openingDeposits": "120000.00",
+        "openingShares": "25000.00",
+        "openingLoanPrincipal": "120000.00",
+        "closingSavings": "90000.00",
+        "closingLoanPrincipal": "120000.00"
+      },
+      {
+        "id": "SYN-M03",
+        "openingSavings": "60000.00",
+        "openingDeposits": "80000.00",
+        "openingShares": "15000.00",
+        "openingLoanPrincipal": "80000.00",
+        "closingSavings": "60000.00",
+        "closingLoanPrincipal": "80000.00"
+      }
+    ],
+    "journals": [
+      {
+        "id": "SYN-OPEN",
+        "kind": "Opening",
+        "postedOn": "2026-12-01",
+        "lines": [
+          {
+            "account": "BANK",
+            "debit": "500000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "CASH",
+            "debit": "20000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "LOAN_PRINCIPAL",
+            "debit": "300000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "MEMBER_SAVINGS",
+            "debit": "0.00",
+            "credit": "250000.00"
+          },
+          {
+            "account": "MEMBER_DEPOSITS",
+            "debit": "0.00",
+            "credit": "400000.00"
+          },
+          {
+            "account": "SHARE_CAPITAL",
+            "debit": "0.00",
+            "credit": "100000.00"
+          },
+          {
+            "account": "RETAINED_SURPLUS",
+            "debit": "0.00",
+            "credit": "70000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-R01",
+        "kind": "SavingsReceipt",
+        "memberId": "SYN-M01",
+        "providerReceipt": "SYN-RECEIPT-001",
+        "postedOn": "2026-12-02",
+        "lines": [
+          {
+            "account": "MPESA_CLEARING",
+            "debit": "10000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "MEMBER_SAVINGS",
+            "debit": "0.00",
+            "credit": "10000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-S01",
+        "kind": "Settlement",
+        "receiptJournalId": "SYN-R01",
+        "postedOn": "2026-12-03",
+        "lines": [
+          {
+            "account": "BANK",
+            "debit": "9950.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "PAYMENT_FEES",
+            "debit": "50.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "MPESA_CLEARING",
+            "debit": "0.00",
+            "credit": "10000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-R02",
+        "kind": "LoanRepayment",
+        "memberId": "SYN-M01",
+        "providerReceipt": "SYN-RECEIPT-002",
+        "postedOn": "2026-12-04",
+        "lines": [
+          {
+            "account": "MPESA_CLEARING",
+            "debit": "12000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "LOAN_PRINCIPAL",
+            "debit": "0.00",
+            "credit": "10000.00"
+          },
+          {
+            "account": "INTEREST_INCOME",
+            "debit": "0.00",
+            "credit": "2000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-S02",
+        "kind": "Settlement",
+        "receiptJournalId": "SYN-R02",
+        "postedOn": "2026-12-05",
+        "lines": [
+          {
+            "account": "BANK",
+            "debit": "12000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "MPESA_CLEARING",
+            "debit": "0.00",
+            "credit": "12000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-ERR01",
+        "kind": "IncorrectCashDeposit",
+        "memberId": "SYN-M02",
+        "postedOn": "2026-12-06",
+        "lines": [
+          {
+            "account": "CASH",
+            "debit": "5000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "MEMBER_SAVINGS",
+            "debit": "0.00",
+            "credit": "5000.00"
+          }
+        ]
+      },
+      {
+        "id": "SYN-REV01",
+        "kind": "ApprovedReversal",
+        "memberId": "SYN-M02",
+        "reversesJournalId": "SYN-ERR01",
+        "postedOn": "2026-12-07",
+        "lines": [
+          {
+            "account": "MEMBER_SAVINGS",
+            "debit": "5000.00",
+            "credit": "0.00"
+          },
+          {
+            "account": "CASH",
+            "debit": "0.00",
+            "credit": "5000.00"
+          }
+        ]
+      }
+    ],
+    "closingBalances": {
+      "BANK": "521950.00",
+      "CASH": "20000.00",
+      "LOAN_PRINCIPAL": "290000.00",
+      "MPESA_CLEARING": "0.00",
+      "PAYMENT_FEES": "50.00",
+      "MEMBER_SAVINGS": "260000.00",
+      "MEMBER_DEPOSITS": "400000.00",
+      "SHARE_CAPITAL": "100000.00",
+      "RETAINED_SURPLUS": "70000.00",
+      "INTEREST_INCOME": "2000.00"
+    },
+    "controls": {
+      "openingDebits": "820000.00",
+      "openingCredits": "820000.00",
+      "allJournalDebits": "874000.00",
+      "allJournalCredits": "874000.00",
+      "closingTrialBalanceDebits": "832000.00",
+      "closingTrialBalanceCredits": "832000.00",
+      "assets": "831950.00",
+      "liabilities": "660000.00",
+      "shareCapital": "100000.00",
+      "retainedSurplus": "70000.00",
+      "periodSurplus": "1950.00",
+      "netCashMovement": "21950.00",
+      "providerGrossReceipts": "22000.00",
+      "bankSettlements": "21950.00",
+      "providerFees": "50.00",
+      "journalCount": 7
+    },
+    "timingCheck": {
+      "receiptJournalId": "SYN-R01",
+      "asOfBeforeSettlement": "2026-12-02T23:59:59+03:00",
+      "unsettledClearingAsset": "10000.00",
+      "memberCreditPosted": true,
+      "bankSettlementConfirmed": false
+    },
+    "scope": "Simple cash-basis receipt recognition for this synthetic example only; real accrued-interest, impairment and cash-flow policies require approved mappings"
+  },
+  "dividends": {
+    "financialYear": 2025,
+    "daysInYear": 365,
+    "members": [
+      {
+        "id": "SYN-D01",
+        "shareSegments": [
+          {
+            "from": "2025-01-01",
+            "toExclusive": "2026-01-01",
+            "days": 365,
+            "balance": "100000.00"
+          }
+        ],
+        "depositSegments": [
+          {
+            "from": "2025-01-01",
+            "toExclusive": "2026-01-01",
+            "days": 365,
+            "balance": "200000.00"
+          }
+        ],
+        "expectedShareGross": "10000.00",
+        "expectedDepositGross": "16000.00",
+        "expectedGross": "26000.00",
+        "suppliedTestWithholdingAmount": "731.25",
+        "expectedNet": "25268.75"
+      },
+      {
+        "id": "SYN-D02",
+        "shareSegments": [
+          {
+            "from": "2025-01-01",
+            "toExclusive": "2025-07-01",
+            "days": 181,
+            "balance": "50000.00"
+          },
+          {
+            "from": "2025-07-01",
+            "toExclusive": "2026-01-01",
+            "days": 184,
+            "balance": "100000.00"
+          }
+        ],
+        "depositSegments": [
+          {
+            "from": "2025-01-01",
+            "toExclusive": "2025-07-01",
+            "days": 181,
+            "balance": "0.00"
+          },
+          {
+            "from": "2025-07-01",
+            "toExclusive": "2026-01-01",
+            "days": 184,
+            "balance": "100000.00"
+          }
+        ],
+        "expectedShareGross": "7520.55",
+        "expectedDepositGross": "4032.88",
+        "expectedGross": "11553.43",
+        "suppliedTestWithholdingAmount": "224.50",
+        "expectedNet": "11328.93"
+      }
+    ],
+    "totals": {
+      "gross": "37553.43",
+      "suppliedTestWithholding": "955.75",
+      "net": "36597.68",
+      "paidAfterFirstConfirmedAllocation": "25268.75",
+      "uncertainSecondAllocation": "11328.93",
+      "outstandingDividendLiabilityAfterWithholdingAndFirstPayment": "11328.93",
+      "separateTaxPayable": "955.75"
+    },
+    "withholdingMeaning": "Arbitrary supplied test amounts to test arithmetic and ledger separation; they do not represent a legal tax rate or production authorization",
+    "leapCase": {
+      "year": 2024,
+      "daysInYear": 366,
+      "eligibleFrom": "2024-02-29",
+      "toExclusive": "2025-01-01",
+      "eligibleDays": 307,
+      "shareBalance": "100000.00",
+      "expectedGross": "8387.98"
+    }
+  },
+  "statementBoundary": {
+    "businessZone": "Africa/Nairobi",
+    "includedLastInstant": "2026-12-31T20:59:59Z",
+    "excludedNextPeriodInstant": "2026-12-31T21:00:00Z"
+  },
+  "evidence": {
+    "scenarioExecutionStatus": "Not run",
+    "runtimeImplementationStatus": "Not established by these files",
+    "requiredDatabases": [
+      "PostgreSQL",
+      "SQL Server"
+    ],
+    "brokerAndProviderEvidence": "Pending",
+    "businessSignOff": "Pending",
+    "productionPhaseClosure": false
+  }
+}

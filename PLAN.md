@@ -245,16 +245,18 @@ EventIds are structured by architectural layer to simplify searching in logs:
 - [x] **Enterprise Auth Page Redesign:** Full visual redesign of authentication pages (split-screen with branded imagery, password recovery flow, registration flow) to enterprise-production quality.
 - [x] **Responsive Mobile Layouts:** Verify and polish all pages for tablet and mobile form factors.
 
+The [production readiness delivery plan](docs/architecture/production-readiness-delivery-plan.md) tracks the remaining product work and the evidence required for the first SACCO release. The [reference operating profile](docs/architecture/reference-sacco-operating-profile.md) and [acceptance pack](docs/architecture/reference-sacco-acceptance-pack.md) provide the development baseline and reconciled synthetic examples. Phase 0 is complete as the reference development baseline. [Phase 1 implementation and verification](docs/architecture/production-readiness-phase-1-verification.md) are ready for review; first-SACCO approval and unverified production evidence remain open.
+
 #### Core SACCO Features (Progressive Implementation)
-- [x] **Membership:** Member onboarding, KYC verification, member status lifecycle, beneficiaries, next-of-kin.
-- [x] **Shares:** Share capital management, share purchases, transfers, dividends calculation.
+- [ ] **Membership:** Onboarding and member lifecycle are implemented. Production KYC and first-SACCO acceptance are pending.
+- [x] **Shares:** Share capital management, share purchases, and transfers. Dividend calculation is tracked below.
 - [x] **Savings:** Savings accounts, interest calculation, withdrawal rules, minimum balance enforcement.
 - [x] **Deposits:** Fixed and recurring deposit products, maturity tracking, early withdrawal penalties.
-- [x] **Loans:** Loan products, loan applications, credit scoring, guarantors, disbursement, repayment schedules.
+- [ ] **Loans:** Products, applications, credit scoring, guarantors, disbursement, and repayment schedules are implemented. Durable guarantor reservations, confirmed disbursement, release, substitution and approved principal recovery are implemented in Phase 1; staged browser, legacy-book and first-SACCO acceptance remain open.
 - [x] **FOSA:** Front Office Service Activity — over-the-counter transactions, cash management, teller operations.
 - [x] **Collections:** Loan recovery, arrears tracking, follow-up workflows, collection officer assignment.
 - [x] **Payroll Deductions:** Employer check-off integration, deduction schedules, remittance reconciliation.
-- [x] **Dividends:** Dividend calculation, declaration, and distribution based on share capital and savings.
+- [ ] **Dividends:** The declaration lifecycle exists. Automated calculation, payout, and reconciliation are pending.
 
 #### Financial Infrastructure
 - [ ] **General Ledger:** Double-entry accounting, chart of accounts, journal entries, trial balance.

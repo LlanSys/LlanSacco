@@ -23,6 +23,7 @@ internal static partial class ServiceLogDefinitions
 
     [LoggerMessage(EventId = 2505, Level = LogLevel.Warning, Message = "Resend rejected the email payload. Status: {StatusCode}. Response: {Response}")]
     public static partial void LogResendRejection(ILogger logger, System.Net.HttpStatusCode statusCode, string response);
+
     [LoggerMessage(EventId = 3400, Level = LogLevel.Error, Message = "Error composing email for template {EmailTemplate}")]
     public static partial void LogEmailComposeError(ILogger logger, string emailTemplate, Exception ex);
 
@@ -220,6 +221,12 @@ internal static partial class ServiceLogDefinitions
 
     [LoggerMessage(EventId = 3469, Level = LogLevel.Error, Message = "Error granting system access to employee {EmployeeId}")]
     public static partial void LogGrantEmployeeSystemAccessError(ILogger logger, string employeeId, Exception ex);
+
+    [LoggerMessage(EventId = 3493, Level = LogLevel.Information, Message = "Portal access granted to member {MemberId} by {GrantedBy}")]
+    public static partial void LogMemberPortalAccessGranted(ILogger logger, string memberId, string grantedBy);
+
+    [LoggerMessage(EventId = 3494, Level = LogLevel.Error, Message = "Error granting portal access to member {MemberId}")]
+    public static partial void LogGrantMemberPortalAccessError(ILogger logger, string memberId, Exception ex);
 
     [LoggerMessage(EventId = 3470, Level = LogLevel.Warning, Message = "JWT authentication failed: {Reason}")]
     public static partial void LogJwtAuthenticationFailed(ILogger logger, string reason, Exception ex);

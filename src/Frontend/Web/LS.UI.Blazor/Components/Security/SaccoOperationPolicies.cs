@@ -9,6 +9,8 @@ public static class SaccoOperationPolicies
         string[] permissions =
         [
             "accounting-integrations.view", "accounting-integrations.retry",
+            "gl-mappings.view", "gl-mappings.manage",
+            "members.approve",
             "checkoff.view", "checkoff.prepare", "checkoff.post",
             "hr.payroll.view", "hr.payroll.run", "hr.payroll.close", "hr.payroll.settings",
             "applications.create", "applications.view", "applications.approve", "applications.disburse",

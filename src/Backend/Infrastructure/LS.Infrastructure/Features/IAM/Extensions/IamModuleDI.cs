@@ -40,6 +40,8 @@ public static class IamModuleDI
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IClaimsService, ClaimsService>();
         services.AddScoped<IAppUserService, AppUserService>();
+        services.AddScoped<IamAccessActivator>();
+        services.AddScoped<IMemberPortalAccessService, MemberPortalAccessService>();
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<ISmsComposer, SmsComposer>();
         services.AddScoped<IUserContextService, UserContextService>();

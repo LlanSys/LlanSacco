@@ -27,7 +27,8 @@ services:
       EmailSettings__DisplayName: LlanSacco
       EmailSettings__ClientBaseUrl: http://localhost:${APP_BLAZOR_HOST_PORT:-8091}
       EmailSettings__LocalMailpit__Host: mailpit
-      EmailSettings__LocalMailpit__Port: "1026"
+      # Inside the Docker network Mailpit listens on its container port; 1026 is only the host mapping.
+      EmailSettings__LocalMailpit__Port: "1025"
       DevelopmentSeed__ResetExistingAdminPassword: "true"
       DataProtection__ApplicationName: LlanSacco
       DataProtection__UseExternalKeyStore: "true"

@@ -86,6 +86,13 @@ internal sealed class MembershipService(IBackendApiClient apiClient) : IMembersh
             $"api/v1.0/members/{memberId}/verify-kyc");
     }
 
+    public Task<AppResponse<bool>> GrantPortalAccessAsync(Guid memberId)
+    {
+        return apiClient.SendAsync<bool>(
+            HttpMethod.Post,
+            $"api/v1.0/members/{memberId}/grant-portal-access");
+    }
+
     public Task<AppResponse<bool>> SuspendMemberAsync(Guid memberId, string reason)
     {
         return apiClient.SendAsync<bool>(

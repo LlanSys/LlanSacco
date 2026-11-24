@@ -20,6 +20,7 @@ public sealed class SaccoOperationAuthorizationTests
     [InlineData("BatchDetails", typeof(CheckOffController), nameof(CheckOffController.GetBatchDetails), "checkoff.view", "checkoff.post")]
     [InlineData("Payroll", typeof(PayrollController), nameof(PayrollController.GetDashboardStats), "hr.payroll.view", "hr.payroll.run")]
     [InlineData("AccountingDlq", typeof(FinanceController), nameof(FinanceController.GetIntegrationErrors), "accounting-integrations.view", "accounting-integrations.retry")]
+    [InlineData("GlMappings", typeof(FinanceController), nameof(FinanceController.GetGlMappings), "gl-mappings.view", "gl-mappings.manage")]
     [InlineData("LoanGuarantees", typeof(LoanApplicationsController), nameof(LoanApplicationsController.GetGuarantorSummary), "applications.view", "applications.approve")]
     [InlineData("LoanApplications", typeof(LoanApplicationsController), nameof(LoanApplicationsController.GetApplications), "applications.view", "applications.approve")]
     public async Task Signed_in_route_and_api_require_the_same_read_grant(

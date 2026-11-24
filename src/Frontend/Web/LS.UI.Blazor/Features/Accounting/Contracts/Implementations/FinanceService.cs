@@ -15,11 +15,12 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
     public Task<AppResponse<TrialBalanceResponse>> GetTrialBalanceAsync(DateTimeOffset? asOfDate)
     {
         var url = "api/v1.0/finance/trial-balance";
+
         if (asOfDate.HasValue)
         {
             url += $"?asOfDate={Uri.EscapeDataString(asOfDate.Value.ToString("o"))}";
         }
-        
+
         return apiClient.SendAsync<TrialBalanceResponse>(
             HttpMethod.Get,
             url
@@ -29,11 +30,19 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
     public Task<AppResponse<IncomeStatementResponse>> GetIncomeStatementAsync(DateTimeOffset? startDate, DateTimeOffset? endDate)
     {
         var url = "api/v1.0/finance/income-statement";
-        
+
         var queryParams = new System.Collections.Generic.List<string>();
-        if (startDate.HasValue) queryParams.Add($"startDate={Uri.EscapeDataString(startDate.Value.ToString("o"))}");
-        if (endDate.HasValue) queryParams.Add($"endDate={Uri.EscapeDataString(endDate.Value.ToString("o"))}");
-        
+
+        if (startDate.HasValue)
+        {
+            queryParams.Add($"startDate={Uri.EscapeDataString(startDate.Value.ToString("o"))}");
+        }
+
+        if (endDate.HasValue)
+        {
+            queryParams.Add($"endDate={Uri.EscapeDataString(endDate.Value.ToString("o"))}");
+        }
+
         if (queryParams.Count > 0)
         {
             url += "?" + string.Join("&", queryParams);
@@ -48,6 +57,7 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
     public Task<AppResponse<BalanceSheetResponse>> GetBalanceSheetAsync(DateTimeOffset? asOfDate)
     {
         var url = "api/v1.0/finance/balance-sheet";
+
         if (asOfDate.HasValue)
         {
             url += $"?asOfDate={Uri.EscapeDataString(asOfDate.Value.ToString("o"))}";
@@ -89,6 +99,7 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
     public Task<AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>> GetIntegrationErrorsAsync(string? status = null)
     {
         var url = "api/v1.0/finance/integration-errors";
+
         if (!string.IsNullOrEmpty(status))
         {
             url += $"?status={Uri.EscapeDataString(status)}";
@@ -108,5 +119,19 @@ internal sealed class FinanceService(IBackendApiClient apiClient, IOptions<Backe
             null // Empty payload for POST to this endpoint
         );
     }
-}
 
+    public Task<AppResponse<System.Collections.Generic.IReadOnlyList<GlMappingResponse>>> GetGlMappingsAsync()
+    {
+        return apiClient.SendAsync<System.Collections.Generic.IReadOnlyList<GlMappingResponse>>(
+            HttpMethod.Get,
+            "api/v1.0/finance/gl-mappings");
+    }
+
+    public Task<AppResponse<Guid>> UpsertGlMappingAsync(string transactionTypeCode, UpsertGlMappingRequest request)
+    {
+        return apiClient.SendAsync<Guid>(
+            HttpMethod.Put,
+            $"api/v1.0/finance/gl-mappings/{Uri.EscapeDataString(transactionTypeCode)}",
+            request);
+    }
+}

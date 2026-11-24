@@ -17,9 +17,10 @@ internal interface IMembershipService
     Task<AppResponse<bool>> RejectMemberAsync(RejectMemberRequest request);
     Task<AppResponse<Guid>> NominateGuarantorAsync(NominateGuarantorRequest request);
     Task<AppResponse<bool>> RespondToGuarantorAsync(RespondToGuarantorRequest request);
-    
+
     // New endpoints
     Task<AppResponse<bool>> VerifyMemberKycAsync(Guid memberId);
+    Task<AppResponse<bool>> GrantPortalAccessAsync(Guid memberId);
     Task<AppResponse<bool>> SuspendMemberAsync(Guid memberId, string reason);
     Task<AppResponse<bool>> CloseMemberAsync(Guid memberId, string reason);
     Task<AppResponse<List<BeneficiaryResponse>>> GetMemberBeneficiariesAsync(Guid memberId);

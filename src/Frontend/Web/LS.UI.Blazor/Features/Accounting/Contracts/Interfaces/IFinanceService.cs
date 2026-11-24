@@ -15,4 +15,6 @@ internal interface IFinanceService
     Task<AppResponse<Guid>> PostJournalAsync(CreateJournalRequest request);
     Task<AppResponse<System.Collections.Generic.IEnumerable<AccountingIntegrationErrorResponse>>> GetIntegrationErrorsAsync(string? status = null);
     Task<AppResponse<bool>> RetryIntegrationEventAsync(Guid errorId);
+    Task<AppResponse<System.Collections.Generic.IReadOnlyList<GlMappingResponse>>> GetGlMappingsAsync();
+    Task<AppResponse<Guid>> UpsertGlMappingAsync(string transactionTypeCode, UpsertGlMappingRequest request);
 }

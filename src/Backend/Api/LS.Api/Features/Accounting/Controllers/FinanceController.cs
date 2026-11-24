@@ -4,6 +4,7 @@ using LS.Api.Common.Controllers;
 using LS.Application.Features.Accounting.Commands;
 using LS.Application.Features.Accounting.Queries;
 using LS.Application.Features.Accounting.Queries.GetIntegrationErrors;
+using LS.Application.Features.Accounting.Queries.GetGlMappings;
 using LS.SharedKernel.Features.Accounting.Dtos;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
@@ -141,6 +142,35 @@ public class FinanceController(ISender sender) : BaseController
     {
         var command = new RetryIntegrationEventCommand(id);
         var result = await sender.Send(command).ConfigureAwait(false);
+        return HandleResponse(result);
+    }
+
+    /// <summary>
+    /// Lists the transaction-type GL mappings used for automated ledger posting.
+    /// </summary>
+    [HttpGet("gl-mappings")]
+    [RequirePermission("gl-mappings.view")]
+    [ProducesResponseType(typeof(AppResponse<System.Collections.Generic.IReadOnlyList<GlMappingResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGlMappings()
+    {
+        var result = await sender.Send(new GetGlMappingsQuery()).ConfigureAwait(false);
+        return HandleResponse(result);
+    }
+
+    /// <summary>
+    /// Creates or updates the GL mapping for a transaction type.
+    /// </summary>
+    /// <param name="transactionTypeCode">The transaction type code, for example GUARANTOR_RECOVERY.</param>
+    /// <param name="request">The mapping sources and explicit ledger accounts.</param>
+    [HttpPut("gl-mappings/{transactionTypeCode}")]
+    [RequirePermission("gl-mappings.manage")]
+    [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> UpsertGlMapping([FromRoute] string transactionTypeCode, [FromBody] UpsertGlMappingRequest request)
+    {
+        var result = await sender.Send(new UpsertGlMappingCommand(transactionTypeCode, request)).ConfigureAwait(false);
         return HandleResponse(result);
     }
 }

@@ -1,6 +1,6 @@
 # LlanSacco Production Readiness Delivery Plan
 
-**Status** — Reference development baseline agreed; Phase 1 implemented and locally verified for review, 24 November 2026. Production acceptance remains open.
+**Status** — Phases 0 and 1 are OPEN, 24 November 2026. Reference preparation is complete and Phase 1 core implementation has automated evidence. Neither phase has met its full completion checklist.
 
 Architecture remediation established the platform and CI guardrails. Product release depends on evidence that a SACCO can operate the financial workflows, reconcile the books, recover from failure, and support its members. This plan covers guarantor reservations, finance acceptance, M-Pesa, automated dividends, statements, and self-service. Fixing every named workflow is in scope. The first SACCO's approved operating profile determines which gates must pass before its first live transaction.
 
@@ -20,7 +20,7 @@ Architecture remediation established the platform and CI guardrails. Product rel
 
 ## Delivery sequence
 
-The reference Phase 0 development baseline is complete. On 24 November 2026 the user authorized Phase 1 implementation against that baseline. First-SACCO business approvals remain production activation gates; their absence does not block this explicitly authorized reference implementation. Complete and review each implementation phase before starting the next. Keep any unverified production evidence open, and gather provider access, report samples and business rules early. Keep a PR and an acceptance record for each phase. The plan uses the existing LlanSacco checkout and bounded contexts.
+Phases 0 and 1 remain open against their full checklists. Reference preparation is complete. On 24 November 2026 the user authorized Phase 1 development using that reference; this allowed implementation to proceed without closing Phase 0's outstanding SACCO decisions or approvals. Complete and review each implementation phase before starting the next. Keep unverified evidence open and retain a PR and acceptance record for each phase. The plan uses the existing LlanSacco checkout and bounded contexts.
 
 | Phase | Deliverable | Acceptance owner |
 | --- | --- | --- |
@@ -35,6 +35,8 @@ The reference Phase 0 development baseline is complete. On 24 November 2026 the 
 
 ### Phase 0 — Agree the first SACCO release
 
+**OPEN:** The completed reference profile and synthetic acceptance pack are preparation. All four first-SACCO checklist items below remain outstanding; authorization to develop against the reference does not complete them.
+
 Use the [reference SACCO operating profile](reference-sacco-operating-profile.md) as the proposed starting point for reports, credit and guarantor policy, dividends, payment routes and KYC. Its sample values are the authorized Phase 0 development baseline. The SACCO must accept or amend them and supply approvals and production evidence before production activation. The development baseline is complete; OP-01 through OP-10 remain business gates.
 
 - [ ] Record the first SACCO, license category and applicable filing templates, tenant/stamp and database placement, products, supported channels, roles, approval limits, and cutover date and time zone. Obtain sample report layouts and control totals. Have Finance and Compliance sign the report list, definitions, and submission formats. [SASRA DTS returns](https://www.sasra.go.ke/dts-regulatory-return-forms/) · [SASRA NW-DTS returns](https://www.sasra.go.ke/nw-dts-regulatory-returns-forms/)
@@ -45,6 +47,8 @@ Use the [reference SACCO operating profile](reference-sacco-operating-profile.md
 Preparation is available in the [reference acceptance pack](reference-sacco-acceptance-pack.md) and its [synthetic fixtures](reference-sacco-acceptance-fixtures.json). They define reconciled sample books, expected results and the Phase 1 reservation lifecycle. The user authorized use of the reference approach for development on 24 November 2026. First-SACCO decisions OP-01 through OP-10 and all production phase gates remain open.
 
 ### Phase 1 — Make guarantor reservations replay-safe
+
+**OPEN:** The first two implementation items below are checked. The remaining items combine completed lifecycle code and automated proofs with unfinished browser execution, representative tenant/database recovery verification, actual legacy-book reconciliation and review/sign-off. They remain unchecked until all their required evidence exists. This includes execution work, not only business signatures.
 
 Implementation and automated evidence are tracked in the [Phase 1 verification and operator runbook](production-readiness-phase-1-verification.md). Keep this phase open for review and the unverified production gates listed there; Phase 2 has not started.
 

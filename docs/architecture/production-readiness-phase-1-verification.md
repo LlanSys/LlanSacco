@@ -1,6 +1,6 @@
 # Production readiness Phase 1 — Guarantor-backed lending
 
-**Status:** Implemented and locally verified for review, 24 November 2026. Production acceptance remains open. Phase 2 has not started.
+**Phase status: OPEN**, 24 November 2026. Core implementation and automated verification are available for review. Browser execution, representative tenant/recovery verification, actual-book reconciliation and review/sign-off remain unfinished. Phase 2 has not started.
 
 **Implementation commit:** `f1d1060` on `codex/production-readiness-phase-1`, based on `main` at `2bd4bd4`. The local verification below covers that source tree.
 

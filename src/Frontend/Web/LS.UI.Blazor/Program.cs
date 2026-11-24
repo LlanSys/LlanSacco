@@ -144,8 +144,12 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+// The HTTP endpoint serves the interactive shell. Native AuthorizeRouteView evaluates the restored
+// API identity inside the circuit; all data stays behind authorized APIs. Without AllowAnonymous the
+// server-side authorization middleware challenges [Authorize] pages on a direct link or refresh and,
+// with no HTTP authentication scheme registered, fails with a 500 (ported from StarterTemplate).
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode().AllowAnonymous();
 
 app.Run();
 

@@ -22,25 +22,31 @@ public static class EnumExtensions
     }
 
     public static T ToEnum<T>(this string description) where T : struct, Enum
+        => description.TryToEnum<T>(out var value)
+            ? value
+            : throw new ArgumentException($"No enum member with description '{description}' found in {typeof(T).Name}");
+
+    /// <summary>
+    /// Matches a member by its <see cref="DescriptionAttribute"/> or, failing that, its exact name.
+    /// Validators use this so they accept exactly what <see cref="ToEnum{T}"/> can convert.
+    /// </summary>
+    public static bool TryToEnum<T>(this string? description, out T value) where T : struct, Enum
     {
-        foreach (var field in typeof(T).GetFields())
+        if (description is not null)
         {
-            var attribute = field.GetCustomAttribute<DescriptionAttribute>();
-
-            // Check if the Description matches the input string
-            if (attribute != null && attribute.Description == description)
+            foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                return (T)field.GetValue(null)!;
-            }
-
-            // Fallback: Check if the name of the enum member itself matches
-            if (field.Name == description)
-            {
-                return (T)field.GetValue(null)!;
+                var attribute = field.GetCustomAttribute<DescriptionAttribute>();
+                if ((attribute != null && attribute.Description == description) || field.Name == description)
+                {
+                    value = (T)field.GetValue(null)!;
+                    return true;
+                }
             }
         }
 
-        throw new ArgumentException($"No enum member with description '{description}' found in {typeof(T).Name}");
+        value = default;
+        return false;
     }
 
     public static Collection<LookupResponse> ToLookupResponses<T>() where T : struct, Enum

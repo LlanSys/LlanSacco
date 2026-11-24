@@ -160,6 +160,33 @@ if ($LASTEXITCODE -ne 0) {
     throw "Docker Compose startup failed with exit code $LASTEXITCODE."
 }
 
+# Azure provisions the private profile-images container in Bicep (ops/azure/modules/storage.bicep).
+# Mirror that locally so the API's storage readiness check passes before the first upload.
+function New-AzuriteContainer([string]$account, [string]$key, [string]$container) {
+    $date = [DateTime]::UtcNow.ToString('R')
+    $canonicalHeaders = "x-ms-date:$date`nx-ms-version:2021-08-06"
+    $canonicalResource = "/$account/$account/$container`nrestype:container"
+    # Empty body: Content-Length is signed as an empty string for this service version.
+    $stringToSign = "PUT`n`n`n`n`n`n`n`n`n`n`n`n$canonicalHeaders`n$canonicalResource"
+    $hmac = [System.Security.Cryptography.HMACSHA256]::new([Convert]::FromBase64String($key))
+    try {
+        $signature = [Convert]::ToBase64String($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($stringToSign)))
+    } finally {
+        $hmac.Dispose()
+    }
+
+    $response = Invoke-WebRequest -Method Put -UseBasicParsing -SkipHttpErrorCheck `
+        -Uri "http://127.0.0.1:10010/$account/${container}?restype=container" `
+        -Headers @{ 'x-ms-date' = $date; 'x-ms-version' = '2021-08-06'; 'Authorization' = "SharedKey ${account}:$signature" } `
+        -Body ([byte[]]@())
+    # 201 = created, 409 = already exists.
+    if ($response.StatusCode -notin 201, 409) {
+        throw "Could not create Azurite container '$container' (HTTP $($response.StatusCode))."
+    }
+}
+
+New-AzuriteContainer $environment.AZURITE_ACCOUNT_NAME $environment.AZURITE_ACCOUNT_KEY 'profile-images'
+
 Write-Host ''
 Write-Host 'Local platform is ready:'
 Write-Host '  RabbitMQ:  amqp://localhost:5673'

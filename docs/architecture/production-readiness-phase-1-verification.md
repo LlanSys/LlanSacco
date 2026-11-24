@@ -1,6 +1,6 @@
 # Production readiness Phase 1 — Guarantor-backed lending
 
-**Phase status: OPEN**, 24 November 2026. Core implementation and automated verification are available for review. Browser execution, representative tenant/recovery verification, actual-book reconciliation and review/sign-off remain unfinished. Phase 2 has not started.
+**Phase status: OPEN**, 24 November 2026. Core implementation, automated verification and a staged local acceptance (browser consent, isolation, approval, disbursement, legacy reconciliation rehearsal and restore rehearsal) are complete. Remaining: browser cancellation/settlement/substitution/recovery, a recovery GL-mapping path and tie-out, first-SACCO reconciliation, representative deployed recovery, and review/sign-off. Phase 2 has not started.
 
 **Implementation commit:** `f1d1060` on `codex/production-readiness-phase-1`, based on `main` at `2bd4bd4`, merged to `main` as `fabaa0a` through [LlanSys/LlanSacco#13](https://github.com/LlanSys/LlanSacco/pull/13) after all required CI checks passed. The local verification below covers that source tree.
 
@@ -97,12 +97,41 @@ Deploy the updated API and member UI together. Consent now requires the exact pl
 7. Rehearse member consent, delayed/rejected confirmation, independent approval, disbursement, cancellation, settlement, substitution and default recovery with actual staff/member roles in a representative browser session. Record screens, audit actors, expected balances and exception handling.
 8. Obtain Credit, Banking, Finance and release-owner approval before live intake. Keep unverified differences and accounting exceptions visible. Use forward correction and approved recovery for financial data; do not run `Down` migrations against issued reservations or recovery history.
 
+## Staged acceptance on the local stack (24 November 2026)
+
+Executed against the containerised API and Blazor app on PostgreSQL 17 with RabbitMQ, Redis and Quartz, using the fictional Jamii Reference SACCO (`scripts/seed-reference-acceptance.ps1`). Signed-in staff and members used their own accounts and roles; the admin enrolled in TOTP as required for System Administrators. Results are rehearsal evidence on a local stack, not production acceptance.
+
+| Scenario | How it was exercised | Result |
+| --- | --- | --- |
+| G18 consent → confirmed hold | Guarantor signed in, reviewed terms `LLANSACCO-REFERENCE/0.1`, chose the eligible account and consented in the browser | Pending (0 held) → "Funds reserved" (100,000 held) after Banking confirmed through the outbox and RabbitMQ. One reservation and the matching `LockedFunds` in the database |
+| G14 member-to-member isolation | Unrelated member signed in; then called the consent API on another guarantor's pledge three ways (posing as that guarantor with their account, with her own account, and as herself) | No pledges visible; all three refused (404 "Guarantor not found"); no reservation or lock created |
+| Approval and disbursement | Credit checker approved on `/loans/applications` and requested disbursement on the guarantees page | `DisbursementPending` until Banking committed both holds, then `Disbursed`, both pledges `Committed`, 24 schedule rows, every outbox drained. The expiry job only selects `Held` reservations, so committed security cannot expire |
+| G15 legacy reconciliation (rehearsal) | Simulated an import: a disbursed loan with a 30,000 legacy hold, a closed loan with a 20,000 legacy hold, and an unexplained 15,000 lock with no pledge | Reconciliation listed exactly 30,000 / 20,000 / 15,000. A new guarantee on the unexplained account was durably rejected with no lock change. Maker self-approval of adoption was refused ("An independent security approver is required"); checker approval adopted the open-loan hold without incrementing (130,000 held = 130,000 explained) and released the closed-loan hold (20,000 → 0). The unexplained 15,000 remains visible and blocking |
+| Backup, restore and worker recovery | Consent recorded, API stopped with the reserve instruction staged in the Loans outbox; `pg_dump`, database dropped and recreated, `pg_restore`; API restarted, then restarted again | The staged message survived the restore and was delivered once: one `Held` reservation, `LockedFunds` +15,000 exactly once, outboxes drained, no change after the second restart |
+
+Defects found and fixed during this acceptance:
+
+- Every `[Authorize]` Blazor page (31) returned HTTP 500 on a direct link or refresh. The components endpoint now allows the anonymous shell request and `AuthorizeRouteView` authorizes inside the circuit, as in StarterTemplate.
+- Credit staff could not approve loans: `/loans/applications` required the platform permission `ControlPlane.Manage`. It now requires `applications.view`, shows Approve/Reject only for `applications.approve`, uses the SACCO layout, and is covered by the route/API permission test.
+- Member onboarding and BOSA postings rejected every request: string fields were validated with `IsInEnum()`, which fails for all strings. They now accept exactly what the handler's `ToEnum` converts (unit tested).
+- Local Azurite had no `profile-images` container, so storage readiness failed until the first upload. The local setup now creates it, mirroring `ops/azure/modules/storage.bicep`.
+
+Findings recorded for follow-up (not fixed here):
+
+- Users created through `POST api/v1/iam/admin/users` stay inactive and unconfirmed, and no API activates a non-employee user, so members cannot reach the portal. The rehearsal activated the fictional `@jamii.example` users directly in the local database.
+- There is no API or UI to configure `TransactionTypeGlMapping`, and no `GUARANTOR_RECOVERY` mapping is seeded, so default recovery cannot post its journal. The recovery and source-to-ledger tie-out were therefore not executed.
+- Banking's rejection reason for an account with unexplained locks is generic ("ineligible, insufficient available funds, or expired") and does not name the unexplained difference.
+- Members land on the staff dashboard; the backing-account selector shows an empty identifier before selection; statuses and identifiers appear as raw codes and GUIDs on staff pages.
+- Signing the same user in elsewhere ends the existing browser session.
+- `GetLookupRequestValidator` validates a request no handler consumes.
+- Deployed environments do not yet provision `MediatR--LicenseKey` in Key Vault.
+
 ## Open acceptance gates
 
-- Signed-in browser acceptance on desktop/mobile with actual tenant roles, current terms, member ownership, KYC state changes and tenant switching. No browser acceptance is claimed by a successful build.
+- Signed-in browser acceptance of cancellation before disbursement, settlement release, substitution and default recovery; desktop and mobile viewports; KYC state changes and tenant switching. Consent, member isolation, approval, disbursement, legacy adoption and recovery after restore passed on the local stack (above).
 - First-SACCO credit/security policy and enforceable consent/notice evidence, eligible products and real KYC route. Simulated KYC remains a separate production blocker tracked in Phase 6.
-- Actual legacy-book reconciliation, correct Finance-approved product/control-account mapping, and signed recovery/source-to-ledger tie-out.
-- Representative deployed tenant/stamp database routing, backup/restore and incident recovery rehearsal. Local worker restart is evidence for durable processing, not proof of production recovery objectives.
+- Actual legacy-book reconciliation with the first SACCO's records (the reference rehearsal passed), a way to configure and approve the `GUARANTOR_RECOVERY` mapping, and a signed recovery/source-to-ledger tie-out.
+- Backup/restore and incident recovery on a representative deployed tenant/stamp with agreed recovery objectives. The local restore rehearsal passed; it does not prove production recovery objectives.
 
 The global local-endpoint audit reported existing port collisions across other project configurations, including a configured Mailpit overlap. Existing infrastructure was reused with `-SkipStart`; no application host or unrelated infrastructure was started or reconfigured. Resolve the relevant allocation before starting additional local hosts/services.
 

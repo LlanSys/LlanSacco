@@ -66,12 +66,14 @@ internal sealed class MfaEnrollmentMiddleware(
         }
 
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
         if (string.IsNullOrWhiteSpace(userId))
         {
             return false;
         }
 
         var user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
+
         if (user is null)
         {
             return true;
@@ -91,6 +93,8 @@ internal sealed class MfaEnrollmentMiddleware(
             || value.Contains("/iam/auth/refresh-token", StringComparison.OrdinalIgnoreCase)
             || value.Contains("/iam/auth/logout", StringComparison.OrdinalIgnoreCase)
             || value.Contains("/iam/auth/me", StringComparison.OrdinalIgnoreCase)
+            // Lets a user who must also change their password (PasswordChangeEnforcementMiddleware) complete that step.
+            || value.Contains("/iam/auth/password/change", StringComparison.OrdinalIgnoreCase)
             || value.Contains("/iam/users/totp", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,28 +1,51 @@
 using LS.Application.Features.Shared.Notifications.Contracts.Interfaces;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Features.IAM.Users.Entities;
+using System.Globalization;
+using System.Net;
+using System.Security.Cryptography;
 using LS.Infrastructure.Configuration;
+using LS.Infrastructure.Features.IAM.Users.Security;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.Shared.Notifications.Dtos;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services;
 
 /// <summary>
 /// Shared IAM access-activation steps used when staff grant system or portal access:
-/// temporary-password reset, activation email delivery and compensation when delivery fails.
+/// locking the account behind an unknown random password, emailing a one-time set-password link,
+/// and compensation when delivery fails. No password is ever chosen for, or disclosed to, the user.
 /// </summary>
 internal sealed class IamAccessActivator(
     UserManager<AppUser> userManager,
     IIamUnitOfWork iamUnitOfWork,
-    IEmailService emailService)
+    IEmailService emailService,
+    IOptions<IamProvisioningSettings> provisioningOptions,
+    IOptions<EmailSettings> emailOptions,
+    IOptions<PasswordRecoverySettings> recoveryOptions)
 {
-    public async Task<IdentityResult> ResetTemporaryPasswordForReactivationAsync(
-        AppUser user,
-        string temporaryPassword)
+    private const int RandomPasswordBytes = 48;
+
+    /// <summary>True when activation links can be built (EmailSettings:ClientBaseUrl is an absolute http(s) URL).</summary>
+    public bool CanBuildActivationLinks => PasswordResetLinkBuilder.TryGetBaseUri(emailOptions.Value, out _);
+
+    /// <summary>
+    /// Creates a password nobody knows: cryptographically random, used once to set the hash and then discarded.
+    /// The suffix guarantees the configured complexity rules are met.
+    /// </summary>
+    public static string CreateUnusablePassword()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(RandomPasswordBytes)) + "aA1!";
+
+    /// <summary>
+    /// Replaces the password of an account being (re)activated with an unknown random password, rotating the security stamp
+    /// (which also invalidates any older reset or activation links), and forces a password change.
+    /// </summary>
+    public async Task<IdentityResult> LockPasswordForActivationAsync(AppUser user)
     {
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
-        var resetResult = await userManager.ResetPasswordAsync(user, resetToken, temporaryPassword).ConfigureAwait(false);
+        var resetResult = await userManager.ResetPasswordAsync(user, resetToken, CreateUnusablePassword()).ConfigureAwait(false);
 
         if (!resetResult.Succeeded)
         {
@@ -43,12 +66,27 @@ internal sealed class IamAccessActivator(
         return await userManager.SetLockoutEndDateAsync(user, null).ConfigureAwait(false);
     }
 
-    public Task<AppResponse<SendEmailResponse>> SendActivationEmailAsync(
+    /// <summary>
+    /// Builds the one-time set-password link. Call only after the activation has committed: the token embeds the
+    /// current security stamp, and setting the password through the reset page rotates it, so the link works once.
+    /// </summary>
+    public async Task<Uri> CreateSetPasswordLinkAsync(AppUser user)
+    {
+        var token = await userManager.GenerateUserTokenAsync(
+            user,
+            AccountActivationTokenProvider.ProviderName,
+            UserManager<AppUser>.ResetPasswordTokenPurpose)
+            .ConfigureAwait(false);
+
+        return PasswordResetLinkBuilder.Build(emailOptions.Value, recoveryOptions.Value, user.Email!, token);
+    }
+
+    public async Task<AppResponse<SendEmailResponse>> SendActivationEmailAsync(
         AppUser user,
-        IamProvisioningSettings settings,
         bool createdNewUser,
         CancellationToken ct)
     {
+        var settings = provisioningOptions.Value;
         var displayName = $"{user.FirstName} {user.LastName}".Trim();
 
         if (string.IsNullOrWhiteSpace(displayName))
@@ -60,23 +98,42 @@ internal sealed class IamAccessActivator(
             ? "Your LlanSacco account is ready"
             : "Your LlanSacco access has been reactivated";
 
+        Uri setPasswordLink;
+
+        try
+        {
+            setPasswordLink = await CreateSetPasswordLinkAsync(user).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            // Translated into a failed delivery so the caller compensates the activation.
+            return AppResponses.Failure<SendEmailResponse>(AppError.DependencyUnavailable("The activation link could not be created."));
+        }
+
+        var link = WebUtility.HtmlEncode(setPasswordLink.ToString());
+        var signInUrl = WebUtility.HtmlEncode(settings.SignInUrl);
+        var lifetime = settings.ActivationLinkLifetimeHours.ToString(CultureInfo.InvariantCulture);
+
         var body = $"""
-            <p>Hello {System.Net.WebUtility.HtmlEncode(displayName)},</p>
+            <p>Hello {WebUtility.HtmlEncode(displayName)},</p>
             <p>Your system access has been enabled.</p>
-            <p><strong>Username:</strong> {System.Net.WebUtility.HtmlEncode(user.UserName ?? user.Email ?? string.Empty)}</p>
-            <p><strong>Temporary password:</strong> {System.Net.WebUtility.HtmlEncode(settings.TemporaryPassword)}</p>
-            <p>Please sign in at <a href="{System.Net.WebUtility.HtmlEncode(settings.SignInUrl)}">{System.Net.WebUtility.HtmlEncode(settings.SignInUrl)}</a> and change your password immediately.</p>
-            <p>If you did not expect this access, contact your system administrator.</p>
+            <p><strong>Username:</strong> {WebUtility.HtmlEncode(user.UserName ?? user.Email ?? string.Empty)}</p>
+            <p>Before you can sign in, choose your own password using this secure link:</p>
+            <p><a href="{link}">Set your password</a></p>
+            <p>The link can be used once and expires in {lifetime} hours. If it has expired, use "Forgot password?" on the sign-in page or ask your system administrator to resend access.</p>
+            <p>After setting your password, sign in at <a href="{signInUrl}">{signInUrl}</a>.</p>
+            <p>If you did not expect this email, do not use the link and contact your system administrator.</p>
             """;
 
-        return emailService.SendEmailAsync(
+        return await emailService.SendEmailAsync(
             new SendEmailRequest
             {
                 To = user.Email,
                 Subject = subject,
                 Body = body
             },
-            ct);
+            ct)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -108,7 +165,14 @@ internal sealed class IamAccessActivator(
                     return false;
                 }
 
+                // Invalidate any set-password link generated for this activation, in case delivery partially succeeded.
+                if (!(await userManager.UpdateSecurityStampAsync(current).ConfigureAwait(false)).Succeeded)
+                {
+                    return false;
+                }
+
                 current.RevokeAccess(changedBy, "Activation email could not be sent.");
+
                 if (restoreEmailConfirmed.HasValue)
                 {
                     current.EmailConfirmed = restoreEmailConfirmed.Value;

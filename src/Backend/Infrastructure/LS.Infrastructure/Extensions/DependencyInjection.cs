@@ -83,7 +83,12 @@ public static class DependencyInjection
         services.Configure<ObservabilitySettings>(configuration.GetSection(ObservabilitySettings.SectionName));
         services.Configure<AuthProviderSettings>(configuration.GetSection(AuthProviderSettings.SectionName));
         services.Configure<ApiSettings>(configuration.GetSection(ApiSettings.SectionName));
-        services.Configure<IamProvisioningSettings>(configuration.GetSection(IamProvisioningSettings.SectionName));
+        services
+            .AddOptions<IamProvisioningSettings>()
+            .Bind(configuration.GetSection(IamProvisioningSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.Configure<MfaSettings>(configuration.GetSection(MfaSettings.SectionName));
         services
             .AddOptions<PasswordRecoverySettings>()

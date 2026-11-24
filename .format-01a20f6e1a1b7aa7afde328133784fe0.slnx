@@ -1,0 +1,26 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Backend/">
+  </Folder>
+  <Folder Name="/src/Frontend/">
+    <Project Path="src/Frontend/Web/LS.UI.Blazor/LS.UI.Blazor.csproj" Id="00663238-a0f3-4c06-bd1e-b0bf695cfbfc">
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/src/Shared/">
+  </Folder>
+  <Folder Name="/tests/">
+  </Folder>
+  <Folder Name="/tools/">
+  </Folder>
+</Solution>

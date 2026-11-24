@@ -3,6 +3,7 @@ using LS.Application.Features.IAM.Users.Commands;
 using LS.Application.Features.Shared.Notifications.Contracts.Interfaces;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Infrastructure.Configuration;
+using LS.Infrastructure.Features.IAM.Users.Security;
 using LS.Infrastructure.Logging;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Features.IAM.Users.Dtos;
@@ -34,6 +35,7 @@ internal sealed class ForgotPassword(
             _recoverySettings.Mode == PasswordRecoveryMode.EmailOtp);
 
         var user = await userManager.FindByEmailAsync(command.Request.Email).ConfigureAwait(false);
+
         if (user is null || !user.IsActive || user.IsDeleted || string.IsNullOrWhiteSpace(user.Email))
         {
             return AppResponses.Success(GenericMessage, response);
@@ -41,11 +43,14 @@ internal sealed class ForgotPassword(
 
         if (_recoverySettings.Mode == PasswordRecoveryMode.EmailOtp)
         {
-            var otpResponse = await sender.Send(new SendEmailOtpCommand(new SendEmailOtpRequest
-            {
-                UserId = user.Id,
-                Purpose = "PasswordReset"
-            }), ct).ConfigureAwait(false);
+            var otpResponse = await sender.Send(
+                new SendEmailOtpCommand(new SendEmailOtpRequest
+                {
+                    UserId = user.Id,
+                    Purpose = "PasswordReset"
+                }),
+                ct)
+                .ConfigureAwait(false);
 
             if (!otpResponse.IsSuccess)
             {
@@ -56,16 +61,19 @@ internal sealed class ForgotPassword(
         }
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
-        var resetUri = BuildResetUri(user.Email, token);
+        var resetUri = PasswordResetLinkBuilder.Build(_emailSettings, _recoverySettings, user.Email, token);
         var displayName = WebUtility.HtmlEncode($"{user.FirstName} {user.LastName}".Trim());
         var encodedUri = WebUtility.HtmlEncode(resetUri.ToString());
 
-        var emailResponse = await emailService.SendEmailAsync(new SendEmailRequest
-        {
-            To = user.Email,
-            Subject = "Reset your LlanSacco password",
-            Body = $"<p>Hello {displayName},</p><p>Use the secure link below to reset your password.</p><p><a href=\"{encodedUri}\">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>"
-        }, ct).ConfigureAwait(false);
+        var emailResponse = await emailService.SendEmailAsync(
+            new SendEmailRequest
+            {
+                To = user.Email,
+                Subject = "Reset your LlanSacco password",
+                Body = $"<p>Hello {displayName},</p><p>Use the secure link below to reset your password.</p><p><a href=\"{encodedUri}\">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>"
+            },
+            ct)
+            .ConfigureAwait(false);
 
         if (!emailResponse.IsSuccess)
         {
@@ -73,13 +81,5 @@ internal sealed class ForgotPassword(
         }
 
         return AppResponses.Success(GenericMessage, response);
-    }
-
-    private Uri BuildResetUri(string email, string token)
-    {
-        var baseUri = new Uri(_emailSettings.ClientBaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
-        var resetUri = new Uri(baseUri, _recoverySettings.ResetPath.TrimStart('/'));
-        var query = $"email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
-        return new UriBuilder(resetUri) { Query = query }.Uri;
     }
 }

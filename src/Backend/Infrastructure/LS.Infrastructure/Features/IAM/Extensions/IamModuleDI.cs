@@ -8,6 +8,7 @@ using LS.Domain.Features.IAM.Contracts;
 using LS.Infrastructure.Extensions;
 using LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers;
 using LS.Infrastructure.Features.IAM.Users.Seeding;
+using LS.Infrastructure.Features.IAM.Users.Security;
 using LS.Persistence.Features.IAM.DataContext;
 using LS.Persistence.Features.IAM.Extensions;
 using MediatR;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace LS.Infrastructure.Features.IAM.Extensions;
 
@@ -31,7 +33,13 @@ public static class IamModuleDI
 
         services.AddIdentity<AppUser, AppRole>(DependencyInjection.ConfigureIdentityOptions)
             .AddEntityFrameworkStores<IamDBContext>()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddTokenProvider<AccountActivationTokenProvider>(AccountActivationTokenProvider.ProviderName);
+
+        services
+            .AddOptions<AccountActivationTokenProviderOptions>()
+            .Configure<IOptions<IamProvisioningSettings>>(static (options, provisioning) =>
+                options.TokenLifespan = TimeSpan.FromHours(provisioning.Value.ActivationLinkLifetimeHours));
 
         DependencyInjection.ConfigureAuthentication(services, configuration);
 

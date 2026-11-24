@@ -27,4 +27,7 @@ internal static partial class MiddlewareLogDefinitions
 
     [LoggerMessage(EventId = 1106, Level = LogLevel.Warning, Message = "Removed invalid property '{Key}' from schema for type {TypeName}. Consider adding [JsonIgnore] to the source property.")]
     public static partial void LogRemovedInvalidSchemaProperty(ILogger logger, string key, string typeName);
+
+    [LoggerMessage(EventId = 1107, Level = LogLevel.Warning, Message = "Blocked request for user {UserId} because a password change is required. Path: {Path}")]
+    public static partial void LogPasswordChangeRequired(ILogger logger, string userId, string path);
 }

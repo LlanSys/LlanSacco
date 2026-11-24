@@ -2,25 +2,22 @@ using LS.Application.Features.IAM.Users.Contracts.Interfaces;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Domain.Features.IAM.Users.Enums;
-using LS.Infrastructure.Configuration;
 using LS.Infrastructure.Logging;
 using LS.SharedKernel.Dtos.Common;
 using LS.SharedKernel.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services;
 
 /// <summary>
 /// Activates the IAM account linked to a member, mirroring employee grant-access:
-/// temporary password, forced password change, confirmed email, member role and activation email.
+/// unknown random password, forced password change, confirmed email, member role and a one-time set-password email.
 /// </summary>
 internal sealed class MemberPortalAccessService(
     UserManager<AppUser> userManager,
     IIamUnitOfWork iamUnitOfWork,
-    IOptions<IamProvisioningSettings> provisioningOptions,
     IamAccessActivator accessActivator,
     ILogger<MemberPortalAccessService> logger) : IMemberPortalAccessService
 {
@@ -37,12 +34,10 @@ internal sealed class MemberPortalAccessService(
 
         try
         {
-            var temporaryPassword = provisioningOptions.Value.TemporaryPassword;
-
-            if (string.IsNullOrWhiteSpace(temporaryPassword))
+            if (!accessActivator.CanBuildActivationLinks)
             {
                 return AppResponses.Failure<bool>(AppError.DependencyUnavailable(
-                    "IAM provisioning is not configured. Set IamProvisioning:TemporaryPassword via user secrets, environment variables, or Key Vault."));
+                    "IAM provisioning is not configured. Set EmailSettings:ClientBaseUrl so activation links can be sent."));
             }
 
             AppUser? user = null;
@@ -79,7 +74,7 @@ internal sealed class MemberPortalAccessService(
                     if (!user.IsActive)
                     {
                         var passwordResetResult = await accessActivator
-                            .ResetTemporaryPasswordForReactivationAsync(user, temporaryPassword)
+                            .LockPasswordForActivationAsync(user)
                             .ConfigureAwait(false);
 
                         if (!passwordResetResult.Succeeded)
@@ -136,7 +131,7 @@ internal sealed class MemberPortalAccessService(
 
             var activationStamp = user!.ConcurrencyStamp;
             var emailResponse = await accessActivator
-                .SendActivationEmailAsync(user, provisioningOptions.Value, createdNewUser: true, ct)
+                .SendActivationEmailAsync(user, createdNewUser: true, ct)
                 .ConfigureAwait(false);
 
             if (!emailResponse.IsSuccess)

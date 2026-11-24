@@ -83,7 +83,7 @@
                 return;
             }
 
-            Navigation.NavigateTo(AuthSession.MfaEnrollmentRequired ? "/iam/security" : "/dashboard");
+            Navigation.NavigateTo(AuthSession.MfaEnrollmentRequired || AuthSession.PasswordChangeRequired ? "/iam/security" : "/dashboard");
         }
         catch (Exception ex)
         {

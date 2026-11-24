@@ -37,131 +37,156 @@ internal sealed class CreateAppUser(
 
         try
         {
-            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                ct.ThrowIfCancellationRequested();
-                if (req.EmployeeId.HasValue && req.MemberId.HasValue)
-                    return AppResponses.Failure<AppUserResponse>("A user account can be linked to either an employee or a member, not both.");
-
-                Employee? employee = null;
-
-                if (req.EmployeeId.HasValue)
+            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(
+                async () =>
                 {
-                    employee = await hrUnitOfWork.EmployeeRepository
-                        .FindByCondition(e => e.Id == req.EmployeeId.Value)
+                    ct.ThrowIfCancellationRequested();
+
+                    if (req.EmployeeId.HasValue && req.MemberId.HasValue)
+                    {
+                        return AppResponses.Failure<AppUserResponse>("A user account can be linked to either an employee or a member, not both.");
+                    }
+
+                    Employee? employee = null;
+
+                    if (req.EmployeeId.HasValue)
+                    {
+                        employee = await hrUnitOfWork.EmployeeRepository
+                            .FindByCondition(e => e.Id == req.EmployeeId.Value)
+                            .AsNoTracking()
+                            .SingleOrDefaultAsync(ct)
+                            .ConfigureAwait(false);
+
+                        if (employee is null)
+                        {
+                            return AppResponses.Failure<AppUserResponse>("The specified employee does not exist or has been deactivated.");
+                        }
+
+                        var alreadyLinked = await userManager.Users
+                            .AsNoTracking()
+                            .AnyAsync(u => u.EmployeeId == req.EmployeeId.Value, ct)
+                            .ConfigureAwait(false);
+
+                        if (alreadyLinked)
+                        {
+                            return AppResponses.Conflict<AppUserResponse>("A user account already exists for this employee.");
+                        }
+                    }
+
+                    if (req.MemberId is Guid memberId)
+                    {
+                        var tenantId = tenantProvider.TenantId;
+
+                        if (!await membershipUnitOfWork.MemberRepository.AnyAsync(
+                            member => member.Id == memberId && member.TenantId == tenantId, ct)
+                            .ConfigureAwait(false))
+                        {
+                            return AppResponses.NotFound<AppUserResponse>("The specified member does not exist.");
+                        }
+
+                        var alreadyLinked = await userManager.Users
+                            .AsNoTracking()
+                            .AnyAsync(u => u.MemberId == req.MemberId.Value, ct)
+                            .ConfigureAwait(false);
+
+                        if (alreadyLinked)
+                        {
+                            return AppResponses.Conflict<AppUserResponse>("A user account already exists for this member.");
+                        }
+                    }
+
+                    var emailOrUsernameExists = await userManager.Users
                         .AsNoTracking()
-                        .SingleOrDefaultAsync(ct)
+                        .AnyAsync(u => u.UserName == req.Username || u.Email == req.Email, ct)
                         .ConfigureAwait(false);
 
-                    if (employee is null)
-                        return AppResponses.Failure<AppUserResponse>("The specified employee does not exist or has been deactivated.");
+                    if (emailOrUsernameExists)
+                    {
+                        return AppResponses.Conflict<AppUserResponse>("An account with this username or email already exists.");
+                    }
 
-                    var alreadyLinked = await userManager.Users
-                        .AsNoTracking()
-                        .AnyAsync(u => u.EmployeeId == req.EmployeeId.Value, ct)
-                        .ConfigureAwait(false);
-
-                    if (alreadyLinked)
-                        return AppResponses.Conflict<AppUserResponse>("A user account already exists for this employee.");
-                }
-
-                if (req.MemberId is Guid memberId)
-                {
-                    var tenantId = tenantProvider.TenantId;
-                    if (!await membershipUnitOfWork.MemberRepository.AnyAsync(
-                        member => member.Id == memberId && member.TenantId == tenantId, ct).ConfigureAwait(false))
-                        return AppResponses.NotFound<AppUserResponse>("The specified member does not exist.");
-
-                    var alreadyLinked = await userManager.Users
-                        .AsNoTracking()
-                        .AnyAsync(u => u.MemberId == req.MemberId.Value, ct)
-                        .ConfigureAwait(false);
-
-                    if (alreadyLinked)
-                        return AppResponses.Conflict<AppUserResponse>("A user account already exists for this member.");
-                }
-
-                var emailOrUsernameExists = await userManager.Users
-                    .AsNoTracking()
-                    .AnyAsync(u => u.UserName == req.Username || u.Email == req.Email, ct)
-                    .ConfigureAwait(false);
-
-                if (emailOrUsernameExists)
-                    return AppResponses.Conflict<AppUserResponse>("An account with this username or email already exists.");
-
-                var appUser = employee is not null
-                    ? AppUser.CreateForEmployee(
-                        tenantProvider.TenantId,
-                        employee.Id,
-                        req.Username,
-                        employee.FirstName,
-                        employee.LastName,
-                        employee.Email,
-                        employee.PhoneNumber,
-                        req.IdNumber ?? employee.IdNumber,
-                        createdBy: actorProvider.ActorId)
-                    : req.MemberId.HasValue
-                        ? AppUser.CreateForMember(
+                    var appUser = employee is not null
+                        ? AppUser.CreateForEmployee(
                             tenantProvider.TenantId,
-                            req.MemberId.Value,
+                            employee.Id,
+                            req.Username,
+                            employee.FirstName,
+                            employee.LastName,
+                            employee.Email,
+                            employee.PhoneNumber,
+                            req.IdNumber ?? employee.IdNumber,
+                            createdBy: actorProvider.ActorId)
+                        : req.MemberId.HasValue
+                            ? AppUser.CreateForMember(
+                                tenantProvider.TenantId,
+                                req.MemberId.Value,
+                                req.Username,
+                                req.FirstName,
+                                req.LastName,
+                                req.Email,
+                                req.PhoneNumber ?? string.Empty,
+                                req.IdNumber ?? string.Empty,
+                                createdBy: actorProvider.ActorId)
+                            : AppUser.Create(
+                            tenantProvider.TenantId,
+                            employeeId: null,
                             req.Username,
                             req.FirstName,
                             req.LastName,
                             req.Email,
                             req.PhoneNumber ?? string.Empty,
-                            req.IdNumber ?? string.Empty,
-                            createdBy: actorProvider.ActorId)
-                        : AppUser.Create(
-                        tenantProvider.TenantId,
-                        employeeId: null,
-                        req.Username,
-                        req.FirstName,
-                        req.LastName,
-                        req.Email,
-                        req.PhoneNumber ?? string.Empty,
-                        createdBy: actorProvider.ActorId);
+                            createdBy: actorProvider.ActorId);
 
-                appUser.SetIdentityProfile(
-                    req.IdNumber ?? appUser.NationalId,
-                    Enum.TryParse<Gender>(req.Gender, true, out var g) ? g : Gender.Other);
+                    appUser.SetIdentityProfile(
+                        req.IdNumber ?? appUser.NationalId,
+                        Enum.TryParse<Gender>(req.Gender, true, out var g) ? g : Gender.Other);
 
-                var identityResult = await userManager
-                    .CreateAsync(appUser, req.Password)
-                    .ConfigureAwait(false);
+                    // The administrator chose this password, so the user must replace it on first sign-in
+                    // (enforced by PasswordChangeEnforcementMiddleware through the pwd_change_required claim).
+                    appUser.RequirePasswordChange = true;
 
-                if (!identityResult.Succeeded)
-                {
-                    var error = identityResult.Errors.First().Description;
-                    ServiceLogDefinitions.LogAppUserCreationWarning(logger, req.Email, error);
-                    return AppResponses.Failure<AppUserResponse>(error);
-                }
-
-                if (req.Roles?.Any() == true)
-                {
-                    var roleResult = await userManager
-                        .AddToRolesAsync(appUser, req.Roles)
+                    var identityResult = await userManager
+                        .CreateAsync(appUser, req.Password)
                         .ConfigureAwait(false);
 
-                    if (!roleResult.Succeeded)
-                        return AppResponses.Failure<AppUserResponse>(AppError.BusinessRule("The requested roles could not be assigned."));
-                }
+                    if (!identityResult.Succeeded)
+                    {
+                        var error = identityResult.Errors.First().Description;
+                        ServiceLogDefinitions.LogAppUserCreationWarning(logger, req.Email, error);
+                        return AppResponses.Failure<AppUserResponse>(error);
+                    }
 
-                var profile = AppUserProfile.Create(
-                    appUser.Id,
-                    appUser.PhoneNumber,
-                    appUser.PhoneNumber,
-                    appUser.Email,
-                    actorProvider.ActorId);
+                    if (req.Roles?.Any() == true)
+                    {
+                        var roleResult = await userManager
+                            .AddToRolesAsync(appUser, req.Roles)
+                            .ConfigureAwait(false);
 
-                await iamUnitOfWork.AppUserProfileRepository
-                    .CreateOrUpdateAsync(appUser.Id, profile, ct)
-                    .ConfigureAwait(false);
+                        if (!roleResult.Succeeded)
+                        {
+                            return AppResponses.Failure<AppUserResponse>(AppError.BusinessRule("The requested roles could not be assigned."));
+                        }
+                    }
 
-                appUser.RaiseAppUserCreatedEvent();
-                createdUser = appUser;
-                return AppResponses.Success("User created successfully.", appUser.ToAppUserResponse());
+                    var profile = AppUserProfile.Create(
+                        appUser.Id,
+                        appUser.PhoneNumber,
+                        appUser.PhoneNumber,
+                        appUser.Email,
+                        actorProvider.ActorId);
 
-            }, cancellationToken: ct, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+                    await iamUnitOfWork.AppUserProfileRepository
+                        .CreateOrUpdateAsync(appUser.Id, profile, ct)
+                        .ConfigureAwait(false);
+
+                    appUser.RaiseAppUserCreatedEvent();
+                    createdUser = appUser;
+                    return AppResponses.Success("User created successfully.", appUser.ToAppUserResponse());
+
+                },
+                cancellationToken: ct,
+                shouldCommit: response => response.IsSuccess)
+                .ConfigureAwait(false);
 
             if (result.IsSuccess)
             {

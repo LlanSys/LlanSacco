@@ -8,6 +8,7 @@ internal static class MiddlwareExtensions
     {
         return builder
             .UseMiddleware<SessionValidationMiddleware>()
+            .UseMiddleware<PasswordChangeEnforcementMiddleware>()
             .UseMiddleware<MfaEnrollmentMiddleware>();
     }
 }

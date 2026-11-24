@@ -30,12 +30,18 @@ internal sealed class GetCurrentUser(
         try
         {
             var userId = httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (string.IsNullOrWhiteSpace(userId))
+            {
                 return AppResponses.NotFound<CurrentUserResponse>("User not found.");
+            }
 
             var appUser = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
+
             if (appUser == null)
+            {
                 return AppResponses.NotFound<CurrentUserResponse>("User not found.");
+            }
 
             var roles = await userManager.GetRolesAsync(appUser).ConfigureAwait(false);
             var rolesList = roles.ToList();
@@ -47,6 +53,7 @@ internal sealed class GetCurrentUser(
             var lastLoginClaim = httpContextAccessor.HttpContext?.User?.FindFirst("LastLogin");
 
             DateTimeOffset? lastLoginAt = null;
+
             if (lastLoginClaim?.Value != null && DateTimeOffset.TryParse(lastLoginClaim.Value, out var lastLogin))
             {
                 lastLoginAt = lastLogin;
@@ -64,26 +71,29 @@ internal sealed class GetCurrentUser(
             var sessionId = httpContextAccessor.HttpContext?.User.FindFirstValue("session_id");
             var mfaEnrollmentRequired = IsMfaEnrollmentRequired(twoFactorEnabled, rolesList);
 
-            return AppResponses.Success("CurrentUser", new CurrentUserResponse(
-                userId,
-                appUser.EmployeeId ?? Guid.Empty,
-                appUser.MemberId ?? Guid.Empty,
-                appUser.NationalId ?? string.Empty,
-                appUser.UserName ?? string.Empty,
-                appUser.Email ?? string.Empty,
-                appUser.FirstName ?? string.Empty,
-                appUser.LastName ?? string.Empty,
-                appUser.PhoneNumber ?? string.Empty,
-                emailConfirmed,
-                twoFactorEnabled,
-                appUser.Gender.ToDisplayString(),
-                isAuthenticated,
-                lastLoginAt,
-                rolesList,
-                permissions,
-                sessionId,
-                mfaEnrollmentRequired,
-                ProfilePictureUrlMapping.ToCurrentUserRoute(appUser.ProfilePictureUrl)));
+            return AppResponses.Success(
+                "CurrentUser",
+                new CurrentUserResponse(
+                    userId,
+                    appUser.EmployeeId ?? Guid.Empty,
+                    appUser.MemberId ?? Guid.Empty,
+                    appUser.NationalId ?? string.Empty,
+                    appUser.UserName ?? string.Empty,
+                    appUser.Email ?? string.Empty,
+                    appUser.FirstName ?? string.Empty,
+                    appUser.LastName ?? string.Empty,
+                    appUser.PhoneNumber ?? string.Empty,
+                    emailConfirmed,
+                    twoFactorEnabled,
+                    appUser.Gender.ToDisplayString(),
+                    isAuthenticated,
+                    lastLoginAt,
+                    rolesList,
+                    permissions,
+                    sessionId,
+                    mfaEnrollmentRequired,
+                    ProfilePictureUrlMapping.ToCurrentUserRoute(appUser.ProfilePictureUrl),
+                    appUser.RequirePasswordChange));
         }
         catch (Exception ex)
         {

@@ -127,7 +127,7 @@ Member portal access and recovery tie-out (follow-up change):
 
 Findings recorded for follow-up (not fixed here):
 
-- **Security:** activation emails carry one shared temporary password from `IamProvisioning:TemporaryPassword` for every activated account (employees and members), and `RequirePasswordChange` is set but not enforced — the member reached the dashboard without changing it. Replace with per-user one-time set-password links (StarterTemplate uses invitation links) and enforce the change in the API and UI.
+- **Security:** activation emails carry one shared temporary password from `IamProvisioning:TemporaryPassword` for every activated account (employees and members), and `RequirePasswordChange` is set but not enforced — the member reached the dashboard without changing it. Replace with per-user one-time set-password links (StarterTemplate uses invitation links) and enforce the change in the API and UI. *Resolved:* activation now emails a one-time set-password link (no password) and the API (`PASSWORD_CHANGE_REQUIRED`) and UI enforce the change.
 - **No default workflow:** nothing moves a loan to `Defaulted` (the arrears scan is a stub and disbursed loans never become `Active`), so guarantor recovery cannot start in production. Needs a default declaration per the reference policy (90 days past due, guarantor notice, maker-checker).
 - **No resolution path for unexplained locks:** once Finance investigates an unexplained lock there is no workflow to correct it, so the account stays blocked for new guarantees and recovery indefinitely.
 - GL mapping changes take effect for any holder of `gl-mappings.manage` without a second approver; the account pickers also need `transactions.view`; there is no menu entry (menus are seeded).

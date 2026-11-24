@@ -62,6 +62,7 @@ When a Key Vault belongs to an isolated stamp, keep secret names simple and alig
 | Entra ID SSO | Corporate OIDC auth scheme | `EntraId:Enabled`, `EntraId:TenantId`, `EntraId:ClientId`, `EntraId:ClientSecret` | OIDC scheme configurable; local AppUser linking and token issuance flow remains the dedicated IAM slice |
 | Passkeys/WebAuthn | Browser passkey authentication | TBD | Pending dedicated IAM slice |
 | Password recovery | Email OTP or email reset link | `PasswordRecovery:Mode`, `PasswordRecovery:ResetPath`, `EmailSettings:ClientBaseUrl` | Implemented; exactly one mode is active per deployment |
+| Account activation | One-time set-password link, forced password change | `IamProvisioning:ActivationLinkLifetimeHours`, `IamProvisioning:SignInUrl`, `EmailSettings:ClientBaseUrl`, `PasswordRecovery:ResetPath` | Implemented |
 
 ## Recommended Local Setup
 
@@ -70,8 +71,15 @@ Use user-secrets for local development:
 ```powershell
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<local-sql-connection>" --project src\Backend\Api\LS.Api\LS.Api.csproj
 dotnet user-secrets set "JwtSettings:Secret" "<strong-local-jwt-secret>" --project src\Backend\Api\LS.Api\LS.Api.csproj
-dotnet user-secrets set "IamProvisioning:TemporaryPassword" "<temporary-password>" --project src\Backend\Api\LS.Api\LS.Api.csproj
 ```
+
+Staff-initiated account activation (employee **Grant System Access**, member **Grant Portal Access**) never sends a password.
+The account gets an unknown random password and the user receives a one-time set-password link built from
+`EmailSettings:ClientBaseUrl` + `PasswordRecovery:ResetPath` (set `ClientBaseUrl` to the Blazor origin in every environment;
+activation is refused while it is missing). The link lifetime is `IamProvisioning:ActivationLinkLifetimeHours` (default 72, 1–168);
+`IamProvisioning:SignInUrl` is the sign-in page named in the email. Until the password is changed, the API answers
+`403 PASSWORD_CHANGE_REQUIRED` (claim `pwd_change_required`) for everything except sign-in/out, token refresh, `me`,
+password change/reset and authenticator setup.
 
 Password recovery is selected once per deployment. Use `EmailOtp` to send and verify a six-digit code before accepting a new password, or `EmailLink` to send an ASP.NET Identity reset-token link. Do not expose both flows simultaneously.
 

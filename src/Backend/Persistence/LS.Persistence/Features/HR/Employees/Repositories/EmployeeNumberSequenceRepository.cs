@@ -1,10 +1,9 @@
+using LS.Persistence.Common;
 using LS.Persistence.Common.Repositories;
 using LS.Domain.Features.HR.Employees.Contracts.Repositories;
 using LS.Domain.Features.HR.Employees.Entities;
 using LS.Persistence.Features.HR.DataContext;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 
 namespace LS.Persistence.Features.HR.Employees.Repositories;
 
@@ -35,29 +34,9 @@ internal sealed class EmployeeNumberSequenceRepository(HrDBContext context) : Re
         return sequence.Increment();
     }
 
-    private async Task AcquireSequenceLockAsync(Guid departmentId, int year, CancellationToken cancellationToken)
-    {
-        var result = new SqlParameter("@result", SqlDbType.Int)
-        {
-            Direction = ParameterDirection.Output
-        };
-
-        var resource = new SqlParameter("@resource", SqlDbType.NVarChar, 255)
-        {
-            Value = $"hr-employee-number:{context.CurrentTenantId:N}:{departmentId:N}:{year}"
-        };
-
-        await context.Database.ExecuteSqlRawAsync(
-                "EXEC @result = sp_getapplock @Resource = @resource, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000;",
-                [result, resource],
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        if (result.Value is int lockResult && lockResult >= 0)
-        {
-            return;
-        }
-
-        throw new TimeoutException("Could not acquire the employee number sequence lock. Please retry the operation.");
-    }
+    private Task AcquireSequenceLockAsync(Guid departmentId, int year, CancellationToken cancellationToken)
+        => TransactionLock.AcquireAsync(
+            context,
+            $"hr-employee-number:{context.CurrentTenantId:N}:{departmentId:N}:{year}",
+            cancellationToken);
 }

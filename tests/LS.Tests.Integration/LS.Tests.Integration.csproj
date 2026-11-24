@@ -31,7 +31,6 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.Seq" />
     <PackageReference Include="SSH.NET" />
-    <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">

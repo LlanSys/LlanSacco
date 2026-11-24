@@ -21,9 +21,9 @@ This document records the intended CI/CD architecture. The executable source of 
    - Build one `efbundle` per bounded-context DbContext.
 2. **Run database migrations**
    - Authenticate through `azure/login@v2` using the `production` GitHub environment.
-   - Add a temporary firewall rule for the GitHub-hosted runner.
+   - Add a temporary PostgreSQL Flexible Server firewall rule for the GitHub-hosted runner.
    - Execute each context bundle against its dedicated migrations history table.
-   - Retry while an Azure SQL serverless database resumes.
+   - Retry while the PostgreSQL Flexible Server database is starting or unavailable.
    - Remove the temporary firewall rule even after failure.
 3. **Deploy API and UI to the selected target**
   - Authenticate each deployment job independently through OIDC.
@@ -33,9 +33,9 @@ This document records the intended CI/CD architecture. The executable source of 
 
 - GitHub deployment identity and App Service runtime managed identity are separate principals.
 - The GitHub federated credential is scoped to the `production` GitHub environment.
-- SQL migration networking is explicit: `PublicRunner` for temporary `/32` firewall access or `PrivateRunner` for a VNet-connected self-hosted runner.
+- PostgreSQL migration networking is explicit: `PublicRunner` for temporary `/32` firewall access or `PrivateRunner` for a VNet-connected self-hosted runner.
 - Azure resource names and identity IDs are GitHub environment variables.
-- The passwordless Azure SQL connection string is a GitHub environment secret.
+- The PostgreSQL connection string (`AZURE_POSTGRES_CONNECTION_STRING`) is a GitHub environment secret.
 - Deployment approvals can be enforced with required reviewers on the GitHub environment.
 - A private-endpoint-only production environment should use a self-hosted runner inside the Azure virtual network rather than opening public network access.
 

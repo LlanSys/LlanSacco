@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LS.Persistence.Common;
 
+/// <summary>
+/// Serializes short critical sections with a transaction-scoped PostgreSQL advisory lock. The lock is
+/// released when the owning transaction commits or rolls back.
+/// </summary>
 internal static class TransactionLock
 {
     internal static async Task AcquireAsync(DbContext context, string resource, CancellationToken ct)
@@ -14,19 +18,12 @@ internal static class TransactionLock
             throw new InvalidOperationException("A transaction lock requires an owning database transaction.");
         }
 
-        if (context.Database.IsSqlServer())
-        {
-            await context.Database.ExecuteSqlInterpolatedAsync($"DECLARE @result int; EXEC @result = sp_getapplock @Resource={resource}, @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000; IF @result < 0 THROW 51000, 'Transaction lock unavailable.', 1;", ct).ConfigureAwait(false);
-        }
-        else if (context.Database.IsNpgsql())
-        {
-            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(resource));
-            var key = BinaryPrimitives.ReadInt64LittleEndian(hash);
-            await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({key});", ct).ConfigureAwait(false);
-        }
-        else
-        {
-            throw new NotSupportedException("Transaction locks require PostgreSQL or SQL Server.");
-        }
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(resource));
+        var key = BinaryPrimitives.ReadInt64LittleEndian(hash);
+
+        // Fail after 10 seconds instead of blocking indefinitely. SET LOCAL scopes the timeout to this
+        // transaction, so pooled connections are unaffected.
+        await context.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '10s';", ct).ConfigureAwait(false);
+        await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({key});", ct).ConfigureAwait(false);
     }
 }

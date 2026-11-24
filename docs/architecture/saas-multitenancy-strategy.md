@@ -17,7 +17,7 @@ This gives us a low-cost pooled path for early tenants and an isolated premium/c
 
 | Tier | Compute | Database | Key Vault | Storage | Cache and messaging | Use case |
 | --- | --- | --- | --- | --- | --- | --- |
-| Local development | Visual Studio app hosts plus Docker infrastructure | Local SQL Server | User-secrets and local key ring | Local filesystem or Azurite | Redis, RabbitMQ, Mailpit, Azurite containers | Development and demos |
+| Local development | Visual Studio app hosts plus Docker infrastructure | PostgreSQL 17 container | User-secrets and local key ring | Local filesystem or Azurite | Redis, RabbitMQ, Mailpit, Azurite containers | Development and demos |
 | Pooled production stamp | Shared container app or app service for a tenant pool | Shared database with tenant filters | Stamp Key Vault | Stamp storage account | Stamp Redis and Service Bus/RabbitMQ | Low-cost tenants with acceptable logical isolation |
 | Isolated tenant stamp | Tenant-specific container app or app service | Tenant database or isolated elastic-pool database | Tenant or stamp Key Vault | Tenant or stamp storage account | Tenant or stamp cache and broker | Regulated, premium, noisy-neighbor-sensitive, or custom clients |
 
@@ -69,7 +69,7 @@ Core modules should cover:
 - API and UI container apps or web apps.
 - Managed identities and role assignments.
 - Key Vault.
-- SQL Server/Azure SQL, with conditional support for other database providers only when the code and migrations are certified for them.
+- PostgreSQL (Azure Database for PostgreSQL Flexible Server in Azure); it is the only supported database provider. Tenants/stamps keep a `DatabaseProvider` field, but `PostgreSql` is its only supported value.
 - Storage account and private containers.
 - Redis.
 - Service Bus or selected broker.
@@ -228,7 +228,7 @@ Tenant Activated  ──►          POST /api/v1/control-plane/tenants/{id}/act
 #### Design Guidance
 
 - **KYC Gate is Mandatory.** Even for internal/test tenants. There is no fast-path that skips `PendingKYC`.
-- **Extensible Readiness Checks.** The `Tenant` entity should expose a `ReadinessChecks` value object (e.g., `KycVerified`, `PaymentVerified`, `ContractSigned`) so that new requirements can be added without schema migrations. Use `JSONB` (PostgreSQL) or a separate `TenantReadinessChecks` table (SQL Server) to store these flags.
+- **Extensible Readiness Checks.** The `Tenant` entity should expose a `ReadinessChecks` value object (e.g., `KycVerified`, `PaymentVerified`, `ContractSigned`) so that new requirements can be added without schema migrations. Use `JSONB` (PostgreSQL) to store these flags.
 - **Payment is Optional per Plan.** Not all tenants will require Stripe (e.g., internal enterprise contracts with invoicing). Payment verification should be a configurable check that can be bypassed by Platform Operators for specific plans.
 - **Do not provision resources on webhook receipt alone.** Stripe webhooks can be replayed or forged. Provision only after an operator confirms in the Control Panel.
 - **Onboarding endpoints are public (no auth required before registration).** They must be rate-limited, CAPTCHA-protected, and behind a WAF rule. Do not use the same controller or route prefix as tenant-scoped API endpoints.
@@ -255,4 +255,4 @@ When using PostgreSQL as the primary database provider, the `jsonb` column type 
 Do **not** use `jsonb` as a substitute for well-modelled relational data. Use it only for genuinely variable-shape payloads where a strict schema adds more cost than value. EF Core supports `jsonb` via `.HasColumnType("jsonb")` on `string` or `JsonElement` properties.
 
 > [!NOTE]
-> `jsonb` is a PostgreSQL-specific feature. If a column uses `jsonb`, the entity configuration must use `#if` guards or separate `IEntityTypeConfiguration<T>` implementations for SQL Server (use `nvarchar(max)` + `HasConversion<string>`) to maintain dual-provider support.
+> `jsonb` is a PostgreSQL-specific feature. PostgreSQL is the only supported provider, so no provider-specific guards or alternative configurations are needed.

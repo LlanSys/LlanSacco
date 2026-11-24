@@ -11,25 +11,16 @@ public class PostgreSqlDbFixture : DbFixture
     public PostgreSqlDbFixture()
     {
         _dbContainer = new PostgreSqlBuilder()
-            .WithImage("postgres:15-alpine")
+            .WithImage("postgres:17-alpine")
             .WithDatabase("test_db")
             .WithUsername("postgres")
             .WithPassword("postgres")
             .Build();
     }
 
-    public override string GetConnectionString()
-    {
-        return _dbContainer.GetConnectionString();
-    }
+    public override string GetConnectionString() => _dbContainer.GetConnectionString();
 
-    public override async Task InitializeAsync()
-    {
-        await _dbContainer.StartAsync();
-    }
+    public override async Task InitializeAsync() => await _dbContainer.StartAsync();
 
-    public override async Task DisposeAsync()
-    {
-        await _dbContainer.StopAsync();
-    }
+    public override async Task DisposeAsync() => await _dbContainer.StopAsync();
 }

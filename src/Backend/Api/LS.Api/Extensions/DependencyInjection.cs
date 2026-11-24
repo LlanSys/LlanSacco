@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Identity;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -410,15 +409,15 @@ internal static partial class DependencyInjection
                     : context.Connection.RemoteIpAddress?.ToString() ?? "Global";
 
                 return RateLimitPartition.GetFixedWindowLimiter(
-                partitionKey,
-                _ =>
-                    new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = policy.PermitLimit,
-                        Window = TimeSpan.FromSeconds(policy.WindowSeconds),
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                        QueueLimit = policy.QueueLimit
-                    });
+                    partitionKey,
+                    _ =>
+                        new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = policy.PermitLimit,
+                            Window = TimeSpan.FromSeconds(policy.WindowSeconds),
+                            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                            QueueLimit = policy.QueueLimit
+                        });
             });
     }
 
@@ -451,17 +450,6 @@ internal static partial class DependencyInjection
             return services;
         }
 
-        var databaseProvider = configuration.GetSection(LS.Persistence.Common.Configuration.DatabaseSettings.SectionName)
-            .Get<LS.Persistence.Common.Configuration.DatabaseSettings>()?
-            .Provider ?? "SqlServer";
-
-        var usePostgres = databaseProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase);
-
-        if (!usePostgres && !databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Unsupported database provider for transactional messaging.");
-        }
-
         services.AddScoped<
             IContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork>,
             LS.Infrastructure.Contracts.Implementations.Common.ContextEventPublisher<LS.Domain.Features.Banking.Contracts.IBankingUnitOfWork, LS.Persistence.Features.Banking.DataContext.BankingDBContext>>();
@@ -487,14 +475,8 @@ internal static partial class DependencyInjection
             // EF Outbox
             x.AddEntityFrameworkOutbox<SharedDBContext>(o =>
             {
-                if (usePostgres)
-                {
-                    o.UsePostgres(false);
-                }
-                else
-                {
-                    o.UseSqlServer(false);
-                }
+                o.UsePostgres(false);
+
 
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
@@ -504,14 +486,8 @@ internal static partial class DependencyInjection
 
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.Banking.DataContext.BankingDBContext>(o =>
             {
-                if (usePostgres)
-                {
-                    o.UsePostgres(false);
-                }
-                else
-                {
-                    o.UseSqlServer(false);
-                }
+                o.UsePostgres(false);
+
 
                 o.UseBusOutbox();
                 o.DuplicateDetectionWindow = TimeSpan.FromHours(24);
@@ -521,28 +497,16 @@ internal static partial class DependencyInjection
 
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.CheckOff.DataContext.CheckOffDBContext>(o =>
             {
-                if (usePostgres)
-                {
-                    o.UsePostgres(false);
-                }
-                else
-                {
-                    o.UseSqlServer(false);
-                }
+                o.UsePostgres(false);
+
 
                 o.UseBusOutbox();
             });
 
             x.AddEntityFrameworkOutbox<LS.Persistence.Features.Loans.DataContext.LoansDBContext>(o =>
             {
-                if (usePostgres)
-                {
-                    o.UsePostgres(false);
-                }
-                else
-                {
-                    o.UseSqlServer(false);
-                }
+                o.UsePostgres(false);
+
 
                 o.UseBusOutbox();
             });
@@ -585,7 +549,7 @@ internal static partial class DependencyInjection
                             r.Handle<EmailServiceException>();
                             r.Handle<TimeoutException>();
                             r.Handle<HttpRequestException>();
-                            r.Handle<SqlException>();
+                            r.Handle<Npgsql.NpgsqlException>();
 
                             r.Ignore<ArgumentException>();
                             r.Ignore<InvalidEmailAddressException>();
@@ -625,7 +589,7 @@ internal static partial class DependencyInjection
                             r.Handle<EmailServiceException>();
                             r.Handle<TimeoutException>();
                             r.Handle<HttpRequestException>();
-                            r.Handle<SqlException>();
+                            r.Handle<Npgsql.NpgsqlException>();
                             r.Handle<RabbitMqConnectionException>();
 
                             r.Ignore<ArgumentException>();

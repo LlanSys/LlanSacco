@@ -44,6 +44,7 @@ public class ApproveTenantKYCCommandHandler(
         }
 
         var stamp = await _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(s => s.Id == tenant.DeploymentStampId, cancellationToken).ConfigureAwait(false);
+
         if (stamp == null)
         {
             return AppResponses.Failure<TenantResponse>("Deployment stamp for this tenant could not be found.");
@@ -54,16 +55,16 @@ public class ApproveTenantKYCCommandHandler(
         if (stamp.IsolationTier == IsolationTier.Isolated)
         {
             tenant.MarkAsProvisioning();
-            
+
             try
             {
                 await _stampProvisioner.ProvisionIsolatedStampAsync(
                     tenant.Id.ToString(),
                     stamp.Name,
                     stamp.TargetResourceGroup,
-                    tenant.DatabaseProvider ?? stamp.DatabaseProvider ?? "PostgreSql",
-                    cancellationToken).ConfigureAwait(false);
-                
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
                 ControlPlaneLogDefinitions.LogStampProvisioningDispatched(_logger, tenant.Id, stamp.Name);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

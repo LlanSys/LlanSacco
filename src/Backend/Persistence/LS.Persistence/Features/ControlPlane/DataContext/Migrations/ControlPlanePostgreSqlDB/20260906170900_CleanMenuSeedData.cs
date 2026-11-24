@@ -28,7 +28,7 @@ namespace LS.Persistence.Features.ControlPlane.DataContext.Migrations.ControlPla
                     CreatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false)
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -52,7 +52,7 @@ namespace LS.Persistence.Features.ControlPlane.DataContext.Migrations.ControlPla
                     CreatedBy = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false)
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -78,7 +78,7 @@ namespace LS.Persistence.Features.ControlPlane.DataContext.Migrations.ControlPla
                     CreatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false)
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {
@@ -104,7 +104,7 @@ namespace LS.Persistence.Features.ControlPlane.DataContext.Migrations.ControlPla
                     CreatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     UpdatedBy = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false)
+                    RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: false, defaultValue: Array.Empty<byte>())
                 },
                 constraints: table =>
                 {

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "1618285683006371517"
+      "templateHash": "257504070047941274"
     }
   },
   "parameters": {
@@ -53,22 +53,25 @@
         "description": "Creates or explicitly repairs the public Container App bootstrap revisions. Keep false for infrastructure-only reruns after application images have been deployed."
       }
     },
-    "databaseProvider": {
-      "type": "string",
-      "defaultValue": "SqlServer",
-      "allowedValues": [
-        "SqlServer",
-        "PostgreSql"
-      ],
-      "metadata": {
-        "description": "The database provider to provision and configure."
-      }
-    },
     "azureCacheConnectionString": {
       "type": "securestring",
       "defaultValue": "",
       "metadata": {
         "description": "Optional Azure Cache for Redis connection string. When empty, cache falls back to the configured non-Azure provider."
+      }
+    },
+    "otlpEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The Grafana Cloud OTLP endpoint."
+      }
+    },
+    "otlpHeaders": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The Grafana Cloud OTLP headers (e.g. Authorization=Basic ...)"
       }
     }
   },
@@ -89,147 +92,6 @@
   },
   "resources": [
     {
-      "condition": "[equals(parameters('databaseProvider'), 'SqlServer')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "sqlDeploy",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "serverName": {
-            "value": "[variables('sqlServerName')]"
-          },
-          "databaseName": {
-            "value": "BT"
-          },
-          "administratorLogin": {
-            "value": "[parameters('sqlAdministratorLogin')]"
-          },
-          "administratorLoginPassword": {
-            "value": "[parameters('sqlAdministratorLoginPassword')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "allowAzureIps": {
-            "value": true
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.45.15.27210",
-              "templateHash": "1245835781905864213"
-            }
-          },
-          "parameters": {
-            "serverName": {
-              "type": "string",
-              "metadata": {
-                "description": "The name of the SQL logical server."
-              }
-            },
-            "databaseName": {
-              "type": "string",
-              "defaultValue": "BT",
-              "metadata": {
-                "description": "The name of the SQL Database."
-              }
-            },
-            "administratorLogin": {
-              "type": "string",
-              "metadata": {
-                "description": "The administrator login username for the SQL server."
-              }
-            },
-            "administratorLoginPassword": {
-              "type": "securestring",
-              "metadata": {
-                "description": "The administrator login password for the SQL server."
-              }
-            },
-            "location": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]",
-              "metadata": {
-                "description": "Location for all resources."
-              }
-            },
-            "allowAzureIps": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Allow Azure services and resources to access this server"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Sql/servers",
-              "apiVersion": "2022-05-01-preview",
-              "name": "[parameters('serverName')]",
-              "location": "[parameters('location')]",
-              "properties": {
-                "administratorLogin": "[parameters('administratorLogin')]",
-                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
-                "version": "12.0",
-                "publicNetworkAccess": "Enabled"
-              }
-            },
-            {
-              "type": "Microsoft.Sql/servers/databases",
-              "apiVersion": "2022-05-01-preview",
-              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
-              "location": "[parameters('location')]",
-              "sku": {
-                "name": "Basic",
-                "tier": "Basic",
-                "capacity": 5
-              },
-              "properties": {
-                "collation": "SQL_Latin1_General_CP1_CI_AS",
-                "maxSizeBytes": 2147483648,
-                "zoneRedundant": false
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
-              ]
-            },
-            {
-              "condition": "[parameters('allowAzureIps')]",
-              "type": "Microsoft.Sql/servers/firewallRules",
-              "apiVersion": "2022-05-01-preview",
-              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAllWindowsAzureIps')]",
-              "properties": {
-                "startIpAddress": "0.0.0.0",
-                "endIpAddress": "0.0.0.0"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Sql/servers', parameters('serverName'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "serverFullyQualifiedDomainName": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.Sql/servers', parameters('serverName')), '2022-05-01-preview').fullyQualifiedDomainName]"
-            },
-            "databaseName": {
-              "type": "string",
-              "value": "[parameters('databaseName')]"
-            }
-          }
-        }
-      }
-    },
-    {
-      "condition": "[equals(parameters('databaseProvider'), 'PostgreSql')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "postgresDeploy",
@@ -468,9 +330,6 @@
           "location": {
             "value": "[parameters('location')]"
           },
-          "databaseProvider": {
-            "value": "[parameters('databaseProvider')]"
-          },
           "keyVaultUri": {
             "value": "[variables('keyVaultUri')]"
           },
@@ -482,6 +341,12 @@
           },
           "manageContainerApps": {
             "value": "[parameters('manageContainerApps')]"
+          },
+          "otlpEndpoint": {
+            "value": "[parameters('otlpEndpoint')]"
+          },
+          "otlpHeaders": {
+            "value": "[parameters('otlpHeaders')]"
           }
         },
         "template": {
@@ -491,7 +356,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.45.15.27210",
-              "templateHash": "9013156339466093895"
+              "templateHash": "15407984958775709533"
             }
           },
           "parameters": {
@@ -532,12 +397,6 @@
                 "description": "Location for all resources."
               }
             },
-            "databaseProvider": {
-              "type": "string",
-              "metadata": {
-                "description": "The database provider to configure for the API."
-              }
-            },
             "keyVaultUri": {
               "type": "string",
               "defaultValue": "",
@@ -564,6 +423,20 @@
               "defaultValue": true,
               "metadata": {
                 "description": "Creates or repairs the public bootstrap Container Apps. Set to false after the first successful deployment so infrastructure-only runs do not replace deployed application revisions."
+              }
+            },
+            "otlpEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The Grafana Cloud OTLP endpoint."
+              }
+            },
+            "otlpHeaders": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The Grafana Cloud OTLP headers."
               }
             }
           },
@@ -608,10 +481,6 @@
                       "image": "mcr.microsoft.com/dotnet/samples:aspnetapp",
                       "env": [
                         {
-                          "name": "DatabaseSettings__Provider",
-                          "value": "[parameters('databaseProvider')]"
-                        },
-                        {
                           "name": "KeyVault__Uri",
                           "value": "[parameters('keyVaultUri')]"
                         },
@@ -646,6 +515,14 @@
                         {
                           "name": "Messaging__Transport",
                           "value": "AzureServiceBus"
+                        },
+                        {
+                          "name": "Observability__Otlp__Endpoint",
+                          "value": "[parameters('otlpEndpoint')]"
+                        },
+                        {
+                          "name": "Observability__Otlp__Headers",
+                          "value": "[parameters('otlpHeaders')]"
                         }
                       ],
                       "resources": {
@@ -760,9 +637,6 @@
           "location": {
             "value": "[parameters('location')]"
           },
-          "databaseProvider": {
-            "value": "[parameters('databaseProvider')]"
-          },
           "keyVaultUri": {
             "value": "[variables('keyVaultUri')]"
           },
@@ -771,6 +645,12 @@
           },
           "dataProtectionKeyIdentifier": {
             "value": "[format('{0}keys/dataprotection', variables('keyVaultUri'))]"
+          },
+          "otlpEndpoint": {
+            "value": "[parameters('otlpEndpoint')]"
+          },
+          "otlpHeaders": {
+            "value": "[parameters('otlpHeaders')]"
           }
         },
         "template": {
@@ -780,7 +660,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.45.15.27210",
-              "templateHash": "11195716529652507892"
+              "templateHash": "6998676932523410367"
             }
           },
           "parameters": {
@@ -809,12 +689,6 @@
                 "description": "Location for all resources."
               }
             },
-            "databaseProvider": {
-              "type": "string",
-              "metadata": {
-                "description": "The database provider to configure for the API."
-              }
-            },
             "keyVaultUri": {
               "type": "string",
               "defaultValue": "",
@@ -834,6 +708,20 @@
               "defaultValue": "",
               "metadata": {
                 "description": "The versionless Key Vault key identifier used to encrypt Data Protection keys."
+              }
+            },
+            "otlpEndpoint": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The Grafana Cloud OTLP endpoint."
+              }
+            },
+            "otlpHeaders": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The Grafana Cloud OTLP headers."
               }
             }
           },
@@ -867,10 +755,6 @@
                   "linuxFxVersion": "DOTNETCORE|10.0",
                   "alwaysOn": true,
                   "appSettings": [
-                    {
-                      "name": "DatabaseSettings__Provider",
-                      "value": "[parameters('databaseProvider')]"
-                    },
                     {
                       "name": "KeyVault__Uri",
                       "value": "[parameters('keyVaultUri')]"
@@ -906,6 +790,14 @@
                     {
                       "name": "Messaging__Transport",
                       "value": "AzureServiceBus"
+                    },
+                    {
+                      "name": "Observability__Otlp__Endpoint",
+                      "value": "[parameters('otlpEndpoint')]"
+                    },
+                    {
+                      "name": "Observability__Otlp__Headers",
+                      "value": "[parameters('otlpHeaders')]"
                     }
                   ]
                 }
@@ -1313,7 +1205,9 @@
             "value": "[parameters('location')]"
           },
           "apiPrincipalId": "[if(equals(parameters('deploymentTarget'), 'container-apps'), createObject('value', coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'acaDeploy'), '2025-04-01').outputs, 'apiPrincipalId'), 'value'), '')), createObject('value', coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'appServiceDeploy'), '2025-04-01').outputs, 'apiPrincipalId'), 'value'), '')))]",
-          "databaseConnectionString": "[if(equals(parameters('databaseProvider'), 'SqlServer'), createObject('value', format('Server=tcp:{0},1433;Initial Catalog={1};Persist Security Info=False;User ID={2};Password={3};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;', coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'sqlDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), ''), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'sqlDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), ''), parameters('sqlAdministratorLogin'), parameters('sqlAdministratorLoginPassword'))), createObject('value', format('Host={0};Port=5432;Database={1};Username={2};Password={3};Ssl Mode=Require;Trust Server Certificate=false;', coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), ''), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), ''), parameters('sqlAdministratorLogin'), parameters('sqlAdministratorLoginPassword'))))]",
+          "databaseConnectionString": {
+            "value": "[format('Host={0};Port=5432;Database={1};Username={2};Password={3};Ssl Mode=Require;Trust Server Certificate=false;', coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), ''), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), ''), parameters('sqlAdministratorLogin'), parameters('sqlAdministratorLoginPassword'))]"
+          },
           "serviceBusNamespaceName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'serviceBusDeploy'), '2025-04-01').outputs.serviceBusNamespaceName.value]"
           },
@@ -1556,8 +1450,7 @@
         "[resourceId('Microsoft.Resources/deployments', 'acaDeploy')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresDeploy')]",
         "[resourceId('Microsoft.Resources/deployments', 'redisDeploy')]",
-        "[resourceId('Microsoft.Resources/deployments', 'serviceBusDeploy')]",
-        "[resourceId('Microsoft.Resources/deployments', 'sqlDeploy')]"
+        "[resourceId('Microsoft.Resources/deployments', 'serviceBusDeploy')]"
       ]
     },
     {
@@ -1691,11 +1584,11 @@
   "outputs": {
     "sqlServerFqdn": {
       "type": "string",
-      "value": "[if(equals(parameters('databaseProvider'), 'SqlServer'), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'sqlDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), ''), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), ''))]"
+      "value": "[coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), '')]"
     },
     "sqlDatabaseName": {
       "type": "string",
-      "value": "[if(equals(parameters('databaseProvider'), 'SqlServer'), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'sqlDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), ''), coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), ''))]"
+      "value": "[coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'databaseName'), 'value'), '')]"
     },
     "apiHost": {
       "type": "string",

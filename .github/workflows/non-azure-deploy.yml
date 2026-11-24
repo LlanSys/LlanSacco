@@ -117,15 +117,8 @@ jobs:
 
       - name: Build EF Core Migration Bundles
         run: |
-          PROVIDER="PostgreSql"
-          if [ "${{ vars.DATABASE_PROVIDER }}" == "SqlServer" ]; then
-            PROVIDER="SqlServer"
-          fi
-          echo "Building migration bundles for provider: $PROVIDER"
-
-          ./scripts/migration-bundles.sh build "$PROVIDER" ./publish-migrations
+          ./scripts/migration-bundles.sh build ./publish-migrations
         env:
-          DatabaseSettings__Provider: "PostgreSql"
           ConnectionStrings__DefaultConnection: "Host=localhost;Database=postgres;Username=postgres;Password=password"
 
       - name: Upload Migration Artifacts
@@ -162,7 +155,6 @@ jobs:
           bash ./db-migrations/migration-bundles.sh run ./db-migrations "$POSTGRES_CONNECTION_STRING"
         env:
           POSTGRES_CONNECTION_STRING: ${{ secrets.POSTGRES_CONNECTION_STRING }}
-          DatabaseSettings__Provider: "PostgreSql"
           ConnectionStrings__IamConnection: ${{ secrets.POSTGRES_CONNECTION_STRING }}
           ConnectionStrings__HrConnection: ${{ secrets.POSTGRES_CONNECTION_STRING }}
           ConnectionStrings__SharedConnection: ${{ secrets.POSTGRES_CONNECTION_STRING }}

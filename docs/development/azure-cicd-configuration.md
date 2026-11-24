@@ -6,8 +6,8 @@ This guide configures the LlanSacco GitHub Actions deployment pipeline to use Mi
 
 LlanSacco deliberately uses two identities:
 
-- **GitHub deployment identity:** runs EF migration bundles, manages the temporary Azure SQL firewall rule, and deploys the API/UI packages.
-- **App Service managed identity:** is used by the deployed application at runtime for Key Vault, Blob Storage, Redis, SQL, and other Azure services.
+- **GitHub deployment identity:** runs EF migration bundles, manages the temporary Azure Database for PostgreSQL Flexible Server firewall rule, and deploys the API/UI packages.
+- **App Service managed identity:** is used by the deployed application at runtime for Key Vault, Blob Storage, Redis, PostgreSQL, and other Azure services.
 
 Do not assume the App Service managed identity is available on a GitHub-hosted runner. It is scoped to the App Service resource.
 
@@ -33,25 +33,16 @@ The environment name must match `environment: production` in `.github/workflows/
 Assign the deployment identity only the roles needed by the workflow:
 
 - On each target App Service: `Website Contributor`.
-- On the Azure SQL logical server: `SQL Server Contributor` so the workflow can create and remove its temporary firewall rule.
+- On the Azure Database for PostgreSQL Flexible Server: a role that allows managing its firewall rules (for example `Contributor` scoped to the flexible server, or a custom role with the `Microsoft.DBforPostgreSQL/flexibleServers/firewallRules/*` actions) so the workflow can create and remove its temporary firewall rule.
 - If package deployment needs access to other deployment resources, grant the narrowest resource-scoped role that satisfies it.
 
 Avoid subscription-wide `Contributor` unless it is a temporary bootstrap measure.
 
-## 3. Create The Azure SQL Database User
+## 3. Create The PostgreSQL Migration Role
 
-Configure a Microsoft Entra administrator for the Azure SQL logical server, then connect to the target database using that administrator and run:
+Connect to the target database on the Azure Database for PostgreSQL Flexible Server as its administrator and create a database role that the deployment workflow uses to run migrations. The role must be able to create and alter schema objects and read/write the EF migrations history tables in the target database (for example, the owner of the application schema objects, or a role granted equivalent privileges).
 
-```sql
-CREATE USER [github-llansacco-production] FROM EXTERNAL PROVIDER;
-ALTER ROLE db_ddladmin ADD MEMBER [github-llansacco-production];
-ALTER ROLE db_datareader ADD MEMBER [github-llansacco-production];
-ALTER ROLE db_datawriter ADD MEMBER [github-llansacco-production];
-```
-
-The user name normally matches the app registration display name. If duplicate display names exist in the tenant, use the Azure SQL `WITH OBJECT_ID` form supported by your server version or rename the registration to a unique value.
-
-`db_ddladmin`, `db_datareader`, and `db_datawriter` are the baseline migration permissions. Review generated migrations before release and tighten permissions further if organizational policy requires a custom migration role.
+Review generated migrations before release and tighten permissions further if organizational policy requires a custom migration role.
 
 ## 4. Configure The GitHub Environment
 
@@ -64,9 +55,9 @@ Add these environment variables:
 | `AZURE_CLIENT_ID` | Application client ID | OIDC deployment identity |
 | `AZURE_TENANT_ID` | Entra tenant ID | OIDC tenant |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID | Deployment subscription |
-| `AZURE_RESOURCE_GROUP` | `rg-llansacco-prod` | Resource group containing Azure SQL |
-| `AZURE_SQL_SERVER_NAME` | `bt-prod-sqlserver` | SQL logical server name without `.database.windows.net` |
-| `AZURE_SQL_NETWORK_MODE` | `PublicRunner` | `PublicRunner` or `PrivateRunner` migration networking strategy |
+| `AZURE_RESOURCE_GROUP` | `rg-llansacco-prod` | Resource group containing the PostgreSQL Flexible Server |
+| `AZURE_SQL_SERVER_NAME` | `bt-prod-sqlserver` | PostgreSQL Flexible Server name without `.postgres.database.azure.com` (the variable keeps its historical name) |
+| `AZURE_SQL_NETWORK_MODE` | `PublicRunner` | `PublicRunner` or `PrivateRunner` migration networking strategy for the PostgreSQL Flexible Server (historical name) |
 | `AZURE_API_APP_NAME` | `llan-sacco-api-dev` | Exact API App Service resource name (for app-service) |
 | `AZURE_UI_APP_NAME` | `llan-sacco-web-dev` | Exact UI App Service resource name (for app-service) |
 | `AZURE_DEPLOYMENT_TARGET` | Deprecated | Not read by `deploy-azure.yml`; select `app-service`, `aca-acr`, or `aca-ghcr` in the manual **Run workflow** dialog. Remove this GitHub environment variable to avoid confusion. |
@@ -79,33 +70,33 @@ Add this environment secret:
 
 | Secret | Value |
 | --- | --- |
-| `AZURE_SQL_CONNECTION_STRING` | Passwordless Azure SQL connection string shown below |
+| `AZURE_POSTGRES_CONNECTION_STRING` | PostgreSQL connection string for the migration role, shown below |
 
-Recommended connection string:
+Example connection string:
 
 ```text
-Server=tcp:<sql-server>.database.windows.net,1433;Initial Catalog=<database>;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default;
+Host=<server>.postgres.database.azure.com;Port=5432;Database=<database>;Username=<migration-role>;Password=<password>;Ssl Mode=Require;
 ```
 
-The connection string contains no password. `azure/login@v2` establishes the GitHub identity, and `DefaultAzureCredential` resolves the Azure CLI credential created by that login.
+The former `AZURE_SQL_CONNECTION_STRING` secret is no longer used and can be removed.
 
 Add required reviewers to the `production` environment if deployment approval is required.
 
-## 5. Azure SQL Networking
+## 5. PostgreSQL Flexible Server Networking
 
 The workflow supports two explicit networking modes:
 
-- `PublicRunner`: GitHub-hosted runner using a temporary `/32` Azure SQL firewall rule.
+- `PublicRunner`: GitHub-hosted runner using a temporary `/32` PostgreSQL Flexible Server firewall rule (`az postgres flexible-server firewall-rule`).
 - `PrivateRunner`: self-hosted runner with private network access; no firewall rule is created.
 
 In `PublicRunner` mode the workflow:
 
 1. Discovering the GitHub runner's public IP.
-2. Creating a narrowly scoped temporary server firewall rule.
-3. Running all four migration bundles.
+2. Creating a narrowly scoped temporary flexible-server firewall rule.
+3. Running every migration bundle listed in `ops/migrations/contexts.txt`.
 4. Removing the firewall rule with `if: always()`.
 
-The deployment identity therefore needs `SQL Server Contributor` on the logical server.
+The deployment identity therefore needs permission to manage firewall rules on the flexible server.
 
 For a private-endpoint-only production architecture, replace the GitHub-hosted migration job with a self-hosted runner inside the Azure virtual network. Do not enable broad public access merely to make CI pass.
 
@@ -113,16 +104,12 @@ For a private-endpoint-only production architecture, replace the GitHub-hosted m
 
 The workflow:
 
-- Builds self-contained Linux migration bundles for IAM, HR, Shared, and Banking.
-- Passes the Azure SQL connection string explicitly to each bundle.
+- Builds one self-contained Linux PostgreSQL migration bundle per context in `ops/migrations/contexts.txt` through `scripts/migration-bundles.sh`.
+- Passes the PostgreSQL connection string explicitly to each bundle.
 - Exposes that same secret through the context-specific `ConnectionStrings__*` environment keys. EF constructs each design-time `DbContext` before processing the bundle's `--connection` override, so both forms are required.
-- Retries bundle execution while a serverless Azure SQL database resumes.
-- Fails immediately when a bundle reports a deterministic missing-connection configuration error instead of treating it as an Azure SQL wake-up delay.
-- Uses a separate migrations history table for each context:
-  - `__EFMigrationsHistory_IAM`
-  - `__EFMigrationsHistory_HR`
-  - `__EFMigrationsHistory_Shared`
-  - `__EFMigrationsHistory_Banking`
+- Retries bundle execution while the database is still starting or unavailable.
+- Fails immediately when a bundle reports a deterministic missing-connection configuration error instead of treating it as a transient database delay.
+- Runs one bundle per context listed in `ops/migrations/contexts.txt`, each with its own migrations history table (`__EFMigrationsHistory_<Context>`, for example `__EFMigrationsHistory_Banking`).
 
 Migration retries are safe because EF migration bundles are idempotent with respect to their migrations history table. Generated migrations must still be reviewed for operations that are not transaction-safe.
 
@@ -140,10 +127,9 @@ Remove them after the first successful OIDC deployment.
 ## Troubleshooting
 
 - `DefaultAzureCredential failed`: confirm `azure/login@v2` succeeded and the federated credential subject targets the `production` GitHub environment.
-- `Login failed for user <token-identified principal>`: create the deployment identity as a contained user in the target Azure SQL database and grant migration roles.
-- SQL error `40613`: the database is unavailable or resuming. The workflow retries; inspect Azure SQL status if all retries fail.
-- Azure SQL Free Limit databases enforce auto-pause and do not allow `AutoPauseDelay=-1`. Keep migration retries for this tier. Move a real production workload to a paid always-on/serverless configuration when cold-start latency is unacceptable.
-- SQL firewall denial: confirm public network access is enabled for this workflow model and that the deployment identity has `SQL Server Contributor`.
-- `A valid connection string was not found`: confirm the migration step maps `AZURE_SQL_CONNECTION_STRING` to `ConnectionStrings__IamConnection`, `ConnectionStrings__HrConnection`, `ConnectionStrings__SharedConnection`, `ConnectionStrings__BankingConnection`, and `ConnectionStrings__DefaultConnection`. The explicit `--connection` argument alone is not available early enough for design-time context construction.
+- PostgreSQL authentication failure: confirm the role and password in `AZURE_POSTGRES_CONNECTION_STRING` exist on the target database and that the role has migration privileges.
+- Database unavailable or starting: the workflow retries; inspect the flexible server status if all retries fail.
+- Firewall denial: confirm public network access is enabled for this workflow model and that the deployment identity can manage firewall rules on the flexible server.
+- `A valid connection string was not found`: confirm the migration step maps `AZURE_POSTGRES_CONNECTION_STRING` to `ConnectionStrings__IamConnection`, `ConnectionStrings__HrConnection`, `ConnectionStrings__SharedConnection`, `ConnectionStrings__BankingConnection`, `ConnectionStrings__ControlPlaneConnection`, and `ConnectionStrings__DefaultConnection`. The explicit `--connection` argument alone is not available early enough for design-time context construction.
 - `Resource ... not found` during deployment: verify `AZURE_API_APP_NAME`, `AZURE_UI_APP_NAME`, subscription, and tenant values.
 - OIDC subject mismatch: the federated credential must target environment `production`, not a branch subject, because the workflow jobs use a GitHub environment.

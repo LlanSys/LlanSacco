@@ -1,9 +1,9 @@
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace LS.Api.Health;
 
-internal sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealthCheck
+internal sealed class DatabaseHealthCheck(IConfiguration configuration) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -18,7 +18,7 @@ internal sealed class SqlServerHealthCheck(IConfiguration configuration) : IHeal
 
         try
         {
-            using var connection = new SqlConnection(connectionString);
+            using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             using var command = connection.CreateCommand();
@@ -27,12 +27,12 @@ internal sealed class SqlServerHealthCheck(IConfiguration configuration) : IHeal
 
             var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             return Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) == 1
-                ? HealthCheckResult.Healthy("SQL Server is reachable.")
-                : HealthCheckResult.Unhealthy("SQL Server probe returned an unexpected result.");
+                ? HealthCheckResult.Healthy("PostgreSQL is reachable.")
+                : HealthCheckResult.Unhealthy("PostgreSQL probe returned an unexpected result.");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy("SQL Server probe failed.", ex);
+            return HealthCheckResult.Unhealthy("PostgreSQL probe failed.", ex);
         }
     }
 }

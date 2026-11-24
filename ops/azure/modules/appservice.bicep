@@ -10,8 +10,6 @@ param uiAppName string
 @description('Location for all resources.')
 param location string = resourceGroup().location
 
-@description('The database provider to configure for the API.')
-param databaseProvider string
 
 @description('The URI of the Key Vault (optional)')
 param keyVaultUri string = ''
@@ -55,10 +53,6 @@ resource apiApp 'Microsoft.Web/sites@2022-09-01' = {
       linuxFxVersion: 'DOTNETCORE|10.0'
       alwaysOn: true
       appSettings: [
-        {
-          name: 'DatabaseSettings__Provider'
-          value: databaseProvider
-        }
         {
           name: 'KeyVault__Uri'
           value: keyVaultUri

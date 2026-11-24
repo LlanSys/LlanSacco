@@ -39,9 +39,12 @@ using System.Text.Json.Serialization;
 // Captures startup errors (before the host and appsettings are loaded).
 // Replaced by the fully-configured logger once UseSerilog() runs below.
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
+    .MinimumLevel
+    .Override("Microsoft", LogEventLevel.Information)
+    .Enrich
+    .FromLogContext()
+    .WriteTo
+    .Console(formatProvider: CultureInfo.InvariantCulture)
     .CreateBootstrapLogger();
 
 try
@@ -58,6 +61,17 @@ try
         options.ValidateOnBuild = true;
         options.ValidateScopes = context.HostingEnvironment.IsDevelopment();
     });
+
+    // LlanSacco runs on PostgreSQL only. Reject a leftover provider setting from an older deployment
+    // instead of connecting with the wrong driver.
+    var configuredProvider = builder.Configuration["DatabaseSettings:Provider"];
+
+    if (!string.IsNullOrWhiteSpace(configuredProvider) &&
+        !configuredProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            $"DatabaseSettings:Provider '{configuredProvider}' is not supported. LlanSacco runs on PostgreSQL only; remove the setting.");
+    }
 
     // ── Key Vault — production secrets ────────────────────────────────────────
     // Only runs outside Development — User Secrets handle dev.
@@ -86,27 +100,38 @@ try
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         configuration
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services)
-            .Destructure.With<LS.Infrastructure.Logging.PiiDestructuringPolicy>()
-            .Enrich.FromLogContext()
-            .Enrich.WithMachineName()
-            .Enrich.WithEnvironmentUserName()
-            .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
-            .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName);
+            .ReadFrom
+            .Configuration(context.Configuration)
+            .ReadFrom
+            .Services(services)
+            .Destructure
+            .With<LS.Infrastructure.Logging.PiiDestructuringPolicy>()
+            .Enrich
+            .FromLogContext()
+            .Enrich
+            .WithMachineName()
+            .Enrich
+            .WithEnvironmentUserName()
+            .Enrich
+            .WithProperty("Application", builder.Environment.ApplicationName)
+            .Enrich
+            .WithProperty("Environment", context.HostingEnvironment.EnvironmentName);
 
         var otlpEndpoint = context.Configuration["Observability:Otlp:Endpoint"];
+
         if (!string.IsNullOrWhiteSpace(otlpEndpoint))
         {
             var headerString = context.Configuration["Observability:Otlp:Headers"];
             var headers = new Dictionary<string, string>();
-            
+
             if (!string.IsNullOrWhiteSpace(headerString))
             {
                 var pairs = headerString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
                 foreach (var pair in pairs)
                 {
                     var parts = pair.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
+
                     if (parts.Length == 2)
                     {
                         headers[parts[0].Trim()] = parts[1].Trim();
@@ -144,84 +169,92 @@ try
     builder.Services.AddHangfireServices(builder.Configuration);
 
     builder.Services.AddControllers()
-            .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-                options.JsonSerializerOptions.WriteIndented = builder.Environment.IsDevelopment();
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            options.JsonSerializerOptions.WriteIndented = builder.Environment.IsDevelopment();
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 
-                // Add error handling for problematic types
-                options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
-                options.JsonSerializerOptions.IncludeFields = false;
+            // Add error handling for problematic types
+            options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
+            options.JsonSerializerOptions.IncludeFields = false;
 
-            });
+        });
 
     string corsPolicy = "ApiCorsPolicy";
 
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy(corsPolicy, policy =>
-        {
-            var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
+        options.AddPolicy(
+            corsPolicy,
+            policy =>
+            {
+                var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
 
-            if (allowedOrigins == null || allowedOrigins.Length == 0)
-            {
-                Log.Warning("No allowed origins configured for CORS policy");
-                throw new InvalidOperationException("CORS policy requires at least one allowed origin to be configured.");
-            }
+                if (allowedOrigins == null || allowedOrigins.Length == 0)
+                {
+                    Log.Warning("No allowed origins configured for CORS policy");
+                    throw new InvalidOperationException("CORS policy requires at least one allowed origin to be configured.");
+                }
 
-            if (builder.Environment.IsDevelopment())
-            {
-                // More permissive in development
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials()
-                      .SetIsOriginAllowedToAllowWildcardSubdomains()
-                      .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
-            }
-            else
-            {
-                // Strict in production
-                policy.WithOrigins(allowedOrigins)
-                      .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH")
-                      .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
-                      .AllowCredentials();
-            }
-        });
+                if (builder.Environment.IsDevelopment())
+                {
+                    // More permissive in development
+                    policy.WithOrigins(allowedOrigins)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials()
+                        .SetIsOriginAllowedToAllowWildcardSubdomains()
+                        .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+                }
+                else
+                {
+                    // Strict in production
+                    policy.WithOrigins(allowedOrigins)
+                        .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH")
+                        .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
+                        .AllowCredentials();
+                }
+            });
     });
 
-    builder.Services.AddOpenApi("v1", options =>  // Note: "v1" to bypass interceptor
-    {
-        options.AddOperationTransformer((operation, context, cancellationToken) =>
+    builder.Services.AddOpenApi(
+        "v1",
+        options =>  // Note: "v1" to bypass interceptor
         {
-            // Remove parameters with null schema
-            foreach (var param in operation.Parameters?.ToList() ?? [])
+            options.AddOperationTransformer((operation, context, cancellationToken) =>
             {
-                if (param.Schema == null)
-                    operation.Parameters?.Remove(param);
-            }
+                // Remove parameters with null schema
+                foreach (var param in operation.Parameters?.ToList() ?? [])
+                {
+                    if (param.Schema == null)
+                    {
+                        operation.Parameters?.Remove(param);
+                    }
+                }
 
-            // Remove parameter descriptions with null metadata
-            for (int i = context.Description.ParameterDescriptions.Count - 1; i >= 0; i--)
+                // Remove parameter descriptions with null metadata
+                for (int i = context.Description.ParameterDescriptions.Count - 1; i >= 0; i--)
+                {
+                    if (context.Description.ParameterDescriptions[i].ModelMetadata == null)
+                    {
+                        context.Description.ParameterDescriptions.RemoveAt(i);
+                    }
+                }
+
+                return Task.CompletedTask;
+            });
+
+            options.AddDocumentTransformer((document, context, _) =>
             {
-                if (context.Description.ParameterDescriptions[i].ModelMetadata == null)
-                    context.Description.ParameterDescriptions.RemoveAt(i);
-            }
-
-            return Task.CompletedTask;
-        });
-
-        options.AddDocumentTransformer((document, context, _) =>
-        {
-            document.Info = new()
-            {
-                Title = "LlanSacco API",
-                Version = "v1.0",
-                Description = """
+                document.Info = new()
+                {
+                    Title = "LlanSacco API",
+                    Version = "v1.0",
+                    Description = """
                     LlanSacco API
 
                     This API provides a production-ready foundation for:
@@ -231,41 +264,41 @@ try
                     - Documented, versioned REST endpoints
                     - Secure configuration and operational monitoring
                     """,
-                Contact = new()
+                    Contact = new()
+                    {
+                        Name = "LlanSacco Support",
+                        Email = "aamodhiambo@gmail.com",
+                    }
+                };
+
+                // ==========================================
+                // GLOBAL AUTHENTICATION REQUIREMENT
+                // ==========================================
+                var schemeName = "Bearer";
+
+                // Declare the scheme in components.securitySchemes
+                document.Components ??= new OpenApiComponents();
+                document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+                document.Components.SecuritySchemes.Add(schemeName, new OpenApiSecurityScheme
                 {
-                    Name = "LlanSacco Support",
-                    Email = "aamodhiambo@gmail.com",
-                }
-            };
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    Description = "Enter your valid JWT token to authenticate globally."
+                });
 
-            // ==========================================
-            // GLOBAL AUTHENTICATION REQUIREMENT
-            // ==========================================
-            var schemeName = "Bearer";
+                // Reference it from the document-level `security` field => applies to ALL operations
+                document.Security ??= [];
+                document.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference(schemeName, document)] = []
+                });
 
-            // Declare the scheme in components.securitySchemes
-            document.Components ??= new OpenApiComponents();
-            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-            document.Components.SecuritySchemes.Add(schemeName, new OpenApiSecurityScheme
-            {
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                BearerFormat = "JWT",
-                Description = "Enter your valid JWT token to authenticate globally."
+                return Task.CompletedTask;
             });
 
-            // Reference it from the document-level `security` field => applies to ALL operations
-            document.Security ??= [];
-            document.Security.Add(new OpenApiSecurityRequirement
-            {
-                [new OpenApiSecuritySchemeReference(schemeName, document)] = []
-            });
-
-            return Task.CompletedTask;
+            options.AddSchemaTransformer<SafeSchemaTransformer>();
         });
-
-        options.AddSchemaTransformer<SafeSchemaTransformer>();
-    });
 
     builder.Services.Configure<HealthCheckSettings>(
         builder.Configuration.GetSection(HealthCheckSettings.SectionName));
@@ -278,9 +311,9 @@ try
         .AddCheck("self-ready", () => HealthCheckResult.Healthy(), tags: ["ready"])
         .AddCheck("self-live", () => HealthCheckResult.Healthy(), tags: ["live"]);
 
-    if (healthCheckSettings.SqlServer)
+    if (healthCheckSettings.Database)
     {
-        healthChecks.AddCheck<SqlServerHealthCheck>("sql-server", tags: ["ready", "dependency"]);
+        healthChecks.AddCheck<DatabaseHealthCheck>("database", tags: ["ready", "dependency"]);
     }
 
     if (healthCheckSettings.Redis)
@@ -358,14 +391,14 @@ try
     app.UsePostAuthMiddleware();
 
     app.UseAuthorization();
-    
+
     app.UseHangfireDashboard();
 
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi()
-           .CacheOutput()
-           .AllowAnonymous();
+            .CacheOutput()
+            .AllowAnonymous();
 
         // Preferred way (Scalar.AspNetCore ≥ 1.x / 2.x)
         //app.MapScalarApiReference("/docs", options =>
@@ -380,43 +413,50 @@ try
         // Optional: redirect root to Scalar
         app.MapGet("/", () => Results.Redirect("/scalar/v1"))
         //app.MapGet("/", () => Results.Redirect("/docs"))
-           .ExcludeFromDescription()
-           .AllowAnonymous();
+            .ExcludeFromDescription()
+            .AllowAnonymous();
     }
 
     // General health check endpoint
-    app.MapHealthChecks("/health", new HealthCheckOptions
-    {
-        ResponseWriter = async (context, report) =>
+    app.MapHealthChecks(
+        "/health",
+        new HealthCheckOptions
         {
-            context.Response.ContentType = "application/json";
-            var response = new
+            ResponseWriter = async (context, report) =>
             {
-                status = report.Status.ToString(),
-                checks = report.Entries.Select(e => new
+                context.Response.ContentType = "application/json";
+                var response = new
                 {
-                    name = e.Key,
-                    status = e.Value.Status.ToString(),
-                    description = e.Value.Description,
-                    duration = e.Value.Duration.TotalMilliseconds
-                }),
+                    status = report.Status.ToString(),
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        duration = e.Value.Duration.TotalMilliseconds
+                    }),
 
-                totalDuration = report.TotalDuration.TotalMilliseconds
-            };
-            await context.Response.WriteAsJsonAsync(response).ConfigureAwait(false);
-        }
-    });
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+
+                await context.Response.WriteAsJsonAsync(response).ConfigureAwait(false);
+            }
+        });
 
     // Detailed health check (for monitoring tools)
-    app.MapHealthChecks("/health/ready", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("ready")
-    });
+    app.MapHealthChecks(
+        "/health/ready",
+        new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready")
+        });
 
-    app.MapHealthChecks("/health/live", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("live")
-    });
+    app.MapHealthChecks(
+        "/health/live",
+        new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("live")
+        });
 
     app.MapControllers();
     app.MapHub<NotificationHub>("/hubs/notifications");
@@ -458,4 +498,6 @@ static void ConfigurePlatformAssignedPort(ConfigureWebHostBuilder webHost)
     webHost.UseUrls($"http://+:{parsedPort}");
 }
 
-public partial class Program { }
+public partial class Program
+{
+}

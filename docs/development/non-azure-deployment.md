@@ -16,7 +16,7 @@ DigitalOcean and Heroku do not provide exact one-to-one replacements for every A
 | Object storage | Azure Blob Storage | DigitalOcean Spaces or S3-compatible storage | External S3-compatible storage | `ProfileImageStorage__Provider` |
 | Data Protection keys | Azure Blob + Key Vault | Redis key ring or private persistent volume | Redis key ring or external persistent store | `DataProtection__*` |
 | Messaging | Azure Service Bus or RabbitMQ | RabbitMQ provider or self-hosted RabbitMQ | RabbitMQ provider or external RabbitMQ | `Messaging__Transport` |
-| Database | Azure SQL | SQL Server-compatible external host or managed VM | External SQL Server-compatible host | `ConnectionStrings__DefaultConnection` |
+| Database | Azure Database for PostgreSQL Flexible Server | Managed PostgreSQL or PostgreSQL on a managed VM | External PostgreSQL host | `ConnectionStrings__DefaultConnection` |
 | Email | SendGrid / provider API | SendGrid / provider API | SendGrid / provider API | `EmailSettings__Provider` |
 
 ## Current Non-Azure Workflow
@@ -52,7 +52,7 @@ Required DigitalOcean setup:
 - Configure the API and Blazor components to use the GHCR images.
 - Configure runtime environment variables in App Platform.
 - Configure the API component health check to `/health/ready`.
-- Configure private services for Redis, RabbitMQ, SQL Server-compatible database, and object storage as needed.
+- Configure private services for Redis, RabbitMQ, PostgreSQL database, and object storage as needed.
 
 DigitalOcean App Platform can pull from GHCR, but the image/package visibility and credentials must be configured in DigitalOcean if the GHCR package is private.
 
@@ -76,7 +76,7 @@ Required Heroku setup:
 
 - Create two Heroku apps: one for the API and one for Blazor.
 - Configure Heroku Config Vars for each app.
-- Configure external SQL Server-compatible database connectivity.
+- Configure external PostgreSQL database connectivity (`POSTGRES_CONNECTION_STRING` for migrations in `non-azure-deploy.yml`).
 - Configure external Redis/RabbitMQ/object storage providers.
 - Ensure the Blazor `BackendApi__BaseUrl` points to the deployed API URL.
 
@@ -109,7 +109,7 @@ Minimum production-style keys:
 
 ```text
 ASPNETCORE_ENVIRONMENT=Production
-ConnectionStrings__DefaultConnection=<sql-server-connection>
+ConnectionStrings__DefaultConnection=<postgresql-connection>
 JwtSettings__Secret=<strong-secret>
 BackendApi__BaseUrl=https://<api-host>/
 AllowedOrigins__0=https://<blazor-host>

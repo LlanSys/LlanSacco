@@ -86,14 +86,8 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
     {
         var builder = new DbContextOptionsBuilder<BankingDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database }.ConnectionString);
-        }
-        else
-        {
-            builder.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _database }.ConnectionString);
-        }
+        builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database }.ConnectionString);
+
 
         if (interceptor is not null)
         {
@@ -154,14 +148,8 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
             }
             bus.AddEntityFrameworkOutbox<BankingDBContext>(outbox =>
             {
-                if (fixture is PostgreSqlDbFixture)
-                {
-                    outbox.UsePostgres(false);
-                }
-                else
-                {
-                    outbox.UseSqlServer(false);
-                }
+                outbox.UsePostgres(false);
+
 
                 outbox.UseBusOutbox();
             });
@@ -208,14 +196,8 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
 
             bus.AddEntityFrameworkOutbox<LoansDBContext>(outbox =>
             {
-                if (fixture is PostgreSqlDbFixture)
-                {
-                    outbox.UsePostgres(false);
-                }
-                else
-                {
-                    outbox.UseSqlServer(false);
-                }
+                outbox.UsePostgres(false);
+
 
                 outbox.UseBusOutbox();
             });
@@ -226,14 +208,8 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
     {
         var builder = new DbContextOptionsBuilder<LoansDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database + "_loans" }.ConnectionString);
-        }
-        else
-        {
-            builder.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _database + "_loans" }.ConnectionString);
-        }
+        builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database + "_loans" }.ConnectionString);
+
 
         return builder.Options;
     }
@@ -242,14 +218,8 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
     {
         var builder = new DbContextOptionsBuilder<AccountingDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database + "_accounting" }.ConnectionString);
-        }
-        else
-        {
-            builder.UseSqlServer(new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = _database + "_accounting" }.ConnectionString);
-        }
+        builder.UseNpgsql(new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = _database + "_accounting" }.ConnectionString);
+
 
         return builder.Options;
     }
@@ -1178,39 +1148,20 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
 
     private DbContext MigrationContext(bool loans)
     {
-        if (fixture is PostgreSqlDbFixture)
-        {
-            var connection = new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString())
-            { Database = loans ? _database + "_loans" : _database }.ConnectionString;
-
-            return loans
-                ? new LoansPostgreSqlDBContext(
-                    new DbContextOptionsBuilder<LoansPostgreSqlDBContext>()
-                        .UseNpgsql(connection, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Loans"))
-                        .ReplaceService<IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>().Options,
-                    _tenant,
-                    _actor)
-                : new BankingPostgreSqlDBContext(
-                    new DbContextOptionsBuilder<BankingPostgreSqlDBContext>()
-                        .UseNpgsql(connection, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Banking"))
-                        .ReplaceService<IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>().Options,
-                    _tenant,
-                    _actor);
-        }
-        var sql = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(fixture.GetConnectionString())
-        { InitialCatalog = loans ? _database + "_loans" : _database }.ConnectionString;
+        var connection = new Npgsql.NpgsqlConnectionStringBuilder(fixture.GetConnectionString())
+        { Database = loans ? _database + "_loans" : _database }.ConnectionString;
 
         return loans
-            ? new LoansSqlServerDBContext(
-                new DbContextOptionsBuilder<LoansSqlServerDBContext>()
-                    .UseSqlServer(sql, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Loans"))
-                    .ReplaceService<IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>().Options,
+            ? new LoansPostgreSqlDBContext(
+                new DbContextOptionsBuilder<LoansPostgreSqlDBContext>()
+                    .UseNpgsql(connection, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Loans"))
+                    .ReplaceService<IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>().Options,
                 _tenant,
                 _actor)
-            : new BankingSqlServerDBContext(
-                new DbContextOptionsBuilder<BankingSqlServerDBContext>()
-                    .UseSqlServer(sql, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Banking"))
-                    .ReplaceService<IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>().Options,
+            : new BankingPostgreSqlDBContext(
+                new DbContextOptionsBuilder<BankingPostgreSqlDBContext>()
+                    .UseNpgsql(connection, provider => provider.MigrationsHistoryTable("__EFMigrationsHistory_Banking"))
+                    .ReplaceService<IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>().Options,
                 _tenant,
                 _actor);
     }
@@ -1232,8 +1183,11 @@ public abstract class GuarantorReservationTests<TFixture>(TFixture fixture) : IC
             // Roll back to the schema before the Phase 1 guarantor migration and upgrade again,
             // independent of later migrations added on top of it.
             var migrations = db.Database.GetMigrations().ToArray();
-            var phase1 = Array.FindIndex(migrations, id => id.EndsWith("_GuarantorReservationsAndRecovery", StringComparison.Ordinal)
-                || id.EndsWith("_ConfirmedGuarantorSecurity", StringComparison.Ordinal));
+            var phase1 = Array.FindIndex(
+                migrations,
+                id => id.EndsWith("_GuarantorReservationsAndRecovery", StringComparison.Ordinal)
+                    || id.EndsWith("_ConfirmedGuarantorSecurity", StringComparison.Ordinal));
+
             Assert.True(phase1 > 0, "The Phase 1 guarantor migration was not found.");
             await db.GetService<IMigrator>().MigrateAsync(migrations[phase1 - 1]);
             await db.Database.MigrateAsync();

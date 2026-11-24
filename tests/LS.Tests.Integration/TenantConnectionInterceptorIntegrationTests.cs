@@ -21,14 +21,7 @@ public abstract class TenantConnectionInterceptorIntegrationTests<TFixture> : IC
 
         var builder = new DbContextOptionsBuilder<SharedDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(fixture.GetConnectionString());
-        }
-        else if (fixture is MsSqlDbFixture)
-        {
-            builder.UseSqlServer(fixture.GetConnectionString());
-        }
+        builder.UseNpgsql(fixture.GetConnectionString());
 
 
 
@@ -41,12 +34,12 @@ public abstract class TenantConnectionInterceptorIntegrationTests<TFixture> : IC
         // We will assert that the DbConnection is physically switched by verifying its Database name.
         var defaultConnectionString = _fixture.GetConnectionString();
         var defaultDatabaseName = GetDatabaseName(defaultConnectionString);
-        
+
         var distinctConnectionString = defaultConnectionString.Replace(defaultDatabaseName, "isolated_db_test");
         var distinctDatabaseName = "isolated_db_test";
 
         var services = new ServiceCollection();
-        
+
         // Mock a tenant resolver that returns a distinct connection string
         services.AddScoped<ITenantConnectionResolver>(sp => new FakeTenantConnectionResolver(Guid.NewGuid(), distinctConnectionString));
 
@@ -57,14 +50,14 @@ public abstract class TenantConnectionInterceptorIntegrationTests<TFixture> : IC
         builder.AddInterceptors(new TenantConnectionInterceptor(serviceProvider));
 
         using var context = new SharedDBContext(builder.Options, new TestTenantProvider(), new TestActorProvider());
-        
+
         // Ensure the connection is actually opened so the interceptor fires
         var connection = context.Database.GetDbConnection();
-        
+
         // We expect it to fail to open because isolated_db_test doesn't exist,
         // but if it fails with a database-doesn't-exist error, it PROVES the connection string was successfully swapped!
         var ex = await Record.ExceptionAsync(async () => await context.Database.OpenConnectionAsync());
-        
+
         Assert.NotNull(ex);
         // The fact that it throws proves it attempted to connect to the new DB.
         // We also check the connection string directly:
@@ -74,8 +67,17 @@ public abstract class TenantConnectionInterceptorIntegrationTests<TFixture> : IC
     private string GetDatabaseName(string connectionString)
     {
         var builder = new System.Data.Common.DbConnectionStringBuilder { ConnectionString = connectionString };
-        if (builder.TryGetValue("Database", out var db)) return db.ToString()!;
-        if (builder.TryGetValue("Initial Catalog", out var catalog)) return catalog.ToString()!;
+
+        if (builder.TryGetValue("Database", out var db))
+        {
+            return db.ToString()!;
+        }
+
+        if (builder.TryGetValue("Initial Catalog", out var catalog))
+        {
+            return catalog.ToString()!;
+        }
+
         return "";
     }
 

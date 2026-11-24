@@ -13,7 +13,7 @@ It is designed to be cloned, renamed, configured, and extended into a real appli
 - IAM/Auth baseline with local accounts, JWT/cookie-compatible flows, refresh tokens, MFA/TOTP, sessions, lockout, permission authorization, grant/revoke access, profile image upload, and inactivity handling.
 - EF Core persistence with per-context `DBContext` types, tenant filters, soft delete, audit stamping, explicit configurations, repositories, unit of work, and migration bundles.
 - MassTransit with EF outbox, RabbitMQ local transport, and Azure Service Bus production transport configuration.
-- Local Docker platform for RabbitMQ, Redis, Mailpit, Azurite, optional Seq, and optional SQL Server.
+- Local Docker platform for RabbitMQ, Redis, Mailpit, Azurite, PostgreSQL 17, and optional Seq.
 - Output caching, response compression, rate limiting, health checks, feature flags, SignalR baseline, QuestPDF reporting abstraction, and payment gateway abstraction.
 - Architecture tests and naming/convention guardrails that run in CI.
 
@@ -45,7 +45,7 @@ Read [Renaming the template](docs/development/renaming-the-template.md) before c
 .\scripts\setup-local-platform.ps1
 ```
 
-3. Configure SQL Server connection and required secrets with `dotnet user-secrets`.
+3. Configure remaining required secrets (the setup script sets the PostgreSQL connection string) with `dotnet user-secrets`.
 4. Run `LS.Api` and `LS.UI.Blazor` from Visual Studio.
 5. Open Mailpit at `http://localhost:8036` to inspect captured local emails.
 
@@ -55,7 +55,7 @@ The local setup uses:
 - Redis for distributed cache.
 - Mailpit for email capture.
 - Azurite for Blob-compatible profile image storage.
-- Local SQL Server or optional SQL Server container.
+- PostgreSQL 17 container on `localhost:5436` (the only supported database).
 
 See [Local Platform](docs/development/local-platform.md) and [Environment Configuration Checklist](docs/development/environment-configuration-checklist.md).
 

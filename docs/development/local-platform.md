@@ -21,7 +21,7 @@ Run in Docker:
 - Mailpit for safe local email capture
 - Seq when a locally installed Seq instance is not already available
 - Azurite for local Azure Blob-compatible profile-image storage
-- SQL Server when a developer does not want to use an installed SQL Server instance
+- PostgreSQL 17 (core service, always started) on host port 5436, database `llansacco`
 - API and Blazor app containers when testing local deployability instead of Visual Studio debugging
 
 Azure Service Bus is an Azure-managed service and does not run in Docker. The same MassTransit consumers use RabbitMQ locally and Azure Service Bus in Azure by changing `Messaging:Transport` and its provider settings.
@@ -36,9 +36,9 @@ Docker Desktop must be running. From the repository root:
 
 The script:
 
-1. Generates random local-only RabbitMQ, Redis, SQL Server, and Azurite credentials in ignored `ops/local/.env`.
-2. Writes matching RabbitMQ, Redis, and Mailpit provider values to API user-secrets.
-3. Pulls and starts RabbitMQ, Redis, Mailpit, and Azurite.
+1. Generates random local-only RabbitMQ, Redis, PostgreSQL (`POSTGRES_PASSWORD`; user `POSTGRES_USER`, default `lsdev`), and Azurite credentials in ignored `ops/local/.env`.
+2. Writes matching RabbitMQ, Redis, and Mailpit provider values to API user-secrets, and sets `ConnectionStrings:DefaultConnection` to `Host=localhost;Port=5436;Database=llansacco;Username=...;Password=...`.
+3. Pulls and starts PostgreSQL, RabbitMQ, Redis, Mailpit, and Azurite.
 4. Waits for container health checks.
 
 Run the script from the repository root, the folder containing `LlanSacco.sln`, `AGENTS.md`, and the `scripts` folder:
@@ -55,15 +55,9 @@ Optional profiles:
 ```powershell
 # Add Seq when port 5343 is not already used by a local Seq installation.
 ./scripts/setup-local-platform.ps1 -IncludeSeq
-
-# Add SQL Server on localhost,14334 and update the API connection-string secret.
-./scripts/setup-local-platform.ps1 -IncludeSqlServer
-
-# Start every local dependency.
-./scripts/setup-local-platform.ps1 -IncludeSqlServer -IncludeSeq
 ```
 
-Do not use `-IncludeSqlServer` when retaining an existing SQL Server/SSMS database connection. The script leaves the existing `ConnectionStrings:DefaultConnection` secret unchanged unless that switch is supplied.
+PostgreSQL is a core service and always starts; there is no separate database switch. pgAdmin or any PostgreSQL client can connect to `localhost:5436`.
 
 The setup script is idempotent and can be run whenever Docker services or local user-secrets need to be aligned. It creates credentials only when the ignored `ops/local/.env` file does not exist; later runs reuse those credentials and safely reconcile containers. It is not required before every Visual Studio launch when the containers are already running and the secrets have not changed.
 
@@ -79,19 +73,9 @@ From the repository root:
 ./scripts/setup-local-app-deployment.ps1
 ```
 
-By default, the app containers expect `APP_SQL_CONNECTION_STRING` in ignored `ops/local/.env`. This should point to the SQL Server that containers can reach. For SQL Server installed on the host machine, Docker Desktop exposes the host as `host.docker.internal`, for example:
+The app containers (API on 8090, Blazor on 8091) connect to the Compose PostgreSQL service at `Host=postgres;Port=5432`, database `llansacco`, using the `POSTGRES_USER`/`POSTGRES_PASSWORD` values in ignored `ops/local/.env`.
 
-```text
-APP_SQL_CONNECTION_STRING=Server=host.docker.internal;Database=BT;User Id=sa;Password=<your-local-password>;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
-```
-
-The SQL password in `APP_SQL_CONNECTION_STRING` is not the LlanSacco sign-in password. The development admin user is seeded from `DevelopmentSeed:AdminEmail` and `DevelopmentSeed:AdminPassword`; by default that is `aamodhiambo@gmail.com` / `Admin@12345`.
-
-If you want a fully containerized stack including SQL Server, run:
-
-```powershell
-./scripts/setup-local-app-deployment.ps1 -UseContainerSql
-```
+The PostgreSQL password is not the LlanSacco sign-in password. The development admin user is seeded from `DevelopmentSeed:AdminEmail` and `DevelopmentSeed:AdminPassword`; by default that is `aamodhiambo@gmail.com` / `Admin@12345`.
 
 The app deployment overlay:
 
@@ -124,12 +108,12 @@ The full app deployment is for deployability confidence and local smoke tests. F
 | --- | --- | --- |
 | RabbitMQ | `localhost:5673` | AMQP transport |
 | RabbitMQ Management | `http://localhost:15673` | Exchanges, queues, consumers, and message rates |
-| Redis | `localhost:6380` | HybridCache distributed layer; avoids common existing port `6379` |
+| Redis | `localhost:6381` | HybridCache distributed layer; avoids common existing port `6379` |
 | Mailpit | `http://localhost:8036` | Captured email UI |
 | Mailpit SMTP | `localhost:1026` | Local-only capture relay used by `EmailSettings:Provider=LocalMailpit` |
 | Seq | `http://localhost:5343` | Structured logs, optional profile |
 | Azurite Blob | `http://localhost:10010` | Storage emulator, optional profile |
-| SQL Server | `localhost,14334` | Containerized database, optional profile |
+| PostgreSQL 17 | `localhost:5436` | Database `llansacco`, core service |
 | Containerized API | `http://localhost:8090` | Optional local deployment profile |
 | Containerized Blazor | `http://localhost:8091` | Optional local deployment profile |
 
@@ -152,7 +136,7 @@ docker compose --env-file ops/local/.env -f ops/local/docker-compose.yml up -d -
 docker compose --env-file ops/local/.env -f ops/local/docker-compose.yml -f ops/local/docker-compose.apps.yml --profile apps up -d --wait
 ```
 
-The repository stop script deliberately exposes no volume-deletion option. It cannot prevent a developer from invoking Docker directly, so do not run `docker compose down -v` unless local RabbitMQ, Redis, SQL, Seq, and Azurite data should be permanently deleted.
+The repository stop script deliberately exposes no volume-deletion option. It cannot prevent a developer from invoking Docker directly, so do not run `docker compose down -v` unless local RabbitMQ, Redis, PostgreSQL, Seq, and Azurite data should be permanently deleted.
 
 ## Messaging Licence Decision
 
@@ -162,7 +146,7 @@ Version 8 supports one default scoped bus outbox, so each bounded context stages
 
 ## Startup Check
 
-`scripts/test-app-startup.ps1` builds the API, applies every migration in `ops/migrations/contexts.txt`, starts the API with RabbitMQ messaging and background jobs enabled, and requires `/health` and `/health/ready` to return 200. CI runs it as the required `Baseline / Startup` job against real SQL Server, RabbitMQ and Redis containers.
+`scripts/test-app-startup.ps1` builds the API, applies every migration in `ops/migrations/contexts.txt`, starts the API with RabbitMQ messaging and background jobs enabled, and requires `/health` and `/health/ready` to return 200. CI runs it as the required `Baseline / Startup` job against real PostgreSQL 17, RabbitMQ and Redis containers. Locally, pass a PostgreSQL connection string with `-ConnectionString`.
 
 ## RabbitMQ Outbox Certification
 
@@ -199,7 +183,7 @@ Pushes and pull-request merges must not create migration bundles, run Azure migr
 | --- | --- | --- |
 | Messaging | RabbitMQ | Azure Service Bus |
 | Distributed cache | Redis container | Azure Managed Redis using managed identity |
-| SQL | Installed SQL Server or SQL container | Azure SQL |
+| Database | PostgreSQL 17 container | Azure Database for PostgreSQL Flexible Server |
 | Email | Mailpit | Approved email API provider, currently `SendGrid` |
 | Logs | Seq | Azure Monitor/Application Insights, optionally Seq |
 | Profile images | Local filesystem or Azurite | Private Azure Blob Storage |

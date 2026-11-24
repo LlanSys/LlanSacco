@@ -23,6 +23,7 @@ public sealed class Phase5TenantCacheTests
         var repository = Substitute.For<ITenantRepository>();
         repository.FirstOrDefaultAsync(Arg.Any<Expression<Func<Tenant, bool>>>(), Arg.Any<CancellationToken>())
             .Returns(call => Task.FromResult<Tenant?>(call.Arg<Expression<Func<Tenant, bool>>>().Compile()(tenant) ? tenant : null));
+
         await using var services = Services(repository);
         var middleware = new TenantResolutionMiddleware(_ => Task.CompletedTask);
         var activeRequest = new DefaultHttpContext();
@@ -44,7 +45,7 @@ public sealed class Phase5TenantCacheTests
     {
         var tenant = NewTenant();
         tenant.DatabaseConnectionString = "first-route";
-        tenant.DatabaseProvider = "SqlServer";
+        tenant.DatabaseProvider = "PostgreSql";
         var repository = Substitute.For<ITenantRepository>();
         repository.FindByIdAsync(tenant.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<Tenant?>(tenant));
         await using var services = Services(repository);
@@ -58,7 +59,7 @@ public sealed class Phase5TenantCacheTests
         tenant.DatabaseConnectionString = "second-route";
         tenant.DatabaseProvider = "PostgreSql";
 
-        Assert.Equal("SqlServer", await current.GetDatabaseProviderAsync());
+        Assert.Equal("PostgreSql", await current.GetDatabaseProviderAsync());
         Assert.Equal("first-route", await current.GetConnectionStringAsync());
 
         var next = new TenantConnectionResolver(tenantProvider, services, encryption);

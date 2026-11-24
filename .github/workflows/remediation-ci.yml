@@ -77,15 +77,16 @@ jobs:
     name: Baseline / Startup
     runs-on: ubuntu-latest
     services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
+      postgres:
+        image: postgres:17
         env:
-          ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: Ci-Startup-Only-1!
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-startup-only
+          POSTGRES_DB: llansacco_startup
         ports:
-          - 1433:1433
+          - 5432:5432
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"
+          --health-cmd "pg_isready -U ci -d llansacco_startup"
           --health-interval 10s --health-timeout 5s --health-retries 12
       rabbitmq:
         image: rabbitmq:3-management
@@ -106,7 +107,6 @@ jobs:
           --health-interval 10s --health-timeout 5s --health-retries 12
     env:
       # Throwaway credentials for ephemeral CI service containers only.
-      CI_SQL_PASSWORD: Ci-Startup-Only-1!
       CI_RABBITMQ_PASSWORD: ci-startup-only
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -119,7 +119,7 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/test-app-startup.ps1 `
-            -SqlConnectionString "Server=localhost,1433;Database=LlanSaccoStartup;User Id=sa;Password=$env:CI_SQL_PASSWORD;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True" `
+            -ConnectionString 'Host=localhost;Port=5432;Database=llansacco_startup;Username=ci;Password=ci-startup-only' `
             -RabbitMqHost localhost -RabbitMqPort 5672 -RabbitMqUser ci -RabbitMqPassword $env:CI_RABBITMQ_PASSWORD `
             -RedisConnectionString 'localhost:6379,abortConnect=false'
 

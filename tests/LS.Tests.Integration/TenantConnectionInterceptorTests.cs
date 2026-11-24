@@ -21,9 +21,19 @@ public class TenantConnectionInterceptorTests
         public override string DataSource => "DataSource";
         public override string ServerVersion => "1.0";
         public override ConnectionState State => ConnectionState.Closed;
-        public override void ChangeDatabase(string databaseName) {}
-        public override void Close() {}
-        public override void Open() {}
+
+        public override void ChangeDatabase(string databaseName)
+        {
+        }
+
+        public override void Close()
+        {
+        }
+
+        public override void Open()
+        {
+        }
+
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => null!;
         protected override DbCommand CreateDbCommand() => null!;
     }
@@ -32,15 +42,9 @@ public class TenantConnectionInterceptorTests
     {
         private readonly string _connectionString = connectionString;
 
-        public Task<string?> GetConnectionStringAsync(CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<string?>(_connectionString);
-        }
+        public Task<string?> GetConnectionStringAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>(_connectionString);
 
-        public Task<string?> GetDatabaseProviderAsync(CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult<string?>("SqlServer");
-        }
+        public Task<string?> GetDatabaseProviderAsync(CancellationToken cancellationToken = default) => Task.FromResult<string?>("PostgreSql");
     }
 
     [Fact]
@@ -50,19 +54,24 @@ public class TenantConnectionInterceptorTests
         services.AddScoped<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>();
         services.AddScoped<ITenantConnectionResolver>(sp => new FakeTenantConnectionResolver(
             $"Server=Test;Database={sp.GetRequiredService<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>().TenantId:N};"));
+
         services.AddScoped<TenantConnectionInterceptor>();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
         foreach (var tenantId in new[] { Guid.CreateVersion7(), Guid.CreateVersion7() })
         {
             await using var scope = provider.CreateAsyncScope();
             scope.ServiceProvider.GetRequiredService<LS.Infrastructure.Contracts.Implementations.Common.BackgroundExecutionContext>()
                 .Initialize(tenantId, ICurrentActorProvider.SystemActor);
+
             using var connection = new FakeDbConnection();
             await scope.ServiceProvider.GetRequiredService<TenantConnectionInterceptor>()
                 .ConnectionOpeningAsync(connection, null!, default, CancellationToken.None);
+
             Assert.Equal($"Server=Test;Database={tenantId:N};", connection.ConnectionString);
         }
     }
+
     [Fact]
     public async Task ConnectionOpeningAsync_ShouldChangeConnectionString_WhenResolverProvidesOne()
     {
@@ -85,7 +94,7 @@ public class TenantConnectionInterceptorTests
         // Assert
         Assert.Equal("Server=NewServer;Database=TenantDB;", fakeConnection.ConnectionString);
     }
-    
+
     [Fact]
     public async Task ConnectionOpeningAsync_ShouldNotChangeConnectionString_WhenResolverProvidesNullOrEmpty()
     {

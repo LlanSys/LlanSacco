@@ -17,50 +17,27 @@ namespace LS.Tests.Architecture.Database;
 [Trait("Category", "Guardrail")]
 public class MigrationGuardrailTests
 {
-    [Fact]
-    public void BankingSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<BankingSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
 
     [Fact]
     public void BankingPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<BankingPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
 
     [Fact]
-    public void LoansSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<LoansSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
-
-    [Fact]
     public void LoansPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<LoansPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
-
-    [Fact]
-    public void IamSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<IamSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
 
     [Fact]
     public void IamPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<IamPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
 
     [Fact]
-    public void SharedSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<SharedSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
-
-    [Fact]
     public void SharedPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<SharedPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
-
-    [Fact]
-    public void HrSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<HrSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
 
     [Fact]
     public void HrPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<HrPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
 
     [Fact]
-    public void ControlPlaneSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<ControlPlaneSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
-
-    [Fact]
     public void ControlPlanePostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<ControlPlanePostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
 
     [Fact]
-    public void DividendsSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<DividendsSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
-
-    [Fact]
     public void DividendsPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<DividendsPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
-
-    [Fact]
-    public void MembershipSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<MembershipSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
 
     [Fact]
     public void MembershipPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<MembershipPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));

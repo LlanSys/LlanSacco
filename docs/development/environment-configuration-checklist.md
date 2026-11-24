@@ -42,7 +42,7 @@ When a Key Vault belongs to an isolated stamp, keep secret names simple and alig
 
 | Concern | Azure service | Primary configuration keys | Status |
 | --- | --- | --- | --- |
-| SQL database | Azure SQL or SQL Server | `ConnectionStrings:DefaultConnection` | Required for API runtime |
+| PostgreSQL database | Azure Database for PostgreSQL Flexible Server or PostgreSQL 17 | `ConnectionStrings:DefaultConnection` | Required for API runtime |
 | Data Protection key ring | Azure Blob Storage | `DataProtection:BlobKeyUri` | Implemented |
 | Data Protection key encryption | Azure Key Vault key | `DataProtection:KeyEncryptionMode`, `DataProtection:KeyVaultKeyIdentifier` | Implemented |
 | Profile images | Azure Blob Storage | `ProfileImageStorage:Provider`, `ProfileImageStorage:AzureBlob:ContainerUri` | Implemented |
@@ -207,7 +207,8 @@ Payments__Stripe__SecretKey=<key-vault-reference>
 Payments__Stripe__WebhookSigningSecret=<key-vault-reference>
 Payments__Stripe__SuccessUrl=https://your-app/payments/success
 Payments__Stripe__CancelUrl=https://your-app/payments/cancel
-Payments__Mpesa__ConsumerKey=<key-vault-reference>
+
+Payments__Mpesa__ConsumerKey=<key-vault-reference>
 Payments__Mpesa__ConsumerSecret=<key-vault-reference>
 Payments__Mpesa__ShortCode=<paybill-or-till>
 Payments__Mpesa__PassKey=<key-vault-reference>
@@ -257,7 +258,7 @@ Minimum API settings:
 
 ```text
 ASPNETCORE_ENVIRONMENT=Production
-ConnectionStrings__DefaultConnection=<sql-server-connection>
+ConnectionStrings__DefaultConnection=<postgresql-connection>
 JwtSettings__Secret=<strong-secret>
 KeyVault__Uri=
 DataProtection__ApplicationName=LlanSacco
@@ -326,20 +327,20 @@ When checking screenshots or app settings, verify:
 - `EmailSettings:Provider` is `LocalMailpit` only in Development, `SendGrid` in Production, and `EmailSettings:FromAddress` is a verified sender/domain with the selected provider.
 - Use `OutputCache` for API response caching. Do not add legacy `ResponseCaching` unless a future requirement specifically needs HTTP header/proxy cache semantics.
 - `Microsoft.OpenApi` is pinned directly to a non-vulnerable compatible 2.x version because the ASP.NET OpenAPI source generator is not yet compatible with the 3.x package line.
-- `System.Security.Cryptography.Pkcs`, `Microsoft.AspNetCore.WebUtilities` and `System.Formats.Cbor` are pinned directly to patched versions in the projects that pull them in transitively (Persistence, SharedKernel and Infrastructure). Remove each pin once its parent package depends on a patched version.
+- `Microsoft.AspNetCore.WebUtilities` and `System.Formats.Cbor` are pinned directly to patched versions in the projects that pull them in transitively (SharedKernel and Infrastructure). Remove each pin once its parent package depends on a patched version.
 
 ## CI/CD Pipeline and Deployments
 
-LlanSacco includes a manually dispatched CI/CD pipeline in `.github/workflows/deploy-azure.yml` that handles compiling, testing, migrating Azure SQL, and deploying the backend API and frontend Blazor UI to the explicitly selected target. Pushes and pull-request merges run CI only; they do not migrate or deploy Azure resources.
+LlanSacco includes a manually dispatched CI/CD pipeline in `.github/workflows/deploy-azure.yml` that handles compiling, testing, migrating Azure Database for PostgreSQL Flexible Server, and deploying the backend API and frontend Blazor UI to the explicitly selected target. Pushes and pull-request merges run CI only; they do not migrate or deploy Azure resources.
 
 ### Deployment Prerequisites
 
 1. Configure the `production` GitHub environment and Microsoft Entra OIDC federation.
-2. Create the GitHub deployment identity as an Azure SQL contained user with migration permissions.
-3. Add the required Azure resource-name variables and passwordless SQL connection-string secret.
+2. Grant the GitHub deployment identity rights to manage firewall rules on the PostgreSQL Flexible Server, and create a database role able to run migrations.
+3. Add the required Azure resource-name variables and the `AZURE_POSTGRES_CONNECTION_STRING` secret.
 4. Keep the App Service managed identities configured separately for runtime Azure access.
 
-Follow [Azure CI/CD Configuration](azure-cicd-configuration.md) for the complete portal, GitHub, SQL, RBAC, networking, and troubleshooting steps.
+Follow [Azure CI/CD Configuration](azure-cicd-configuration.md) for the complete portal, GitHub, PostgreSQL, RBAC, networking, and troubleshooting steps.
 
 ## Troubleshooting
 

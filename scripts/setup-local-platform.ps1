@@ -1,7 +1,5 @@
 [CmdletBinding()]
 param(
-    [switch]$IncludeSqlServer,
-    [switch]$IncludePostgres,
     [switch]$IncludeSeq,
     [switch]$SkipPull
 )
@@ -49,14 +47,14 @@ function Read-EnvironmentFile([string]$path) {
 if (-not (Test-Path -LiteralPath $envFile)) {
     $rabbitPassword = New-LocalSecret
     $redisPassword = New-LocalSecret
-    $sqlPassword = "Ls!$(New-LocalSecret)"
 
     @(
         'RABBITMQ_USER=lsdev'
         "RABBITMQ_PASSWORD=$rabbitPassword"
         "REDIS_PASSWORD=$redisPassword"
         'REDIS_HOST_PORT=6381'
-        "MSSQL_SA_PASSWORD=$sqlPassword"
+        'POSTGRES_USER=lsdev'
+        "POSTGRES_PASSWORD=$(New-LocalSecret)"
         'AZURITE_ACCOUNT_NAME=lsdevstorage'
         "AZURITE_ACCOUNT_KEY=$(New-LocalBase64Secret)"
     ) | Set-Content -LiteralPath $envFile -Encoding ascii
@@ -87,7 +85,6 @@ $requiredKeys = @(
     'RABBITMQ_PASSWORD',
     'REDIS_PASSWORD',
     'REDIS_HOST_PORT',
-    'MSSQL_SA_PASSWORD',
     'AZURITE_ACCOUNT_NAME',
     'AZURITE_ACCOUNT_KEY',
     'POSTGRES_USER',
@@ -104,7 +101,6 @@ $volumeNames = @(
     'llansacco_redis-data',
     'llansacco_seq-data',
     'llansacco_azurite-data',
-    'llansacco_sqlserver-data',
     'llansacco_postgres-data'
 )
 foreach ($volumeName in $volumeNames) {
@@ -142,14 +138,8 @@ dotnet user-secrets set 'ProfileImageStorage:Azurite:ConnectionString' $storageC
 dotnet user-secrets set 'ProfileImageStorage:Azurite:ContainerName' 'profile-images' --project $apiProject
 
 $profiles = @()
-if ($IncludeSqlServer) {
-    $profiles += @('--profile', 'database')
-    $sqlConnection = "Server=localhost,14334;Database=LS;User Id=sa;Password=$($environment.MSSQL_SA_PASSWORD);Encrypt=True;TrustServerCertificate=True;"
-    dotnet user-secrets set 'ConnectionStrings:DefaultConnection' $sqlConnection --project $apiProject
-}
-if ($IncludePostgres) {
-    $profiles += @('--profile', 'postgres')
-}
+$pgConnection = "Host=localhost;Port=5436;Database=llansacco;Username=$($environment.POSTGRES_USER);Password=$($environment.POSTGRES_PASSWORD)"
+dotnet user-secrets set 'ConnectionStrings:DefaultConnection' $pgConnection --project $apiProject
 if ($IncludeSeq) {
     $profiles += @('--profile', 'observability')
 }
@@ -178,5 +168,4 @@ Write-Host "  Redis:      localhost:$($environment.REDIS_HOST_PORT)"
 Write-Host '  Mailpit:    http://localhost:8036'
 if ($IncludeSeq) { Write-Host '  Seq:        http://localhost:5343' }
 Write-Host '  Azurite:    http://localhost:10010'
-if ($IncludeSqlServer) { Write-Host '  SQL Server: localhost,14334' }
-if ($IncludePostgres) { Write-Host '  PostgreSQL: localhost:5436 (database llansacco)' }
+Write-Host '  PostgreSQL: localhost:5436 (database llansacco)'

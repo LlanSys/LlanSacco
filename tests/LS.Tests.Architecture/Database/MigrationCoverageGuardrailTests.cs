@@ -7,18 +7,18 @@ using Xunit;
 namespace LS.Tests.Architecture.Database;
 
 /// <summary>
-/// Discovers every provider-specific migration context instead of listing them by hand, so a new
-/// bounded context cannot ship without a current migration or without a deployment bundle.
+/// Discovers every migration context instead of listing them by hand, so a new bounded context cannot
+/// ship without a current migration or without a deployment bundle. LlanSacco runs on PostgreSQL only.
 /// </summary>
 [Trait("Category", "Guardrail")]
 public class MigrationCoverageGuardrailTests
 {
-    private const string SqlServerSuffix = "SqlServerDBContext";
     private const string PostgreSqlSuffix = "PostgreSqlDBContext";
 
     public static TheoryData<Type> ProviderContexts()
     {
         var data = new TheoryData<Type>();
+
         foreach (var type in DiscoverProviderContexts())
         {
             data.Add(type);
@@ -32,12 +32,11 @@ public class MigrationCoverageGuardrailTests
     public void ProviderContext_ShouldNotHavePendingModelChanges(Type contextType)
     {
         var services = new ServiceCollection();
-        var isPostgres = contextType.Name.EndsWith(PostgreSqlSuffix, StringComparison.Ordinal);
 
         typeof(MigrationCoverageGuardrailTests)
             .GetMethod(nameof(AddContext), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
             .MakeGenericMethod(contextType)
-            .Invoke(null, [services, isPostgres]);
+            .Invoke(null, [services]);
 
         services.AddScoped<ICurrentTenantProvider, DummyTenantProvider>();
         services.AddScoped<ICurrentActorProvider, DummyActorProvider>();
@@ -53,12 +52,17 @@ public class MigrationCoverageGuardrailTests
     }
 
     [Fact]
-    public void EveryContext_ShouldHaveBothProviderVariants()
+    public void EveryMigrationContext_ShouldTargetPostgreSql()
     {
-        var sqlServer = ContextNames(SqlServerSuffix);
-        var postgreSql = ContextNames(PostgreSqlSuffix);
+        var nonPostgreSql = typeof(SharedDBContext).Assembly.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false }
+                && typeof(DbContext).IsAssignableFrom(type)
+                && type.Name.EndsWith("DBContext", StringComparison.Ordinal)
+                && type.Name.Contains("SqlServer", StringComparison.OrdinalIgnoreCase))
+            .Select(type => type.Name)
+            .ToList();
 
-        Assert.Equal(sqlServer, postgreSql);
+        Assert.Empty(nonPostgreSql);
     }
 
     [Fact]
@@ -71,28 +75,18 @@ public class MigrationCoverageGuardrailTests
             .ToList();
 
         Assert.Equal(listed.Count, listed.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(ContextNames(SqlServerSuffix), listed.Order(StringComparer.Ordinal).ToList());
+        Assert.Equal(ContextNames(PostgreSqlSuffix), listed.Order(StringComparer.Ordinal).ToList());
     }
 
-    private static void AddContext<TContext>(IServiceCollection services, bool isPostgres) where TContext : DbContext
+    private static void AddContext<TContext>(IServiceCollection services) where TContext : DbContext
         => services.AddDbContext<TContext>(options =>
-        {
-            if (isPostgres)
-            {
-                options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres");
-            }
-            else
-            {
-                options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true");
-            }
-        });
+            options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
 
     private static IEnumerable<Type> DiscoverProviderContexts()
         => typeof(SharedDBContext).Assembly.GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false }
                 && typeof(DbContext).IsAssignableFrom(type)
-                && (type.Name.EndsWith(SqlServerSuffix, StringComparison.Ordinal)
-                    || type.Name.EndsWith(PostgreSqlSuffix, StringComparison.Ordinal)))
+                && type.Name.EndsWith(PostgreSqlSuffix, StringComparison.Ordinal))
             .OrderBy(type => type.Name, StringComparer.Ordinal);
 
     private static List<string> ContextNames(string suffix)
@@ -105,6 +99,7 @@ public class MigrationCoverageGuardrailTests
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "LlanSacco.slnx")))

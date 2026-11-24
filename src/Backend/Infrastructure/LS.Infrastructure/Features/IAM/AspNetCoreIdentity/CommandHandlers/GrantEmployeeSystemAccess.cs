@@ -1,12 +1,11 @@
 using LS.Application.Features.IAM.Users.Commands;
-using LS.Application.Features.Shared.Notifications.Contracts.Interfaces;
 using LS.Domain.Features.HR.Contracts;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Infrastructure.Configuration;
+using LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services;
 using LS.Infrastructure.Logging;
 using LS.SharedKernel.Dtos.Common;
-using LS.SharedKernel.Features.Shared.Notifications.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +19,7 @@ internal sealed class GrantEmployeeSystemAccess(
     IHrUnitOfWork hrUnitOfWork,
     IIamUnitOfWork iamUnitOfWork,
     IOptions<IamProvisioningSettings> provisioningOptions,
-    IEmailService emailService,
+    IamAccessActivator accessActivator,
     ILogger<GrantEmployeeSystemAccess> logger)
     : IRequestHandler<GrantEmployeeSystemAccessCommand, AppResponse<bool>>
 {
@@ -31,6 +30,7 @@ internal sealed class GrantEmployeeSystemAccess(
         try
         {
             var temporaryPassword = provisioningOptions.Value.TemporaryPassword;
+
             if (string.IsNullOrWhiteSpace(temporaryPassword))
             {
                 return AppResponses.Failure<bool>(
@@ -40,100 +40,123 @@ internal sealed class GrantEmployeeSystemAccess(
             AppUser? user = null;
             var createdNewUser = false;
             string[] rolesAdded = [];
-            var write = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                user = await userManager.Users
-                    .SingleOrDefaultAsync(u => u.EmployeeId == command.EmployeeId, ct)
-                    .ConfigureAwait(false);
-
-                createdNewUser = false;
-                if (user is null)
+            var write = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(
+                async () =>
                 {
-                    var employee = await hrUnitOfWork.EmployeeRepository
-                        .FindByCondition(existing => existing.Id == command.EmployeeId)
-                        .AsNoTracking()
-                        .SingleOrDefaultAsync(ct)
+                    user = await userManager.Users
+                        .SingleOrDefaultAsync(u => u.EmployeeId == command.EmployeeId, ct)
                         .ConfigureAwait(false);
 
-                    if (employee is null)
+                    createdNewUser = false;
+
+                    if (user is null)
                     {
-                        return AppResponses.NotFound<bool>("Employee record was not found.");
+                        var employee = await hrUnitOfWork.EmployeeRepository
+                            .FindByCondition(existing => existing.Id == command.EmployeeId)
+                            .AsNoTracking()
+                            .SingleOrDefaultAsync(ct)
+                            .ConfigureAwait(false);
+
+                        if (employee is null)
+                        {
+                            return AppResponses.NotFound<bool>("Employee record was not found.");
+                        }
+
+                        user = AppUser.CreateForEmployee(
+                            Guid.Empty,
+                            employee.Id,
+                            employee.Email,
+                            employee.FirstName,
+                            employee.LastName,
+                            employee.Email,
+                            employee.PhoneNumber,
+                            employee.IdNumber,
+                            command.GrantedBy);
+
+                        user.EmailConfirmed = true;
+
+                        var createResult = await userManager.CreateAsync(user, temporaryPassword).ConfigureAwait(false);
+
+                        if (!createResult.Succeeded)
+                        {
+                            return AppResponses.Failure<bool>(createResult.Errors.First().Description);
+                        }
+
+                        createdNewUser = true;
                     }
 
-                    user = AppUser.CreateForEmployee(
-                        Guid.Empty,
-                        employee.Id,
-                        employee.Email,
-                        employee.FirstName,
-                        employee.LastName,
-                        employee.Email,
-                        employee.PhoneNumber,
-                        employee.IdNumber,
-                        command.GrantedBy);
+                    if (user.IsActive)
+                    {
+                        return AppResponses.Failure<bool>(
+                            "This employee is already linked to an active IAM account. Use Manage Roles or Revoke Access instead.");
+                    }
 
+                    if (!createdNewUser)
+                    {
+                        var passwordResetResult = await accessActivator.ResetTemporaryPasswordForReactivationAsync(user, temporaryPassword)
+                            .ConfigureAwait(false);
+
+                        if (!passwordResetResult.Succeeded)
+                        {
+                            return AppResponses.Failure<bool>(passwordResetResult.Errors.First().Description);
+                        }
+                    }
+
+                    user.GrantAccess(command.GrantedBy, command.Roles);
                     user.EmailConfirmed = true;
 
-                    var createResult = await userManager.CreateAsync(user, temporaryPassword).ConfigureAwait(false);
-                    if (!createResult.Succeeded)
+                    var updateResult = await userManager.UpdateAsync(user).ConfigureAwait(false);
+
+                    if (!updateResult.Succeeded)
                     {
-                        return AppResponses.Failure<bool>(createResult.Errors.First().Description);
+                        return AppResponses.Failure<bool>(updateResult.Errors.First().Description);
                     }
 
-                    createdNewUser = true;
-                }
+                    rolesAdded = [];
 
-                if (user.IsActive)
-                {
-                    return AppResponses.Failure<bool>(
-                        "This employee is already linked to an active IAM account. Use Manage Roles or Revoke Access instead.");
-                }
-
-                if (!createdNewUser)
-                {
-                    var passwordResetResult = await ResetTemporaryPasswordForReactivationAsync(user, temporaryPassword)
-                        .ConfigureAwait(false);
-                    if (!passwordResetResult.Succeeded)
+                    if (command.Roles.Any())
                     {
-                        return AppResponses.Failure<bool>(passwordResetResult.Errors.First().Description);
+                        var existingRoles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
+                        var rolesToAdd = command.Roles
+                            .Except(existingRoles, StringComparer.OrdinalIgnoreCase)
+                            .ToArray();
+
+                        if (rolesToAdd.Length > 0)
+                        {
+                            var roleResult = await userManager.AddToRolesAsync(user, rolesToAdd).ConfigureAwait(false);
+
+                            if (!roleResult.Succeeded)
+                            {
+                                return AppResponses.Failure<bool>(roleResult.Errors.First().Description);
+                            }
+
+                            rolesAdded = rolesToAdd;
+                        }
                     }
-                }
-
-                user.GrantAccess(command.GrantedBy, command.Roles);
-                user.EmailConfirmed = true;
-
-                var updateResult = await userManager.UpdateAsync(user).ConfigureAwait(false);
-                if (!updateResult.Succeeded)
-                    return AppResponses.Failure<bool>(updateResult.Errors.First().Description);
-
-                rolesAdded = [];
-                if (command.Roles.Any())
-                {
-                    var existingRoles = await userManager.GetRolesAsync(user).ConfigureAwait(false);
-                    var rolesToAdd = command.Roles
-                        .Except(existingRoles, StringComparer.OrdinalIgnoreCase)
-                        .ToArray();
-
-                    if (rolesToAdd.Length > 0)
-                    {
-                        var roleResult = await userManager.AddToRolesAsync(user, rolesToAdd).ConfigureAwait(false);
-                        if (!roleResult.Succeeded)
-                            return AppResponses.Failure<bool>(roleResult.Errors.First().Description);
-
-                        rolesAdded = rolesToAdd;
-                    }
-                }
-                return AppResponses.Success(true);
-            }, cancellationToken: ct, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+                    return AppResponses.Success(true);
+                },
+                cancellationToken: ct,
+                shouldCommit: response => response.IsSuccess)
+                .ConfigureAwait(false);
 
             if (!write.IsSuccess)
+            {
                 return write;
+            }
 
             var activationStamp = user!.ConcurrencyStamp;
-            var emailResponse = await SendActivationEmailAsync(user, provisioningOptions.Value, createdNewUser, ct)
+            var emailResponse = await accessActivator.SendActivationEmailAsync(user, provisioningOptions.Value, createdNewUser, ct)
                 .ConfigureAwait(false);
+
             if (!emailResponse.IsSuccess)
             {
-                await RollBackActivationAsync(user.Id, activationStamp, rolesAdded, command.GrantedBy).ConfigureAwait(false);
+                if (!await accessActivator.RollBackActivationAsync(user.Id, activationStamp, rolesAdded, command.GrantedBy).ConfigureAwait(false))
+                {
+                    ServiceLogDefinitions.LogGrantEmployeeSystemAccessError(
+                        logger,
+                        user.Id,
+                        new InvalidOperationException("Activation compensation could not be applied."));
+                }
                 return AppResponses.Failure<bool>("System access was not granted because the activation email could not be sent. Please verify email settings and try again.");
             }
 
@@ -153,86 +176,5 @@ internal sealed class GrantEmployeeSystemAccess(
             ServiceLogDefinitions.LogGrantEmployeeSystemAccessError(logger, employeeId, ex);
             throw;
         }
-    }
-
-    private async Task<IdentityResult> ResetTemporaryPasswordForReactivationAsync(
-        AppUser user,
-        string temporaryPassword)
-    {
-        var resetToken = await userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
-        var resetResult = await userManager.ResetPasswordAsync(user, resetToken, temporaryPassword).ConfigureAwait(false);
-        if (!resetResult.Succeeded)
-        {
-            return resetResult;
-        }
-
-        user.RequirePasswordChange = true;
-        user.PasswordLastChanged = null;
-        user.ResetFailedLoginAttempts();
-
-        var failedCountResult = await userManager.ResetAccessFailedCountAsync(user).ConfigureAwait(false);
-        if (!failedCountResult.Succeeded)
-        {
-            return failedCountResult;
-        }
-
-        return await userManager.SetLockoutEndDateAsync(user, null).ConfigureAwait(false);
-    }
-
-    private Task<AppResponse<SendEmailResponse>> SendActivationEmailAsync(
-        AppUser user,
-        IamProvisioningSettings settings,
-        bool createdNewUser,
-        CancellationToken ct)
-    {
-        var displayName = $"{user.FirstName} {user.LastName}".Trim();
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            displayName = user.UserName ?? user.Email ?? "there";
-        }
-
-        var subject = createdNewUser
-            ? "Your LlanSacco account is ready"
-            : "Your LlanSacco access has been reactivated";
-
-        var body = $"""
-            <p>Hello {System.Net.WebUtility.HtmlEncode(displayName)},</p>
-            <p>Your system access has been enabled.</p>
-            <p><strong>Username:</strong> {System.Net.WebUtility.HtmlEncode(user.UserName ?? user.Email ?? string.Empty)}</p>
-            <p><strong>Temporary password:</strong> {System.Net.WebUtility.HtmlEncode(settings.TemporaryPassword)}</p>
-            <p>Please sign in at <a href="{System.Net.WebUtility.HtmlEncode(settings.SignInUrl)}">{System.Net.WebUtility.HtmlEncode(settings.SignInUrl)}</a> and change your password immediately.</p>
-            <p>If you did not expect this access, contact your system administrator.</p>
-            """;
-
-        return emailService.SendEmailAsync(new SendEmailRequest
-        {
-            To = user.Email,
-            Subject = subject,
-            Body = body
-        }, ct);
-    }
-
-    private async Task RollBackActivationAsync(string userId, string? activationStamp, string[] rolesAdded, string changedBy)
-    {
-        // Complete compensation even if the HTTP request was cancelled after the provider rejected delivery.
-        var compensated = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-        {
-            var current = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
-            if (current is null || !current.IsActive)
-                return true;
-            if (!string.Equals(current.ConcurrencyStamp, activationStamp, StringComparison.Ordinal))
-                return false;
-
-            if (rolesAdded.Length > 0
-                && !(await userManager.RemoveFromRolesAsync(current, rolesAdded).ConfigureAwait(false)).Succeeded)
-                return false;
-
-            current.RevokeAccess(changedBy, "Activation email could not be sent.");
-            return (await userManager.UpdateAsync(current).ConfigureAwait(false)).Succeeded;
-        }, cancellationToken: CancellationToken.None, shouldCommit: success => success).ConfigureAwait(false);
-
-        if (!compensated)
-            ServiceLogDefinitions.LogGrantEmployeeSystemAccessError(logger, userId,
-                new InvalidOperationException("Activation compensation could not be applied."));
     }
 }

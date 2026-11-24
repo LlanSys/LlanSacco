@@ -8,6 +8,10 @@
     "Reason": "Retries the accounting integration delivery. The integration error queue reads current state."
   },
   {
+    "Symbol": "LS.Application.Features.Accounting.Commands.UpsertGlMappingCommand",
+    "Reason": "Configures a transaction-type GL mapping. Ledger posting and mapping reads query the database directly."
+  },
+  {
     "Symbol": "LS.Application.Features.Banking.Deposits.Commands.CreateDepositProductCommand",
     "Reason": "Adds a deposit product. Available deposit products and terms are read directly."
   },
@@ -446,6 +450,10 @@
   {
     "Symbol": "LS.Application.Features.Membership.Commands.CloseMemberCommand",
     "Reason": "Closes membership. Membership and financial status reads use current data."
+  },
+  {
+    "Symbol": "LS.Application.Features.Membership.Commands.GrantMemberPortalAccessCommand",
+    "Reason": "Activates the member's IAM account. Membership, user and authorization reads bypass caching."
   },
   {
     "Symbol": "LS.Application.Features.Membership.Commands.NominateGuarantorCommand",

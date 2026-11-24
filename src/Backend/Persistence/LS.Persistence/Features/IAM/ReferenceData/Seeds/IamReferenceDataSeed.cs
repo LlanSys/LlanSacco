@@ -30,6 +30,7 @@ internal static class IamReferenceDataSeed
         CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10207", "users", "Users", "IAM", "Application user accounts."),
         CreateResource("018fd81d-2c94-7ad0-a4a3-f1edb9d10208", "payments", "Payments", "Shared", "Payment checkout, status, and provider administration." ),
         CreateResource("01a20921-9d64-7286-ad6a-aa845861e1e1", "accounting-integrations", "Accounting integrations", "Accounting", "Accounting integrations operations."),
+        CreateResource("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c03", "gl-mappings", "GL mappings", "Accounting", "Transaction-type GL mapping configuration."),
         CreateResource("01a20921-9d64-739f-97e8-58248c469132", "banking-products", "Banking products", "Banking", "Banking products operations."),
         CreateResource("01a20921-9d64-7614-bc45-2101b553c789", "banking-accounts", "Banking accounts", "Banking", "Banking accounts operations."),
         CreateResource("01a20921-9d64-78c5-a609-825ab678a8bd", "banking-transactions", "Banking transactions", "Banking", "Banking transactions operations."),

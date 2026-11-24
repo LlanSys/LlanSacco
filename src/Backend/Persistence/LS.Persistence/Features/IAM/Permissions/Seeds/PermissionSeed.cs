@@ -62,6 +62,8 @@ internal static class PermissionSeed
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9b11103", "Accounting", "transactions", "approve", "Approve pending transactions."),
         Create("01a20921-9d5f-7902-9430-1ce4ec5562c9", "Accounting", "accounting-integrations", "view", "View integration failure summaries."),
         Create("01a20921-9d63-7c8d-91b5-e505e23f0d68", "Accounting", "accounting-integrations", "retry", "Replay failed accounting events."),
+        Create("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c01", "Accounting", "gl-mappings", "view", "View transaction-type GL mappings."),
+        Create("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c02", "Accounting", "gl-mappings", "manage", "Configure transaction-type GL mappings."),
         Create("01a20921-9d63-74bd-aa17-eeb1ba2ffbbc", "Banking", "banking-products", "view", "View banking products."),
         Create("01a20921-9d63-7d98-a492-2aee5ad38552", "Banking", "banking-products", "manage", "Maintain deposit, savings and share products."),
         Create("01a20921-9d63-7191-a608-ae2202a6708a", "Banking", "banking-accounts", "view", "View member banking accounts."),

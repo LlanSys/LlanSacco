@@ -1,0 +1,300 @@
+@page "/accounting/gl-mappings"
+@using LS.SharedKernel.Features.Accounting.Dtos
+@using LS.UI.Blazor.Features.Accounting.Contracts.Interfaces
+@inject IFinanceService FinanceService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Policy = "gl-mappings.view")]
+
+<PageTitle>GL Mappings</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudButton Variant="Variant.Outlined"
+               StartIcon="@Icons.Material.Filled.ArrowBack"
+               Href="/accounting">Back to Accounting</MudButton>
+    <AuthorizeView Policy="gl-mappings.manage"
+                   Context="createPermission">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => OpenEditor(null))">New mapping</MudButton>
+    </AuthorizeView>
+</div>
+
+<MudTable Items="Mappings"
+          Hover="true"
+          Breakpoint="Breakpoint.Sm"
+          Loading="@IsLoading"
+          Dense="true"
+          HorizontalScrollbar="true"
+          Elevation="1">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Transaction-type GL mappings</MudText>
+        <MudSpacer />
+        <MudChip T="string"
+                 Size="Size.Small">@(Mappings?.Count ?? 0) shown</MudChip>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Primary"
+                   OnClick="LoadAsync"
+                   StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Transaction type</MudTh>
+        <MudTh>Debit</MudTh>
+        <MudTh>Credit</MudTh>
+        <MudTh>Fee</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Updated</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Transaction type">@context.TransactionTypeCode</MudTd>
+        <MudTd DataLabel="Debit">@Side(context.DebitSideSource, context.DebitAccountCode, context.DebitAccountName)</MudTd>
+        <MudTd DataLabel="Credit">@Side(context.CreditSideSource, context.CreditAccountCode, context.CreditAccountName)</MudTd>
+        <MudTd DataLabel="Fee">@Side(context.FeeSideSource, context.FeeAccountCode, context.FeeAccountName)</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd DataLabel="Updated">@((context.UpdatedAt ?? context.CreatedAt).ToString("g"))</MudTd>
+        <MudTd DataLabel="Actions">
+            <AuthorizeView Policy="gl-mappings.manage"
+                           Context="editPermission">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Primary"
+                           OnClick="@(() => OpenEditor(context))">Edit</MudButton>
+            </AuthorizeView>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No GL mappings are configured.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+<MudDialog @bind-Visible="_editorOpen"
+           Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_isNew ? "New GL mapping" : $"Edit {_code}")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_code"
+                              Label="Transaction type code"
+                              Disabled="@(!_isNew)"
+                              HelperText="Uppercase letters, digits and underscores, e.g. GUARANTOR_RECOVERY"
+                              MaxLength="64" />
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="string"
+                           @bind-Value="_form.DebitSource"
+                           Label="Debit source">
+                    @foreach (var source in Sources)
+                    {
+                        <MudSelectItem Value="@source">@source</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="Guid?"
+                           @bind-Value="_form.DebitAccountId"
+                           Label="Debit account"
+                           Disabled="@(_form.DebitSource != ExplicitGl)"
+                           Clearable="true">
+                    @foreach (var account in ActiveAccounts)
+                    {
+                        <MudSelectItem T="Guid?"
+                                       Value="@account.Id">@AccountLabel(account)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="string"
+                           @bind-Value="_form.CreditSource"
+                           Label="Credit source">
+                    @foreach (var source in Sources)
+                    {
+                        <MudSelectItem Value="@source">@source</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="Guid?"
+                           @bind-Value="_form.CreditAccountId"
+                           Label="Credit account"
+                           Disabled="@(_form.CreditSource != ExplicitGl)"
+                           Clearable="true">
+                    @foreach (var account in ActiveAccounts)
+                    {
+                        <MudSelectItem T="Guid?"
+                                       Value="@account.Id">@AccountLabel(account)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="string"
+                           @bind-Value="_form.FeeSource"
+                           Label="Fee source">
+                    @foreach (var source in Sources)
+                    {
+                        <MudSelectItem Value="@source">@source</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12"
+                     md="6">
+                <MudSelect T="Guid?"
+                           @bind-Value="_form.FeeAccountId"
+                           Label="Fee account"
+                           Disabled="@(_form.FeeSource != ExplicitGl)"
+                           Clearable="true">
+                    @foreach (var account in ActiveAccounts)
+                    {
+                        <MudSelectItem T="Guid?"
+                                       Value="@account.Id">@AccountLabel(account)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Description"
+                              Label="Description"
+                              MaxLength="250" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseEditor">Cancel</MudButton>
+        <AuthorizeView Policy="gl-mappings.manage"
+                       Context="savePermission">
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Disabled="_isSaving"
+                       OnClick="SaveAsync">@(_isSaving ? "Saving..." : "Save")</MudButton>
+        </AuthorizeView>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const string ExplicitGl = "EXPLICIT_GL";
+    private static readonly string[] Sources = ["CHANNEL_ACCOUNT", "PRODUCT_ACCOUNT", ExplicitGl];
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    private bool IsLoading { get; set; }
+    private IReadOnlyList<GlMappingResponse>? Mappings;
+    private IReadOnlyList<AccountResponse> ActiveAccounts = [];
+
+    private bool _editorOpen;
+    private bool _isNew;
+    private bool _isSaving;
+    private string _code = string.Empty;
+    private MappingForm _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(LoadAsync(), LoadAccountsAsync());
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            var response = await FinanceService.GetGlMappingsAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                Mappings = response.Data;
+            }
+            else
+            {
+                Snackbar.Add(response.Error?.Message ?? response.Message ?? "Failed to load GL mappings.", Severity.Error);
+            }
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        var response = await FinanceService.GetAccountsAsync();
+        if (response.IsSuccess && response.Data != null)
+        {
+            ActiveAccounts = response.Data.Where(account => account.IsActive).ToList();
+        }
+    }
+
+    private void OpenEditor(GlMappingResponse? mapping)
+    {
+        _isNew = mapping is null;
+        _code = mapping?.TransactionTypeCode ?? string.Empty;
+        _form = mapping is null
+            ? new MappingForm()
+            : new MappingForm
+            {
+                DebitSource = mapping.DebitSideSource,
+                DebitAccountId = mapping.DebitExplicitGlAccountId,
+                CreditSource = mapping.CreditSideSource,
+                CreditAccountId = mapping.CreditExplicitGlAccountId,
+                FeeSource = mapping.FeeSideSource,
+                FeeAccountId = mapping.FeeExplicitGlAccountId,
+                Description = mapping.Description
+            };
+        _editorOpen = true;
+    }
+
+    private void CloseEditor() => _editorOpen = false;
+
+    private async Task SaveAsync()
+    {
+        _isSaving = true;
+        try
+        {
+            var request = new UpsertGlMappingRequest
+            {
+                DebitSideSource = _form.DebitSource,
+                DebitExplicitGlAccountId = _form.DebitSource == ExplicitGl ? _form.DebitAccountId : null,
+                CreditSideSource = _form.CreditSource,
+                CreditExplicitGlAccountId = _form.CreditSource == ExplicitGl ? _form.CreditAccountId : null,
+                FeeSideSource = _form.FeeSource,
+                FeeExplicitGlAccountId = _form.FeeSource == ExplicitGl ? _form.FeeAccountId : null,
+                Description = _form.Description
+            };
+
+            var response = await FinanceService.UpsertGlMappingAsync(_code.Trim(), request);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add(response.Message ?? "GL mapping saved.", Severity.Success);
+                _editorOpen = false;
+                await LoadAsync();
+            }
+            else
+            {
+                var validation = response.Error?.ValidationErrors?.Values.SelectMany(errors => errors).FirstOrDefault();
+                Snackbar.Add(validation ?? response.Error?.Message ?? response.Message ?? "GL mapping could not be saved.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string Side(string source, string? code, string? name) =>
+        source == ExplicitGl && code is not null ? $"{source}: {code} {name}" : source;
+
+    private static string AccountLabel(AccountResponse account) =>
+        $"{account.AccountCode} - {account.AccountName} ({account.AccountType})";
+
+    private sealed class MappingForm
+    {
+        public string DebitSource { get; set; } = ExplicitGl;
+        public Guid? DebitAccountId { get; set; }
+        public string CreditSource { get; set; } = ExplicitGl;
+        public Guid? CreditAccountId { get; set; }
+        public string FeeSource { get; set; } = "CHANNEL_ACCOUNT";
+        public Guid? FeeAccountId { get; set; }
+        public string? Description { get; set; }
+    }
+}

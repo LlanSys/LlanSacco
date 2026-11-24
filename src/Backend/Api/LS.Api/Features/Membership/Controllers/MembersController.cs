@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace LS.Api.Features.Membership.Controllers;
@@ -127,6 +128,21 @@ public class MembersController(ISender sender) : BaseController
     }
 
     /// <summary>
+    /// Activates the member's linked IAM account for portal sign-in.
+    /// </summary>
+    [HttpPost("{memberId:guid}/grant-portal-access")]
+    [RequirePermission("members.approve")]
+    [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> GrantPortalAccess(Guid memberId)
+    {
+        var command = new GrantMemberPortalAccessCommand(memberId, GetActorId());
+        var result = await sender.Send(command).ConfigureAwait(false);
+        return HandleResponse(result);
+    }
+
+    /// <summary>
     /// Suspends a member.
     /// </summary>
     [HttpPost("{id}/suspend")]
@@ -190,5 +206,16 @@ public class MembersController(ISender sender) : BaseController
         var result = await sender.Send(command).ConfigureAwait(false);
         return HandleResponse(result);
     }
-}
 
+    private string GetActorId()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new UnauthorizedAccessException("Authenticated user id was not found.");
+        }
+
+        return userId;
+    }
+}

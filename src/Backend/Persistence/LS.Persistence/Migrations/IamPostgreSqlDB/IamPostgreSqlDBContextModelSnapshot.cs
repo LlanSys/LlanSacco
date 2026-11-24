@@ -1427,6 +1427,36 @@ namespace LS.Persistence.Migrations.IamPostgreSqlDB
                         },
                         new
                         {
+                            Id = new Guid("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c01"),
+                            Action = "view",
+                            Context = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "View transaction-type GL mappings.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "gl-mappings.view",
+                            Resource = "gl-mappings",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c02"),
+                            Action = "manage",
+                            Context = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Configure transaction-type GL mappings.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "gl-mappings.manage",
+                            Resource = "gl-mappings",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
                             Id = new Guid("01a20921-9d63-74bd-aa17-eeb1ba2ffbbc"),
                             Action = "view",
                             Context = "Banking",
@@ -3055,6 +3085,20 @@ namespace LS.Persistence.Migrations.IamPostgreSqlDB
                             IsDeleted = false,
                             Key = "accounting-integrations",
                             Label = "Accounting integrations",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("01a2bd10-4c1e-7a31-9f52-6d0b3e8a1c03"),
+                            ContextKey = "Accounting",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Transaction-type GL mapping configuration.",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "gl-mappings",
+                            Label = "GL mappings",
                             RowVersion = new byte[0],
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001")
                         },

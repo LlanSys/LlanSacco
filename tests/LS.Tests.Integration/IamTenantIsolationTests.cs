@@ -20,14 +20,7 @@ public abstract class IamTenantIsolationTests<TFixture> : IClassFixture<TFixture
 
         var builder = new DbContextOptionsBuilder<IamDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(fixture.GetConnectionString());
-        }
-        else if (fixture is MsSqlDbFixture)
-        {
-            builder.UseSqlServer(fixture.GetConnectionString());
-        }
+        builder.UseNpgsql(fixture.GetConnectionString());
 
         _options = builder.Options;
     }

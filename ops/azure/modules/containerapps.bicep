@@ -18,8 +18,6 @@ param uiAppName string
 @description('Location for all resources.')
 param location string = resourceGroup().location
 
-@description('The database provider to configure for the API.')
-param databaseProvider string
 
 @description('The URI of the Key Vault (optional)')
 param keyVaultUri string = ''
@@ -82,10 +80,6 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = if (manageContainerAp
           name: 'api'
           image: 'mcr.microsoft.com/dotnet/samples:aspnetapp'
           env: [
-            {
-              name: 'DatabaseSettings__Provider'
-              value: databaseProvider
-            }
             {
               name: 'KeyVault__Uri'
               value: keyVaultUri

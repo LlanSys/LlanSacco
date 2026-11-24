@@ -10,7 +10,7 @@ Run application code from Visual Studio:
 - `LS.UI.Blazor`
 - EF migrations and debugging
 
-Run RabbitMQ, Redis, Mailpit, and Azurite through `ops/local/docker-compose.yml`. SQL Server and Seq remain optional Compose profiles because developers may already have them installed.
+Run PostgreSQL 17, RabbitMQ, Redis, Mailpit, and Azurite through `ops/local/docker-compose.yml`. PostgreSQL is a core service on host port 5436; Seq remains an optional Compose profile because developers may already have it installed.
 
 See [Local Platform](local-platform.md) and run:
 
@@ -38,25 +38,26 @@ Development uses RabbitMQ. Azure production uses Azure Service Bus. Both use the
 Set local secrets on the API project:
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=BT;Trusted_Connection=True;TrustServerCertificate=True;" --project src\Backend\Api\LS.Api\LS.Api.csproj
 dotnet user-secrets set "JwtSettings:SecretKey" "LOCAL-DEVELOPMENT-ONLY-CHANGE-ME-TO-A-LONG-RANDOM-SECRET-AT-LEAST-32-CHARS" --project src\Backend\Api\LS.Api\LS.Api.csproj
 ```
 
-Adjust the SQL Server name if your instance is different, for example:
-
-```powershell
-Server=.\SQLEXPRESS;Database=BT;Trusted_Connection=True;TrustServerCertificate=True;
-```
+`./scripts/setup-local-platform.ps1` sets `ConnectionStrings:DefaultConnection` to `Host=localhost;Port=5436;Database=llansacco;Username=...;Password=...` using the generated values in ignored `ops/local/.env`.
 
 ## Apply Local Database Schema
 
-Run the EF migrations once after setting the connection string:
+Apply every context's migrations, in the order listed in `ops/migrations/contexts.txt`, after setting the connection string. `scripts/test-app-startup.ps1` applies them all in that order; to run them by hand, use one command per context:
 
 ```powershell
-dotnet ef database update --context IamDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
-dotnet ef database update --context HrDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
-dotnet ef database update --context SharedDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
-dotnet ef database update --context BankingDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context ControlPlanePostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context IamPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context SharedPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context HrPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context MembershipPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context BankingPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context LoansPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context AccountingPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context DividendsPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
+dotnet ef database update --context CheckOffPostgreSqlDBContext --project src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj --startup-project src\Backend\Api\LS.Api\LS.Api.csproj
 ```
 
 The bounded contexts share the same local database, but each context has its own migration history table.

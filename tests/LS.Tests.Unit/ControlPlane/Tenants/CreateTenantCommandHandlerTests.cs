@@ -51,6 +51,7 @@ public sealed class CreateTenantCommandHandlerTests
             SubscriptionTier = "Enterprise",
             HostName = "test.example.com"
         };
+
         var command = new CreateTenantCommand(request);
 
         _unitOfWork.TenantRepository.AnyAsync(
@@ -80,6 +81,7 @@ public sealed class CreateTenantCommandHandlerTests
             SubscriptionTier = "Enterprise",
             HostName = "test.example.com"
         };
+
         var command = new CreateTenantCommand(request);
 
         _unitOfWork.TenantRepository.AnyAsync(
@@ -112,6 +114,7 @@ public sealed class CreateTenantCommandHandlerTests
             SubscriptionTier = "InvalidTier123",
             HostName = "test.example.com"
         };
+
         var command = new CreateTenantCommand(request);
 
         _unitOfWork.TenantRepository.AnyAsync(
@@ -144,10 +147,11 @@ public sealed class CreateTenantCommandHandlerTests
             DeploymentStampId = stampId,
             SubscriptionTier = "Enterprise",
             ContactEmail = "test@example.com",
-            DatabaseProvider = "SqlServer",
+            DatabaseProvider = "PostgreSql",
             HostName = "test.example.com",
             DatabaseConnectionString = "Server=localhost;Database=db;"
         };
+
         var command = new CreateTenantCommand(request);
 
         var stamp = new DeploymentStamp
@@ -160,12 +164,12 @@ public sealed class CreateTenantCommandHandlerTests
         };
 
         _unitOfWork.DeploymentStampRepository.FirstOrDefaultAsync(
-            Arg.Any<Expression<Func<DeploymentStamp, bool>>>(), 
+            Arg.Any<Expression<Func<DeploymentStamp, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(stamp);
 
         _unitOfWork.TenantRepository.AnyAsync(
-            Arg.Any<Expression<Func<Tenant, bool>>>(), 
+            Arg.Any<Expression<Func<Tenant, bool>>>(),
             Arg.Any<CancellationToken>())
             .Returns(false);
 
@@ -179,15 +183,16 @@ public sealed class CreateTenantCommandHandlerTests
         Assert.Equal(TenantStatus.PendingKYC.ToDisplayString(), result.Data!.Status);
 
         await _unitOfWork.TenantRepository.Received(1).CreateAsync(
-            Arg.Is<Tenant>(t => 
-                t.Status == TenantStatus.PendingKYC && 
+            Arg.Is<Tenant>(t =>
+                t.Status == TenantStatus.PendingKYC &&
                 t.Identifier == "test-tenant" &&
-                t.DatabaseConnectionString == "encrypted-string"), 
+                t.DatabaseConnectionString == "encrypted-string"),
             Arg.Any<CancellationToken>());
+
         await _unitOfWork.Received(1).CompleteAsync(Arg.Any<CancellationToken>());
-        
+
         // Ensure provisioner is NOT called directly from this handler anymore
         await _provisioner.DidNotReceiveWithAnyArgs().ProvisionIsolatedStampAsync(
-            default!, default!, default!, default!, default);
+            default!, default!, default!, default);
     }
 }

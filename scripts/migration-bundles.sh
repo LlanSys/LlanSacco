@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds or runs one EF Core migration bundle per context listed in ops/migrations/contexts.txt.
-#   build <SqlServer|PostgreSql> <output-dir>
+#   build <output-dir>
 #   run   <bundle-dir> <connection-string>
 # The build step copies this script and the context list into the output, so the run job
 # needs no repository checkout and always runs exactly the bundles that were built.
@@ -19,16 +19,15 @@ load_contexts() {
 bundle_name() { echo "efbundle-$(echo "$1" | tr '[:upper:]' '[:lower:]')"; }
 
 build() {
-  local provider="$1" output="$2"
-  case "$provider" in SqlServer|PostgreSql) ;; *) echo "ERROR: unsupported provider '$provider'" >&2; exit 1 ;; esac
+  local output="$1"
   load_contexts "${MIGRATION_CONTEXTS_FILE:-$repo_root/ops/migrations/contexts.txt}"
   mkdir -p "$output"
   for context in "${contexts[@]}"; do
-    echo "Building ${context}${provider}DBContext bundle"
+    echo "Building ${context}PostgreSqlDBContext bundle"
     dotnet ef migrations bundle \
       --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj \
       --startup-project src/Backend/Api/LS.Api/LS.Api.csproj \
-      --context "${context}${provider}DBContext" \
+      --context "${context}PostgreSqlDBContext" \
       --self-contained -r linux-x64 --configuration Release \
       -o "$output/$(bundle_name "$context")"
   done
@@ -74,7 +73,7 @@ run() {
 }
 
 case "${1:-}" in
-  build) build "$2" "$3" ;;
+  build) build "$2" ;;
   run) run "$2" "$3" ;;
-  *) echo "Usage: $0 build <provider> <output-dir> | run <bundle-dir> <connection-string>" >&2; exit 2 ;;
+  *) echo "Usage: $0 build <output-dir> | run <bundle-dir> <connection-string>" >&2; exit 2 ;;
 esac

@@ -29,15 +29,15 @@ namespace LS.Tests.Integration;
 public sealed class UnitOfWorkRegistrationTests
 {
     [Theory]
-    [InlineData("SqlServer", "Server=localhost;Database=RepositoryRegistration;Integrated Security=true")]
     [InlineData("PostgreSql", "Host=localhost;Database=RepositoryRegistration;Username=test")]
     public async Task Repositories_resolve_from_the_owning_unit_of_work_scope(string databaseProvider, string connectionString)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["DatabaseSettings:Provider"] = databaseProvider,
             ["ConnectionStrings:DefaultConnection"] = connectionString
-        }).Build();
+        })
+            .Build();
+
         var environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns(Environments.Development);
         var tenant = Substitute.For<ICurrentTenantProvider>();
@@ -50,6 +50,7 @@ public sealed class UnitOfWorkRegistrationTests
             .AddSingleton(actor)
             .AddLogging()
             .AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<IHrUnitOfWork>());
+
         services.AddAccountingPersistence(configuration);
         services.AddBankingPersistence(configuration, isProduction: false);
         services.AddCheckOffPersistence(configuration);
@@ -67,13 +68,16 @@ public sealed class UnitOfWorkRegistrationTests
             typeof(IControlPlaneUnitOfWork), typeof(IDividendsUnitOfWork), typeof(IHrUnitOfWork),
             typeof(IIamUnitOfWork), typeof(ILoansUnitOfWork), typeof(IMembershipUnitOfWork), typeof(ISharedUnitOfWork)
         ];
+
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         await using var first = provider.CreateAsyncScope();
         await using var next = provider.CreateAsyncScope();
+
         foreach (var contract in contracts)
         {
             var unit = first.ServiceProvider.GetRequiredService(contract);
             var otherUnit = next.ServiceProvider.GetRequiredService(contract);
+
             foreach (var property in contract.GetProperties())
             {
                 var repository = property.GetValue(unit);

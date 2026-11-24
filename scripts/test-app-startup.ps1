@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    # SQL Server connection string for an empty or existing database the check may migrate.
-    [Parameter(Mandatory)][string]$SqlConnectionString,
+    # PostgreSQL connection string for an empty or existing database the check may migrate.
+    [Parameter(Mandatory)][string]$ConnectionString,
     [string]$RabbitMqHost = 'localhost',
     [int]$RabbitMqPort = 5672,
     [Parameter(Mandatory)][string]$RabbitMqUser,
@@ -24,9 +24,9 @@ $api = 'src/Backend/Api/LS.Api/LS.Api.csproj'
 
 # Every context-specific connection name points at the target database, so developer
 # user-secrets cannot redirect a migration or the host to another server.
-$connectionNames = @('DefaultConnection', 'DefaultSqlConnection', 'AccountingConnection', 'BankingConnection',
+$connectionNames = @('DefaultConnection', 'DefaultPostgreSqlConnection', 'AccountingConnection', 'BankingConnection',
     'ControlPlaneConnection', 'HrConnection', 'IamConnection', 'MembershipConnection', 'SharedConnection')
-foreach ($name in $connectionNames) { Set-Item "env:ConnectionStrings__$name" $SqlConnectionString }
+foreach ($name in $connectionNames) { Set-Item "env:ConnectionStrings__$name" $ConnectionString }
 $persistence = 'src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj'
 
 dotnet build $api --configuration $Configuration -p:UseSharedCompilation=false
@@ -50,8 +50,8 @@ if (-not $SkipMigrations) {
 
     $contexts = Get-Content 'ops/migrations/contexts.txt' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') }
     foreach ($context in $contexts) {
-        Write-Host "Migrating ${context}SqlServerDBContext"
-        dotnet @efCommand database update --no-build --configuration $Configuration --project $persistence --startup-project $api --context "${context}SqlServerDBContext"
+        Write-Host "Migrating ${context}PostgreSqlDBContext"
+        dotnet @efCommand database update --no-build --configuration $Configuration --project $persistence --startup-project $api --context "${context}PostgreSqlDBContext"
         if ($LASTEXITCODE -ne 0) { throw "Migration failed for $context." }
     }
 }
@@ -89,7 +89,7 @@ $isolatedProfile = Join-Path ([IO.Path]::GetTempPath()) "llansacco-startup-profi
 New-Item -ItemType Directory -Force $isolatedProfile | Out-Null
 $startInfo.Environment['APPDATA'] = $isolatedProfile
 $startInfo.Environment['HOME'] = $isolatedProfile
-foreach ($name in $connectionNames) { $startInfo.Environment["ConnectionStrings__$name"] = $SqlConnectionString }
+foreach ($name in $connectionNames) { $startInfo.Environment["ConnectionStrings__$name"] = $ConnectionString }
 
 $process = [Diagnostics.Process]::Start($startInfo)
 

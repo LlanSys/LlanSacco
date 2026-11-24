@@ -11,14 +11,6 @@ on:
         description: "The target resource group name"
         required: true
         type: string
-      database_provider:
-        description: "Database provider (SqlServer or PostgreSql)"
-        required: true
-        default: "PostgreSql"
-        type: choice
-        options:
-          - SqlServer
-          - PostgreSql
 
 permissions:
   contents: read
@@ -57,6 +49,5 @@ jobs:
           parameters: >
             sqlAdministratorLogin="btadmin"
             sqlAdministratorLoginPassword="${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}"
-            databaseProvider="${{ inputs.database_provider }}"
             resourcePrefix="${{ inputs.stamp_id }}"
 

@@ -37,17 +37,6 @@ internal static class DesignTimeConfigurationFactory
         return connectionString;
     }
 
-    public static void ConfigureSqlServer(
-        Microsoft.EntityFrameworkCore.Infrastructure.SqlServerDbContextOptionsBuilder sqlOptions,
-        string migrationsHistoryTable)
-    {
-        ArgumentNullException.ThrowIfNull(sqlOptions);
-        ArgumentException.ThrowIfNullOrWhiteSpace(migrationsHistoryTable);
-
-        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-        sqlOptions.MigrationsHistoryTable(migrationsHistoryTable);
-    }
-
     public static void ConfigurePostgreSql(
         Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.NpgsqlDbContextOptionsBuilder pgOptions,
         string migrationsHistoryTable)

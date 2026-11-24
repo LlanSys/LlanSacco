@@ -1,4 +1,3 @@
-using LS.Persistence.Common.Configuration;
 using LS.Persistence.Features.Shared.Migrations.Generators;
 using LS.Domain.Features.ControlPlane.Auditing.Contracts.Repositories;
 using LS.Domain.Features.ControlPlane.Contracts;
@@ -23,31 +22,20 @@ public static class ControlPlanePersistenceDI
             ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("ControlPlaneConnection (or DefaultConnection) not found.");
 
-        services.Configure<DatabaseSettings>(configuration.GetSection(DatabaseSettings.SectionName));
-        var dbSettings = configuration.GetSection(DatabaseSettings.SectionName).Get<DatabaseSettings>() ?? new DatabaseSettings();
 
         void ConfigureDbContextOptions(DbContextOptionsBuilder options)
         {
-            if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
-            {
-                options.UseNpgsql(connectionString, pgOptions =>
+            options.UseNpgsql(
+                connectionString,
+                pgOptions =>
                 {
                     pgOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
                     pgOptions.CommandTimeout(30);
                     pgOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
                     pgOptions.MigrationsHistoryTable("__EFMigrationsHistory_ControlPlane");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
-            }
-            else
-            {
-                options.UseSqlServer(connectionString, sqlOptions =>
-                {
-                    sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                    sqlOptions.CommandTimeout(30);
-                    sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
-                    sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_ControlPlane");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>();
-            }
+                })
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
+
 
             if (environment?.IsDevelopment() == true || environment?.IsStaging() == true)
             {
@@ -55,14 +43,8 @@ public static class ControlPlanePersistenceDI
             }
         }
 
-        if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddDbContext<ControlPlaneDBContext, ControlPlanePostgreSqlDBContext>(ConfigureDbContextOptions);
-        }
-        else
-        {
-            services.AddDbContext<ControlPlaneDBContext, ControlPlaneSqlServerDBContext>(ConfigureDbContextOptions);
-        }
+        services.AddDbContext<ControlPlaneDBContext, ControlPlanePostgreSqlDBContext>(ConfigureDbContextOptions);
+
 
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<IDeploymentStampRepository, DeploymentStampRepository>();

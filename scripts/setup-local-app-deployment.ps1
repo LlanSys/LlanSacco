@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [switch]$UseContainerSql,
     [switch]$IncludeSeq,
     [switch]$SkipPull
 )
@@ -59,9 +58,6 @@ function Set-EnvironmentValue([string]$path, [string]$key, [string]$value) {
 }
 
 $platformArguments = @{}
-if ($UseContainerSql) {
-    $platformArguments.IncludeSqlServer = $true
-}
 if ($IncludeSeq) {
     $platformArguments.IncludeSeq = $true
 }
@@ -90,21 +86,6 @@ if (-not $environment.Contains('APP_IAM_TEMPORARY_PASSWORD') -or [string]::IsNul
 }
 
 $environment = Read-EnvironmentFile $envFile
-if ($UseContainerSql) {
-    $containerSqlConnection = "Server=sqlserver,1433;Database=BT;User Id=sa;Password=$($environment.MSSQL_SA_PASSWORD);Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True"
-    Set-EnvironmentValue $envFile 'APP_SQL_CONNECTION_STRING' $containerSqlConnection
-} elseif (-not $environment.Contains('APP_SQL_CONNECTION_STRING') -or
-    [string]::IsNullOrWhiteSpace($environment.APP_SQL_CONNECTION_STRING) -or
-    $environment.APP_SQL_CONNECTION_STRING -like '*replace-local-sql-password*') {
-    throw @"
-APP_SQL_CONNECTION_STRING is missing from $envFile.
-
-Set it to the SQL Server connection your app containers should use, for example:
-APP_SQL_CONNECTION_STRING=Server=host.docker.internal;Database=BT;User Id=sa;Password=<your-local-password>;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True
-
-Or rerun this script with -UseContainerSql to use the Docker SQL Server profile.
-"@
-}
 
 $composeArguments = @(
     'compose',

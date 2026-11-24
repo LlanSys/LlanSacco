@@ -43,7 +43,7 @@ Required pieces:
 
 - Azure Container Registry or Docker Hub/GHCR credentials.
 - Azure Container Apps environment.
-- Azure SQL or another supported production database.
+- Azure Database for PostgreSQL Flexible Server.
 - Azure Key Vault.
 - Azure Blob Storage.
 - Azure Service Bus for production messaging, or RabbitMQ if the client deliberately hosts RabbitMQ.
@@ -90,7 +90,7 @@ Important fit notes:
 
 - Prefer Linux AMD64 container images.
 - Use App Platform environment variables for configuration.
-- Use managed Postgres/Redis only if the cloned application can use them. LlanSacco currently uses SQL Server, so a SQL Server-compatible external database or a VPS-based SQL Server plan must be decided separately.
+- Use managed PostgreSQL and Redis. LlanSacco uses PostgreSQL as its only database provider.
 - Use RabbitMQ if the app needs the same broker model outside Azure.
 
 Reference: [DigitalOcean App Platform container image deployment](https://docs.digitalocean.com/products/app-platform/how-to/deploy-from-container-images/).
@@ -105,7 +105,7 @@ Important fit notes:
 - Dyno filesystem is ephemeral, so profile images and Data Protection keys must use external storage.
 - Containers should be built for `linux/amd64`.
 - Heroku recommends buildpacks unless a custom Docker image is specifically needed.
-- SQL Server is not a natural Heroku add-on path, so database hosting must be decided separately.
+- Use a PostgreSQL database reachable from the dyno; LlanSacco uses PostgreSQL as its only database provider.
 
 Reference: [Heroku Container Registry and Runtime](https://devcenter.heroku.com/articles/container-registry-and-runtime).
 
@@ -137,7 +137,7 @@ Local Docker deployment is different from the current local platform.
 
 Current local platform:
 
-- Runs infrastructure only: RabbitMQ, Redis, Mailpit, Azurite, optional Seq, optional SQL Server.
+- Runs infrastructure only: RabbitMQ, Redis, Mailpit, Azurite, PostgreSQL 17, optional Seq.
 - Runs `LS.Api` and `LS.UI.Blazor` from Visual Studio.
 
 Future local app deployment:
@@ -159,7 +159,7 @@ Use configuration for runtime providers:
 | Email | Mailpit | Approved email API provider | Approved email API provider |
 | Profile images | Azurite or local filesystem | Private Azure Blob | S3-compatible storage or private volume |
 | Data Protection | Local key ring | Azure Blob plus Key Vault | Redis or shared file share |
-| SQL | Local SQL Server | Azure SQL | SQL Server-compatible host |
+| Database | PostgreSQL 17 container | Azure Database for PostgreSQL Flexible Server | PostgreSQL host |
 
 Use CI/CD variables for deployment target:
 

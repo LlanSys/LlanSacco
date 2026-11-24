@@ -20,14 +20,7 @@ public abstract class HrTenantIsolationTests<TFixture> : IClassFixture<TFixture>
 
         var builder = new DbContextOptionsBuilder<HrDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(fixture.GetConnectionString());
-        }
-        else if (fixture is MsSqlDbFixture)
-        {
-            builder.UseSqlServer(fixture.GetConnectionString());
-        }
+        builder.UseNpgsql(fixture.GetConnectionString());
 
         _options = builder.Options;
     }

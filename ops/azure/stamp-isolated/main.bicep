@@ -21,13 +21,6 @@ param deploymentTarget string = 'container-apps'
 @description('Creates or explicitly repairs the public Container App bootstrap revisions. Keep false for infrastructure-only reruns after application images have been deployed.')
 param manageContainerApps bool = true
 
-@description('The database provider to provision and configure.')
-@allowed([
-  'SqlServer'
-  'PostgreSql'
-])
-param databaseProvider string = 'SqlServer'
-
 @description('Optional Azure Cache for Redis connection string. When empty, cache falls back to the configured non-Azure provider.')
 @secure()
 param azureCacheConnectionString string = ''
@@ -47,19 +40,7 @@ var storageAccountName = take('${resourcePrefix}st${uniqueString(resourceGroup()
 #disable-next-line BCP318
 var apiPrincipalId = deploymentTarget == 'container-apps' ? (containerApps.outputs.?apiPrincipalId ?? '') : (appService.outputs.?apiPrincipalId ?? '')
 
-module sql '../modules/sql.bicep' = if (databaseProvider == 'SqlServer') {
-  name: 'sqlDeploy'
-  params: {
-    serverName: sqlServerName
-    databaseName: 'BT'
-    administratorLogin: sqlAdministratorLogin
-    administratorLoginPassword: sqlAdministratorLoginPassword
-    location: location
-    allowAzureIps: true
-  }
-}
-
-module postgres '../modules/postgres.bicep' = if (databaseProvider == 'PostgreSql') {
+module postgres '../modules/postgres.bicep' = {
   name: 'postgresDeploy'
   params: {
     serverName: sqlServerName // Using same naming convention for simplicity
@@ -88,7 +69,6 @@ module containerApps '../modules/containerapps.bicep' = if (deploymentTarget == 
     apiAppName: apiAppName
     uiAppName: uiAppName
     location: location
-    databaseProvider: databaseProvider
     keyVaultUri: keyVaultUri
     storageAccountName: storageAccountName
     dataProtectionKeyIdentifier: '${keyVaultUri}keys/dataprotection'
@@ -103,7 +83,6 @@ module appService '../modules/appservice.bicep' = if (deploymentTarget == 'app-s
     apiAppName: apiAppName
     uiAppName: uiAppName
     location: location
-    databaseProvider: databaseProvider
     keyVaultUri: keyVaultUri
     storageAccountName: storageAccountName
     dataProtectionKeyIdentifier: '${keyVaultUri}keys/dataprotection'
@@ -155,11 +134,8 @@ module keyVault '../modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     location: location
     apiPrincipalId: apiPrincipalId
-    databaseConnectionString: databaseProvider == 'SqlServer'
 #disable-next-line BCP318
-      ? 'Server=tcp:${sql.outputs.?serverFullyQualifiedDomainName ?? ''},1433;Initial Catalog=${sql.outputs.?databaseName ?? ''};Persist Security Info=False;User ID=${sqlAdministratorLogin};Password=${sqlAdministratorLoginPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
-#disable-next-line BCP318
-      : 'Host=${postgres.outputs.?serverFullyQualifiedDomainName ?? ''};Port=5432;Database=${postgres.outputs.?databaseName ?? ''};Username=${sqlAdministratorLogin};Password=${sqlAdministratorLoginPassword};Ssl Mode=Require;Trust Server Certificate=false;'
+    databaseConnectionString: 'Host=${postgres.outputs.?serverFullyQualifiedDomainName ?? ''};Port=5432;Database=${postgres.outputs.?databaseName ?? ''};Username=${sqlAdministratorLogin};Password=${sqlAdministratorLoginPassword};Ssl Mode=Require;Trust Server Certificate=false;'
     serviceBusNamespaceName: serviceBus.outputs.serviceBusNamespaceName
     azureCacheConnectionString: !empty(azureCacheConnectionString) ? azureCacheConnectionString : redis.outputs.redisConnectionString
     communicationConnectionString: communication.outputs.communicationConnectionString
@@ -178,9 +154,9 @@ module storageAccount '../modules/storage.bicep' = {
 }
 
 #disable-next-line BCP318
-output sqlServerFqdn string = databaseProvider == 'SqlServer' ? (sql.outputs.?serverFullyQualifiedDomainName ?? '') : (postgres.outputs.?serverFullyQualifiedDomainName ?? '')
+output sqlServerFqdn string = postgres.outputs.?serverFullyQualifiedDomainName ?? ''
 #disable-next-line BCP318
-output sqlDatabaseName string = databaseProvider == 'SqlServer' ? (sql.outputs.?databaseName ?? '') : (postgres.outputs.?databaseName ?? '')
+output sqlDatabaseName string = postgres.outputs.?databaseName ?? ''
 
 #disable-next-line BCP318
 output apiHost string = deploymentTarget == 'container-apps' ? (containerApps.outputs.?apiFqdn ?? '') : (appService.outputs.?apiDefaultHostName ?? '')

@@ -51,13 +51,6 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     services:
-      mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: "Password123!"
-        ports:
-          - 1433:1433
       redis:
         image: redis:alpine
         ports:
@@ -102,7 +95,6 @@ jobs:
       - name: Run Integration Tests
         run: dotnet test tests/LS.Tests.Integration/LS.Tests.Integration.csproj --configuration Release --no-restore --no-build
         env:
-          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=BT;User Id=sa;Password=Password123!;TrustServerCertificate=True;"
           CacheSettings__ConnectionString: "localhost:6379"
 
       - name: Restore dotnet tools
@@ -113,15 +105,10 @@ jobs:
 
       - name: Build EF Core Migration Bundles
         run: |
-          PROVIDER="SqlServer"
-          if [ "${{ vars.DATABASE_PROVIDER }}" == "PostgreSql" ]; then
-            PROVIDER="PostgreSql"
-          fi
-          echo "Building migration bundles for provider: $PROVIDER"
-
-          ./scripts/migration-bundles.sh build "$PROVIDER" ./publish-api
+          ./scripts/migration-bundles.sh build ./publish-api
         env:
-          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=BT;User Id=sa;Password=Password123!;TrustServerCertificate=True;"
+          # Bundles do not connect at build time; design-time factories only need a valid PostgreSQL string.
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=llansacco_design;Username=postgres;Password=design-only"
 
       - name: Publish Blazor UI
         run: dotnet publish src/Frontend/Web/LS.UI.Blazor/LS.UI.Blazor.csproj --configuration Release --no-restore --no-build --output ./publish-ui
@@ -163,26 +150,17 @@ jobs:
       - name: Validate migration configuration
         shell: bash
         env:
-          DATABASE_PROVIDER: ${{ vars.DATABASE_PROVIDER }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_SQL_NETWORK_MODE: ${{ vars.AZURE_SQL_NETWORK_MODE }}
           AZURE_SQL_SERVER_NAME: ${{ vars.AZURE_SQL_SERVER_NAME }}
-          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
           AZURE_POSTGRES_CONNECTION_STRING: ${{ secrets.AZURE_POSTGRES_CONNECTION_STRING }}
         run: |
           set -euo pipefail
 
-          if [ "$DATABASE_PROVIDER" == "PostgreSql" ]; then
-            required_values=(
-              AZURE_SQL_NETWORK_MODE
-              AZURE_POSTGRES_CONNECTION_STRING
-            )
-          else
-            required_values=(
-              AZURE_SQL_NETWORK_MODE
-              AZURE_SQL_CONNECTION_STRING
-            )
-          fi
+          required_values=(
+            AZURE_SQL_NETWORK_MODE
+            AZURE_POSTGRES_CONNECTION_STRING
+          )
 
           for name in "${required_values[@]}"; do
             if [ -z "${!name:-}" ]; then
@@ -213,7 +191,6 @@ jobs:
         id: db-firewall
         shell: bash
         env:
-          DATABASE_PROVIDER: ${{ vars.DATABASE_PROVIDER }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_SQL_SERVER_NAME: ${{ vars.AZURE_SQL_SERVER_NAME }}
         run: |
@@ -222,39 +199,23 @@ jobs:
           runner_ip="$(curl --fail --silent --show-error https://api.ipify.org)"
           rule_name="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-          if [ "$DATABASE_PROVIDER" == "PostgreSql" ]; then
-            az postgres flexible-server firewall-rule create \
-              --resource-group "$AZURE_RESOURCE_GROUP" \
-              --name "$AZURE_SQL_SERVER_NAME" \
-              --rule-name "$rule_name" \
-              --start-ip-address "$runner_ip" \
-              --end-ip-address "$runner_ip" \
-              --output none
-          else
-            az sql server firewall-rule create \
-              --resource-group "$AZURE_RESOURCE_GROUP" \
-              --server "$AZURE_SQL_SERVER_NAME" \
-              --name "$rule_name" \
-              --start-ip-address "$runner_ip" \
-              --end-ip-address "$runner_ip" \
-              --output none
-          fi
+          az postgres flexible-server firewall-rule create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_SQL_SERVER_NAME" \
+            --rule-name "$rule_name" \
+            --start-ip-address "$runner_ip" \
+            --end-ip-address "$runner_ip" \
+            --output none
 
           echo "rule_name=$rule_name" >> "$GITHUB_OUTPUT"
 
       - name: Execute Migration Bundles
         env:
-          DATABASE_PROVIDER: ${{ vars.DATABASE_PROVIDER }}
-          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
           AZURE_POSTGRES_CONNECTION_STRING: ${{ secrets.AZURE_POSTGRES_CONNECTION_STRING }}
         run: |
           set -euo pipefail
 
-          if [ "$DATABASE_PROVIDER" == "PostgreSql" ]; then
-            export TARGET_CONNECTION_STRING="$AZURE_POSTGRES_CONNECTION_STRING"
-          else
-            export TARGET_CONNECTION_STRING="$AZURE_SQL_CONNECTION_STRING"
-          fi
+          export TARGET_CONNECTION_STRING="$AZURE_POSTGRES_CONNECTION_STRING"
 
           export ConnectionStrings__IamConnection="$TARGET_CONNECTION_STRING"
           export ConnectionStrings__HrConnection="$TARGET_CONNECTION_STRING"
@@ -269,25 +230,16 @@ jobs:
         if: always() && vars.AZURE_SQL_NETWORK_MODE == 'PublicRunner' && steps.db-firewall.outputs.rule_name != ''
         shell: bash
         env:
-          DATABASE_PROVIDER: ${{ vars.DATABASE_PROVIDER }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_SQL_SERVER_NAME: ${{ vars.AZURE_SQL_SERVER_NAME }}
           FIREWALL_RULE_NAME: ${{ steps.db-firewall.outputs.rule_name }}
         run: |
-          if [ "$DATABASE_PROVIDER" == "PostgreSql" ]; then
-            az postgres flexible-server firewall-rule delete \
-              --resource-group "$AZURE_RESOURCE_GROUP" \
-              --name "$AZURE_SQL_SERVER_NAME" \
-              --rule-name "$FIREWALL_RULE_NAME" \
-              --output none \
-              --yes
-          else
-            az sql server firewall-rule delete \
-              --resource-group "$AZURE_RESOURCE_GROUP" \
-              --server "$AZURE_SQL_SERVER_NAME" \
-              --name "$FIREWALL_RULE_NAME" \
-              --output none
-          fi
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_SQL_SERVER_NAME" \
+            --rule-name "$FIREWALL_RULE_NAME" \
+            --output none \
+            --yes
 
   deploy-app-service-api:
     name: Deploy API to Azure App Service

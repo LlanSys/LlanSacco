@@ -2,7 +2,6 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using LS.Infrastructure.Features.Banking.Savings.Jobs;
 using LS.Infrastructure.Features.Banking.GuarantorReservations.Jobs;
-using LS.Persistence.Common.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +14,6 @@ public static class HangfireExtensions
 {
     public static IServiceCollection AddHangfireServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var dbSettings = configuration.GetSection(DatabaseSettings.SectionName).Get<DatabaseSettings>() ?? new DatabaseSettings();
 
         var connectionString = configuration.GetConnectionString("SharedConnection")
             ?? configuration.GetConnectionString("DefaultConnection")
@@ -27,24 +25,9 @@ public static class HangfireExtensions
                 .UseSimpleAssemblyNameTypeSerializer()
                 .UseRecommendedSerializerSettings();
 
-            if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
-            {
-                config.UsePostgreSqlStorage(options =>
-                    options.UseNpgsqlConnection(connectionString));
-            }
-            else
-            {
-                config.UseSqlServerStorage(
-                    connectionString,
-                    new Hangfire.SqlServer.SqlServerStorageOptions
-                    {
-                        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-                        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-                        QueuePollInterval = TimeSpan.Zero,
-                        UseRecommendedIsolationLevel = true,
-                        DisableGlobalLocks = true
-                    });
-            }
+            config.UsePostgreSqlStorage(options =>
+                options.UseNpgsqlConnection(connectionString));
+
         });
 
         services.AddHangfireServer(options =>

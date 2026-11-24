@@ -20,14 +20,7 @@ public abstract class SharedTenantIsolationTests<TFixture> : IClassFixture<TFixt
 
         var builder = new DbContextOptionsBuilder<SharedDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(fixture.GetConnectionString());
-        }
-        else if (fixture is MsSqlDbFixture)
-        {
-            builder.UseSqlServer(fixture.GetConnectionString());
-        }
+        builder.UseNpgsql(fixture.GetConnectionString());
 
         _options = builder.Options;
     }

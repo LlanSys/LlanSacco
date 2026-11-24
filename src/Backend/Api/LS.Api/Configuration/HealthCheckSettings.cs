@@ -4,7 +4,7 @@ internal sealed class HealthCheckSettings
 {
     public const string SectionName = "HealthChecks";
 
-    public bool SqlServer { get; set; } = true;
+    public bool Database { get; set; } = true;
 
     public bool Redis { get; set; } = true;
 

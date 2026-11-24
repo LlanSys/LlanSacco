@@ -2,7 +2,7 @@
 
 This document outlines the resources, configuration variables, and GitHub Actions setup required to deploy LlanSacco to DigitalOcean.
 
-DigitalOcean is an excellent cloud provider for this stack. However, since they do not offer a native Managed RabbitMQ service or Managed SQL Server, there are a few architectural choices to make.
+DigitalOcean is an excellent cloud provider for this stack. However, since they do not offer a native Managed RabbitMQ service, there are a few architectural choices to make.
 
 ## Deployment Flow
 
@@ -29,12 +29,10 @@ This will host both the backend API and the frontend Blazor WebAssembly/Server a
 *   **Placeholder Value Needed**: `your-do-app-id` (The ID of the created app, used in GitHub actions).
 
 ### 1.2 Managed Database (PostgreSQL)
-LlanSacco supports both SQL Server and PostgreSQL out of the box via Entity Framework Core. Since DO offers Managed PostgreSQL, it is the recommended choice.
+LlanSacco uses PostgreSQL as its only database provider, and DO offers Managed PostgreSQL.
 *   **Type**: Managed Databases -> PostgreSQL
 *   **Purpose**: Primary transactional database.
 *   **Placeholder Value Needed**: `postgres://[user]:[password]@[host]:[port]/[database]?sslmode=require`
-
-*(Note: If you strongly prefer SQL Server, you must run it yourself on a DigitalOcean Droplet or use an external provider, as DO does not offer Managed SQL Server).*
 
 ### 1.3 Managed Redis
 *   **Type**: Managed Databases -> Redis
@@ -70,8 +68,7 @@ Your application is controlled via `appsettings.json` and environment variables.
 ```text
 ASPNETCORE_ENVIRONMENT=Production
 
-# Database Configuration (PostgreSQL Recommended on DO)
-DatabaseSettings__Provider=PostgreSql
+# Database Configuration (PostgreSQL)
 ConnectionStrings__DefaultConnection=postgres://[user]:[password]@[host]:[port]/[database]?sslmode=require
 
 # JWT Secrets
@@ -113,7 +110,7 @@ PasswordRecovery__ResetPath=/iam/reset-password
 
 ### Local Development Alignment
 
-In your local `secrets.json` (managed via `dotnet user-secrets`), you can mimic this setup if you want to test against DO resources, but generally, local dev should use the provided `docker-compose.yml` (Local SQL Server, Local Redis, Local RabbitMQ, Local Azurite).
+In your local `secrets.json` (managed via `dotnet user-secrets`), you can mimic this setup if you want to test against DO resources, but generally, local dev should use the provided `docker-compose.yml` (Local PostgreSQL, Local Redis, Local RabbitMQ, Local Azurite).
 
 To ensure the POCOs map correctly, ensure your `appsettings.json` blocks correspond exactly to the keys above using double-underscores (`__`) to denote JSON hierarchy.
 

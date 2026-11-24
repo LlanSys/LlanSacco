@@ -22,7 +22,6 @@ using LS.SharedKernel.Features.Membership.Dtos;
 using LS.SharedKernel.Features.Shared.Common.Enums;
 using LS.Tests.Integration.TestFixtures;
 using MediatR;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,15 +62,10 @@ public abstract class SaccoTenantIsolationTests<TFixture>(TFixture fixture) : IC
     [Fact]
     [Trait("TenantIsolation", nameof(DividendsDBContext))]
     public Task Dividends_QueriesAreScopedToTheCurrentTenant() =>
-        fixture is PostgreSqlDbFixture
-            ? AssertTenantIsolationAsync<DividendsPostgreSqlDBContext, DividendDeclaration>(
-                static (options, tenant, actor) => new DividendsPostgreSqlDBContext(options, tenant, actor),
-                CreateDividendDeclaration,
-                useMigrations: true)
-            : AssertTenantIsolationAsync<DividendsSqlServerDBContext, DividendDeclaration>(
-                static (options, tenant, actor) => new DividendsSqlServerDBContext(options, tenant, actor),
-                CreateDividendDeclaration,
-                useMigrations: true);
+        AssertTenantIsolationAsync<DividendsPostgreSqlDBContext, DividendDeclaration>(
+            static (options, tenant, actor) => new DividendsPostgreSqlDBContext(options, tenant, actor),
+            CreateDividendDeclaration,
+            useMigrations: true);
 
     [Fact]
     [Trait("TenantIsolation", nameof(LoansDBContext))]
@@ -96,8 +90,7 @@ public abstract class SaccoTenantIsolationTests<TFixture>(TFixture fixture) : IC
         var actor = new Actor();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:MembershipConnection"] = database.Database.GetConnectionString(),
-            ["DatabaseSettings:Provider"] = fixture is PostgreSqlDbFixture ? "PostgreSql" : "SqlServer"
+            ["ConnectionStrings:MembershipConnection"] = database.Database.GetConnectionString()
         })
             .Build();
 
@@ -164,8 +157,7 @@ public abstract class SaccoTenantIsolationTests<TFixture>(TFixture fixture) : IC
         var actor = new Actor();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:MembershipConnection"] = database.Database.GetConnectionString(),
-            ["DatabaseSettings:Provider"] = fixture is PostgreSqlDbFixture ? "PostgreSql" : "SqlServer"
+            ["ConnectionStrings:MembershipConnection"] = database.Database.GetConnectionString()
         })
             .Build();
 
@@ -279,16 +271,9 @@ public abstract class SaccoTenantIsolationTests<TFixture>(TFixture fixture) : IC
         var databaseName = $"tenant_{Guid.CreateVersion7():N}";
         var options = new DbContextOptionsBuilder<TContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            var connection = new NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = databaseName };
-            options.UseNpgsql(connection.ConnectionString);
-        }
-        else
-        {
-            var connection = new SqlConnectionStringBuilder(fixture.GetConnectionString()) { InitialCatalog = databaseName };
-            options.UseSqlServer(connection.ConnectionString);
-        }
+        var connection = new NpgsqlConnectionStringBuilder(fixture.GetConnectionString()) { Database = databaseName };
+        options.UseNpgsql(connection.ConnectionString);
+
 
         return options.Options;
     }

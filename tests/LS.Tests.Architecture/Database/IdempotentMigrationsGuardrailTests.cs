@@ -26,45 +26,15 @@ namespace LS.Tests.Architecture.Database;
 public class IdempotentMigrationsGuardrailTests
 {
     [Theory]
-    [InlineData(typeof(SharedSqlServerDBContext), typeof(IdempotentSqlServerMigrationsSqlGenerator))]
-    [InlineData(typeof(HrSqlServerDBContext), typeof(IdempotentSqlServerMigrationsSqlGenerator))]
-    [InlineData(typeof(IamSqlServerDBContext), typeof(IdempotentSqlServerMigrationsSqlGenerator))]
-    [InlineData(typeof(ControlPlaneSqlServerDBContext), typeof(IdempotentSqlServerMigrationsSqlGenerator))]
-    
-    public void SqlServerContexts_ShouldUseIdempotentMigrationsGenerator(Type contextType, Type expectedGeneratorType)
-    {
-        var services = new ServiceCollection();
-        var config = BuildConfiguration("SqlServer");
-
-        var env = new DummyHostEnvironment();
-
-        services.AddSharedPersistence(config, env);
-        services.AddHrPersistence(config);
-        services.AddIamPersistence(config, env);
-        services.AddControlPlanePersistence(config, env);
-        // services.AddBankingPersistence(config);
-        
-        services.AddScoped<ICurrentTenantProvider, DummyTenantProvider>();
-        services.AddScoped<ICurrentActorProvider, DummyActorProvider>();
-        services.AddLogging();
-        
-        using var provider = services.BuildServiceProvider();
-        using var context = (DbContext)provider.GetRequiredService(contextType);
-        
-        var generator = context.Database.GetService<IMigrationsSqlGenerator>();
-        Assert.IsType(expectedGeneratorType, generator);
-    }
-
-    [Theory]
     [InlineData(typeof(SharedPostgreSqlDBContext), typeof(IdempotentNpgsqlMigrationsSqlGenerator))]
     [InlineData(typeof(HrPostgreSqlDBContext), typeof(IdempotentNpgsqlMigrationsSqlGenerator))]
     [InlineData(typeof(IamPostgreSqlDBContext), typeof(IdempotentNpgsqlMigrationsSqlGenerator))]
     [InlineData(typeof(ControlPlanePostgreSqlDBContext), typeof(IdempotentNpgsqlMigrationsSqlGenerator))]
-    
+
     public void PostgreSqlContexts_ShouldUseIdempotentMigrationsGenerator(Type contextType, Type expectedGeneratorType)
     {
         var services = new ServiceCollection();
-        var config = BuildConfiguration("PostgreSql");
+        var config = BuildConfiguration();
 
         var env = new DummyHostEnvironment();
 
@@ -73,29 +43,28 @@ public class IdempotentMigrationsGuardrailTests
         services.AddIamPersistence(config, env);
         services.AddControlPlanePersistence(config, env);
         // services.AddBankingPersistence(config);
-        
+
         services.AddScoped<ICurrentTenantProvider, DummyTenantProvider>();
         services.AddScoped<ICurrentActorProvider, DummyActorProvider>();
         services.AddLogging();
-        
+
         using var provider = services.BuildServiceProvider();
         using var context = (DbContext)provider.GetRequiredService(contextType);
-        
+
         var generator = context.Database.GetService<IMigrationsSqlGenerator>();
         Assert.IsType(expectedGeneratorType, generator);
     }
 
-    private static IConfiguration BuildConfiguration(string provider)
+    private static IConfiguration BuildConfiguration()
     {
         return new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                { "ConnectionStrings:DefaultConnection", "Server=.;Database=dummy;Integrated Security=true" },
-                { "DatabaseSettings:Provider", provider }
-            })
+                {
+                    { "ConnectionStrings:DefaultConnection", "Host=localhost;Database=dummy;Username=postgres;Password=postgres" }
+                })
             .Build();
     }
-    
+
     private sealed class DummyHostEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Development";
@@ -103,12 +72,12 @@ public class IdempotentMigrationsGuardrailTests
         public string ContentRootPath { get; set; } = "";
         public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
     }
-    
+
     private sealed class DummyTenantProvider : ICurrentTenantProvider
     {
         public Guid TenantId => Guid.Empty;
     }
-    
+
     private sealed class DummyActorProvider : ICurrentActorProvider
     {
         public string ActorId => "System";

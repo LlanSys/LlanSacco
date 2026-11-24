@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [switch]$IncludeSqlServer,
     [switch]$IncludeSeq
 )
 
@@ -15,7 +14,6 @@ if (-not (Test-Path -LiteralPath $envFile)) {
 }
 
 $profiles = @()
-if ($IncludeSqlServer) { $profiles += @('--profile', 'database') }
 if ($IncludeSeq) { $profiles += @('--profile', 'observability') }
 
 $composeArguments = @('compose', '--env-file', $envFile, '-f', $composeFile)

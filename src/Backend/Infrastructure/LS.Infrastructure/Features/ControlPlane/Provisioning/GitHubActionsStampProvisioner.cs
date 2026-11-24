@@ -12,7 +12,7 @@ namespace LS.Infrastructure.Features.ControlPlane.Provisioning;
 
 public class GitHubActionsStampProvisioner(HttpClient httpClient, IConfiguration configuration, ILogger<GitHubActionsStampProvisioner> logger) : IStampProvisioner
 {
-    public async Task ProvisionIsolatedStampAsync(string tenantId, string stampId, string resourceGroup, string databaseProvider, CancellationToken cancellationToken = default)
+    public async Task ProvisionIsolatedStampAsync(string tenantId, string stampId, string resourceGroup, CancellationToken cancellationToken = default)
     {
         var githubToken = configuration["ControlPlane:GitHub:Pat"];
         var repoOwner = configuration["ControlPlane:GitHub:RepoOwner"];
@@ -35,8 +35,7 @@ public class GitHubActionsStampProvisioner(HttpClient httpClient, IConfiguration
             inputs = new
             {
                 stamp_id = stampId,
-                resource_group = resourceGroup,
-                database_provider = databaseProvider
+                resource_group = resourceGroup
             }
         };
 

@@ -20,14 +20,7 @@ public abstract class TenantIsolationMutationTests<TFixture> : IClassFixture<TFi
 
         var builder = new DbContextOptionsBuilder<IamDBContext>();
 
-        if (fixture is PostgreSqlDbFixture)
-        {
-            builder.UseNpgsql(fixture.GetConnectionString());
-        }
-        else if (fixture is MsSqlDbFixture)
-        {
-            builder.UseSqlServer(fixture.GetConnectionString());
-        }
+        builder.UseNpgsql(fixture.GetConnectionString());
 
         _options = builder.Options;
     }
@@ -71,7 +64,7 @@ public abstract class TenantIsolationMutationTests<TFixture> : IClassFixture<TFi
 
             // MUTATION TEST: Deliberately bypass the global query filter
             var rawVisible = await testContext.MenuItems.IgnoreQueryFilters().CountAsync();
-            
+
             // The test suite catches the leak. This proves the query filter is actually doing the work.
             Assert.True(rawVisible >= 2, "Ignoring query filters should expose data from other tenants.");
         }

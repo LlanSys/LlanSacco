@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$IncludeSqlServer,
+    [switch]$IncludePostgres,
     [switch]$IncludeSeq,
     [switch]$SkipPull
 )
@@ -70,6 +71,12 @@ if (-not $environment.ContainsKey('REDIS_HOST_PORT')) {
 if (-not $environment.ContainsKey('AZURITE_ACCOUNT_NAME')) {
     Add-Content -LiteralPath $envFile -Value 'AZURITE_ACCOUNT_NAME=btdevstorage'
 }
+if (-not $environment.ContainsKey('POSTGRES_USER')) {
+    Add-Content -LiteralPath $envFile -Value 'POSTGRES_USER=lsdev'
+}
+if (-not $environment.ContainsKey('POSTGRES_PASSWORD')) {
+    Add-Content -LiteralPath $envFile -Value "POSTGRES_PASSWORD=$(New-LocalSecret)"
+}
 if (-not $environment.ContainsKey('AZURITE_ACCOUNT_KEY')) {
     Add-Content -LiteralPath $envFile -Value "AZURITE_ACCOUNT_KEY=$(New-LocalBase64Secret)"
 }
@@ -82,7 +89,9 @@ $requiredKeys = @(
     'REDIS_HOST_PORT',
     'MSSQL_SA_PASSWORD',
     'AZURITE_ACCOUNT_NAME',
-    'AZURITE_ACCOUNT_KEY'
+    'AZURITE_ACCOUNT_KEY',
+    'POSTGRES_USER',
+    'POSTGRES_PASSWORD'
 )
 foreach ($key in $requiredKeys) {
     if ([string]::IsNullOrWhiteSpace($environment[$key])) {
@@ -95,7 +104,8 @@ $volumeNames = @(
     'llansacco_redis-data',
     'llansacco_seq-data',
     'llansacco_azurite-data',
-    'llansacco_sqlserver-data'
+    'llansacco_sqlserver-data',
+    'llansacco_postgres-data'
 )
 foreach ($volumeName in $volumeNames) {
     & docker volume inspect $volumeName *> $null
@@ -137,6 +147,9 @@ if ($IncludeSqlServer) {
     $sqlConnection = "Server=localhost,14334;Database=LS;User Id=sa;Password=$($environment.MSSQL_SA_PASSWORD);Encrypt=True;TrustServerCertificate=True;"
     dotnet user-secrets set 'ConnectionStrings:DefaultConnection' $sqlConnection --project $apiProject
 }
+if ($IncludePostgres) {
+    $profiles += @('--profile', 'postgres')
+}
 if ($IncludeSeq) {
     $profiles += @('--profile', 'observability')
 }
@@ -162,7 +175,8 @@ Write-Host 'Local platform is ready:'
 Write-Host '  RabbitMQ:  amqp://localhost:5673'
 Write-Host '  Management: http://localhost:15673'
 Write-Host "  Redis:      localhost:$($environment.REDIS_HOST_PORT)"
-Write-Host '  Mailpit:    http://localhost:8026'
+Write-Host '  Mailpit:    http://localhost:8036'
 if ($IncludeSeq) { Write-Host '  Seq:        http://localhost:5343' }
 Write-Host '  Azurite:    http://localhost:10010'
 if ($IncludeSqlServer) { Write-Host '  SQL Server: localhost,14334' }
+if ($IncludePostgres) { Write-Host '  PostgreSQL: localhost:5436 (database llansacco)' }

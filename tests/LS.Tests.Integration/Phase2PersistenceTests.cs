@@ -972,7 +972,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         await using (var setup = new CheckOffDBContext(checkoffOptions, tenant, new Actor()))
         {
             await setup.Database.EnsureCreatedAsync();
-            setup.AddRange(employer, member, batch, row);
+            setup.AddRange(employer, batch, row); // Members live in Membership; CheckOff references them by MemberId only.
             await setup.SaveChangesAsync();
         }
 
@@ -1086,7 +1086,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
         await using (var setup = new CheckOffDBContext(options, tenant, new Actor()))
         {
             await setup.Database.EnsureCreatedAsync();
-            setup.AddRange(employer, member, batch, row);
+            setup.AddRange(employer, batch, row); // Members live in Membership; CheckOff references them by MemberId only.
             await setup.SaveChangesAsync();
         }
         var banking = Substitute.For<IBankingUnitOfWork>();
@@ -1435,6 +1435,16 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
                 LS.Infrastructure.Messaging.TenantOutboxDeliveryExtensions.RouteEntityFrameworkOutboxDeliveryByTenant(builder.Services);
             return builder.Build();
         }
+        // Mirrors ContextEventPublisher: MassTransit 8.x stages each event through a scoped bus
+        // context bound explicitly to the owning DbContext.
+        static async Task Stage(IServiceProvider services, BankingDBContext db, SavingsDepositedIntegrationEvent message)
+        {
+            using var outbox = new MassTransit.EntityFrameworkCoreIntegration.EntityFrameworkScopedBusContext<IBus, BankingDBContext>(
+                services.GetRequiredService<IBus>(), db,
+                services.GetRequiredService<MassTransit.Middleware.Outbox.IBusOutboxNotification>(),
+                services.GetRequiredService<MassTransit.DependencyInjection.Bind<IBus, IClientFactory>>().Value, services);
+            await outbox.PublishEndpoint.Publish(message);
+        }
         SavingsDepositedIntegrationEvent Message(Guid id) => new(Guid.CreateVersion7(), Guid.CreateVersion7(),
             Guid.CreateVersion7(), 100m, "outbox-test") { TenantId = tenant.TenantId, TransactionId = id, OccurredAt = DateTimeOffset.UtcNow };
         var rejectedId = Guid.CreateVersion7();
@@ -1444,9 +1454,8 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             await using (var scope = writer.Services.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<BankingDBContext>();
-                var publisher = scope.ServiceProvider.GetRequiredService<IScopedBusOutbox<BankingDBContext>>();
                 await using var transaction = await db.Database.BeginTransactionAsync();
-                await publisher.Publish(Message(rejectedId));
+                await Stage(scope.ServiceProvider, db, Message(rejectedId));
                 await db.SaveChangesAsync();
                 await transaction.RollbackAsync();
             }
@@ -1456,10 +1465,9 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             await using (var scope = writer.Services.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<BankingDBContext>();
-                var publisher = scope.ServiceProvider.GetRequiredService<IScopedBusOutbox<BankingDBContext>>();
                 foreach (var id in committedIds)
                 {
-                    await publisher.Publish(Message(id));
+                    await Stage(scope.ServiceProvider, db, Message(id));
                     await db.SaveChangesAsync();
                 }
             }
@@ -2003,7 +2011,7 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             var invalid = CheckoffBatch.Create(tenant.TenantId, employer.Id, "DUPLICATE", DateTime.SpecifyKind(new DateTime(2025, 1, 1), DateTimeKind.Utc), 20, new Actor().ActorId);
             validId = valid.Id;
             invalidId = invalid.Id;
-            context.AddRange(employer, member, valid, invalid, MemberEmployment.Create(tenant.TenantId, member.Id, employer.Id, "E1", new Actor().ActorId));
+            context.AddRange(employer, valid, invalid, MemberEmployment.Create(tenant.TenantId, member.Id, employer.Id, "E1", new Actor().ActorId));
             context.AddRange(CheckoffStagingRow.Create(tenant.TenantId, valid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId),
                 CheckoffStagingRow.Create(tenant.TenantId, invalid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId),
                 CheckoffStagingRow.Create(tenant.TenantId, invalid.Id, "E1", "One", 10, 0, 0, new Actor().ActorId));

@@ -112,9 +112,9 @@ Default app endpoints:
 
 | App | Endpoint |
 | --- | --- |
-| API | `http://localhost:8080` |
-| Scalar | `http://localhost:8080/scalar/v1` |
-| Blazor UI | `http://localhost:8081` |
+| API | `http://localhost:8090` |
+| Scalar | `http://localhost:8090/scalar/v1` |
+| Blazor UI | `http://localhost:8091` |
 
 The full app deployment is for deployability confidence and local smoke tests. For day-to-day breakpoint debugging, continue running API and Blazor from Visual Studio while keeping the infrastructure containers running.
 
@@ -125,13 +125,13 @@ The full app deployment is for deployability confidence and local smoke tests. F
 | RabbitMQ | `localhost:5673` | AMQP transport |
 | RabbitMQ Management | `http://localhost:15673` | Exchanges, queues, consumers, and message rates |
 | Redis | `localhost:6380` | HybridCache distributed layer; avoids common existing port `6379` |
-| Mailpit | `http://localhost:8026` | Captured email UI |
+| Mailpit | `http://localhost:8036` | Captured email UI |
 | Mailpit SMTP | `localhost:1026` | Local-only capture relay used by `EmailSettings:Provider=LocalMailpit` |
 | Seq | `http://localhost:5343` | Structured logs, optional profile |
 | Azurite Blob | `http://localhost:10010` | Storage emulator, optional profile |
 | SQL Server | `localhost,14334` | Containerized database, optional profile |
-| Containerized API | `http://localhost:8080` | Optional local deployment profile |
-| Containerized Blazor | `http://localhost:8081` | Optional local deployment profile |
+| Containerized API | `http://localhost:8090` | Optional local deployment profile |
+| Containerized Blazor | `http://localhost:8091` | Optional local deployment profile |
 
 ## Operations
 
@@ -153,6 +153,16 @@ docker compose --env-file ops/local/.env -f ops/local/docker-compose.yml -f ops/
 ```
 
 The repository stop script deliberately exposes no volume-deletion option. It cannot prevent a developer from invoking Docker directly, so do not run `docker compose down -v` unless local RabbitMQ, Redis, SQL, Seq, and Azurite data should be permanently deleted.
+
+## Messaging Licence Decision
+
+LlanSacco pins MassTransit `8.5.12`, matching StarterTemplate. It targets .NET 10 and is published under Apache-2.0. MassTransit v9 is a commercial release: without a licence key the bus refuses to start, which stops the API at boot. Revisit this only as a deliberate purchase decision.
+
+Version 8 supports one default scoped bus outbox, so each bounded context stages its messages through its own `EntityFrameworkScopedBusContext` (see `ContextEventPublisher`). Every outbox delivery worker shares one wake-up notifier (`OutboxDeliveryNotification`), because the default notifier only wakes one worker.
+
+## Startup Check
+
+`scripts/test-app-startup.ps1` builds the API, applies every migration in `ops/migrations/contexts.txt`, starts the API with RabbitMQ messaging and background jobs enabled, and requires `/health` and `/health/ready` to return 200. CI runs it as the required `Baseline / Startup` job against real SQL Server, RabbitMQ and Redis containers.
 
 ## RabbitMQ Outbox Certification
 

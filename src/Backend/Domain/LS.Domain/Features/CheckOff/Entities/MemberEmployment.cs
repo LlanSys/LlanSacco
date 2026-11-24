@@ -1,6 +1,5 @@
 using System;
 using LS.Domain.Shared.Entities;
-using LS.Domain.Features.Membership.Entities;
 
 namespace LS.Domain.Features.CheckOff.Entities;
 
@@ -11,8 +10,7 @@ public class MemberEmployment : BaseEntity
     public required string EmployeePayrollNumber { get; set; }
     public bool IsActive { get; set; }
 
-    // Navigation
-    public Member Member { get; set; } = null!;
+    // Navigation. MemberId references Membership by identity only; CheckOff must not own Membership tables.
     public Employer Employer { get; set; } = null!;
 
     public static MemberEmployment Create(Guid tenantId, Guid memberId, Guid employerId, string employeePayrollNumber, string createdBy)

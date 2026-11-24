@@ -19,9 +19,10 @@ internal sealed class MemberEmploymentConfiguration : IEntityTypeConfiguration<M
 
         builder.HasIndex(e => new { e.TenantId, e.EmployerId, e.EmployeePayrollNumber }).IsUnique();
 
-        // Foreign keys setup requires cross-context knowledge. 
-        // We will assume Member table is accessed via its DBContext, but we can't easily configure an FK to a table in another schema/context natively if it's strictly bounded. 
-        // We configure it carefully. Usually EF Core works fine if we just specify the HasOne.
+        // MemberId references Membership by identity only. A navigation here would make CheckOff
+        // migrations create a second copy of the Membership tables.
+        builder.HasIndex(e => e.MemberId);
+
         builder.HasOne(e => e.Employer)
             .WithMany()
             .HasForeignKey(e => e.EmployerId)

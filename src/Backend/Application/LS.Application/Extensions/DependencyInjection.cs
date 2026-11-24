@@ -10,6 +10,7 @@ using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Application.Features.Membership.Contracts.Implementations;
 using LS.Domain.Features.HR.Payroll.Services;
 using LS.Domain.Features.Loans.Contracts;
+using LS.Application.Contracts.Interfaces.Loans;
 using LS.Application.Features.Loans.Services;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -66,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceManager, ServiceManager>();
         services.AddScoped<ILedgerService, LedgerService>();
         services.AddScoped<IKenyaTaxCalculatorService, KenyaTaxCalculatorService>();
+        services.AddScoped<ICreditScoringService, TraditionalSaccoScoringEngine>();
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.AddTransient<IAmortizationStrategy, StraightLineAmortizationStrategy>();
         services.AddTransient<IAmortizationStrategy, ReducingBalanceAmortizationStrategy>();

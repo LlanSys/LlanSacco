@@ -73,14 +73,65 @@ jobs:
       - name: Scan committed history
         run: '"$RUNNER_TEMP/gitleaks/gitleaks" git --redact .'
 
+  startup:
+    name: Baseline / Startup
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Ci-Startup-Only-1!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+      rabbitmq:
+        image: rabbitmq:3-management
+        env:
+          RABBITMQ_DEFAULT_USER: ci
+          RABBITMQ_DEFAULT_PASS: ci-startup-only
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 12
+    env:
+      # Throwaway credentials for ephemeral CI service containers only.
+      CI_SQL_PASSWORD: Ci-Startup-Only-1!
+      CI_RABBITMQ_PASSWORD: ci-startup-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Start the API with messaging and background jobs enabled
+        shell: pwsh
+        run: |
+          ./scripts/test-app-startup.ps1 `
+            -SqlConnectionString "Server=localhost,1433;Database=LlanSaccoStartup;User Id=sa;Password=$env:CI_SQL_PASSWORD;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True" `
+            -RabbitMqHost localhost -RabbitMqPort 5672 -RabbitMqUser ci -RabbitMqPassword $env:CI_RABBITMQ_PASSWORD `
+            -RedisConnectionString 'localhost:6379,abortConnect=false'
+
   gate:
     name: Required / Remediation
     if: always()
-    needs: [verify, secrets]
+    needs: [verify, secrets, startup]
     runs-on: ubuntu-latest
     steps:
       - name: Require all baseline checks to pass
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
           SECRETS_RESULT: ${{ needs.secrets.result }}
-        run: test "$VERIFY_RESULT" = success && test "$SECRETS_RESULT" = success
+          STARTUP_RESULT: ${{ needs.startup.result }}
+        run: test "$VERIFY_RESULT" = success && test "$SECRETS_RESULT" = success && test "$STARTUP_RESULT" = success

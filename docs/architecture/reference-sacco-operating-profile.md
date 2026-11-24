@@ -222,7 +222,9 @@ This is a target design for the six delivery workstreams, not a statement that t
 
 ## 10. First-SACCO amendment and approval register
 
-Every item below is open. Add actual names, decisions, document references and dates to the SACCO's signed record.
+Every item below is open for real tenants. Add actual names, decisions, document references and dates to the SACCO's signed record.
+
+The fictional reference tenant, Jamii Reference SACCO, has decided all ten items in [reference default decisions](reference-sacco-default-decisions.md). Those decisions are the default and placeholder for new tenants and the basis for development and staged acceptance. They do not authorize production for any real SACCO.
 
 | ID | Decision/evidence | Accountable owner | Status |
 | --- | --- | --- | --- |

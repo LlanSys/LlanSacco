@@ -119,11 +119,7 @@ jobs:
           fi
           echo "Building migration bundles for provider: $PROVIDER"
 
-          dotnet ef migrations bundle --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj --startup-project src/Backend/Api/LS.Api/LS.Api.csproj --context Iam${PROVIDER}DBContext --self-contained -r linux-x64 -o ./publish-api/efbundle-iam --configuration Release
-          dotnet ef migrations bundle --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj --startup-project src/Backend/Api/LS.Api/LS.Api.csproj --context Hr${PROVIDER}DBContext --self-contained -r linux-x64 -o ./publish-api/efbundle-hr --configuration Release
-          dotnet ef migrations bundle --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj --startup-project src/Backend/Api/LS.Api/LS.Api.csproj --context Shared${PROVIDER}DBContext --self-contained -r linux-x64 -o ./publish-api/efbundle-shared --configuration Release
-          dotnet ef migrations bundle --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj --startup-project src/Backend/Api/LS.Api/LS.Api.csproj --context Banking${PROVIDER}DBContext --self-contained -r linux-x64 -o ./publish-api/efbundle-banking --configuration Release
-          dotnet ef migrations bundle --project src/Backend/Persistence/LS.Persistence/LS.Persistence.csproj --startup-project src/Backend/Api/LS.Api/LS.Api.csproj --context ControlPlane${PROVIDER}DBContext --self-contained -r linux-x64 -o ./publish-api/efbundle-controlplane --configuration Release
+          ./scripts/migration-bundles.sh build "$PROVIDER" ./publish-api
         env:
           ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=BT;User Id=sa;Password=Password123!;TrustServerCertificate=True;"
 
@@ -267,51 +263,7 @@ jobs:
           export ConnectionStrings__ControlPlaneConnection="$TARGET_CONNECTION_STRING"
           export ConnectionStrings__DefaultConnection="$TARGET_CONNECTION_STRING"
 
-          chmod +x ./api-app/efbundle-iam
-          chmod +x ./api-app/efbundle-hr
-          chmod +x ./api-app/efbundle-shared
-          chmod +x ./api-app/efbundle-banking
-          chmod +x ./api-app/efbundle-controlplane
-
-          run_bundle() {
-            local bundle="$1"
-            local max_attempts=6
-            local delay_seconds=10
-            local log_file
-
-            for attempt in $(seq 1 "$max_attempts"); do
-              echo "Running ${bundle} migration bundle (attempt ${attempt}/${max_attempts})..."
-              log_file="$(mktemp)"
-
-              if "./api-app/${bundle}" --connection "$TARGET_CONNECTION_STRING" 2>&1 | tee "$log_file"; then
-                rm -f "$log_file"
-                return 0
-              fi
-
-              if grep -q "A valid connection string was not found" "$log_file"; then
-                echo "ERROR: ${bundle} could not resolve its design-time connection string. This is a deterministic configuration failure and will not be retried."
-                rm -f "$log_file"
-                return 1
-              fi
-
-              rm -f "$log_file"
-
-              if [ "$attempt" -eq "$max_attempts" ]; then
-                echo "ERROR: ${bundle} migration bundle failed after ${max_attempts} attempts."
-                return 1
-              fi
-
-              echo "Database may still be resuming. Retrying in ${delay_seconds} seconds..."
-              sleep "$delay_seconds"
-              delay_seconds=$((delay_seconds * 2))
-            done
-          }
-
-          run_bundle efbundle-iam
-          run_bundle efbundle-hr
-          run_bundle efbundle-shared
-          run_bundle efbundle-banking
-          run_bundle efbundle-controlplane
+          bash ./api-app/migration-bundles.sh run ./api-app "$TARGET_CONNECTION_STRING"
 
       - name: Remove temporary database firewall rule
         if: always() && vars.AZURE_SQL_NETWORK_MODE == 'PublicRunner' && steps.db-firewall.outputs.rule_name != ''

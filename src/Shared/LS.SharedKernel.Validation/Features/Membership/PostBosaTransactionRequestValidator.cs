@@ -1,4 +1,6 @@
 using FluentValidation;
+using LS.Domain.Features.Membership.Enums;
+using LS.SharedKernel.Validation.Extensions;
 using LS.SharedKernel.Features.Membership.Dtos;
 
 namespace LS.SharedKernel.Validation.Features.Membership;
@@ -14,7 +16,7 @@ public class PostBosaTransactionRequestValidator : AbstractValidator<PostBosaTra
             .GreaterThan(0).WithMessage("Transaction amount must be greater than zero.");
 
         RuleFor(x => x.TransactionType)
-            .IsInEnum().WithMessage("A valid transaction type must be provided.");
+            .IsEnumValue<PostBosaTransactionRequest, MemberTransactionType>().WithMessage("A valid transaction type must be provided.");
 
         RuleFor(x => x.Reference)
             .NotEmpty().WithMessage("Transaction reference is required.")

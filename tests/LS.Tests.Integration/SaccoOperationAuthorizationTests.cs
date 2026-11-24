@@ -21,6 +21,7 @@ public sealed class SaccoOperationAuthorizationTests
     [InlineData("Payroll", typeof(PayrollController), nameof(PayrollController.GetDashboardStats), "hr.payroll.view", "hr.payroll.run")]
     [InlineData("AccountingDlq", typeof(FinanceController), nameof(FinanceController.GetIntegrationErrors), "accounting-integrations.view", "accounting-integrations.retry")]
     [InlineData("LoanGuarantees", typeof(LoanApplicationsController), nameof(LoanApplicationsController.GetGuarantorSummary), "applications.view", "applications.approve")]
+    [InlineData("LoanApplications", typeof(LoanApplicationsController), nameof(LoanApplicationsController.GetApplications), "applications.view", "applications.approve")]
     public async Task Signed_in_route_and_api_require_the_same_read_grant(
         string component, Type controller, string action, string readPermission, string writePermission)
     {

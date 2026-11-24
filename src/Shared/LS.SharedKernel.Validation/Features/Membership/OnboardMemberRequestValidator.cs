@@ -1,4 +1,6 @@
 using FluentValidation;
+using LS.Domain.Features.Membership.Enums;
+using LS.SharedKernel.Validation.Extensions;
 using LS.SharedKernel.Features.Membership.Dtos;
 
 namespace LS.SharedKernel.Validation.Features.Membership;
@@ -29,6 +31,6 @@ public class OnboardMemberRequestValidator : AbstractValidator<OnboardMemberRequ
             .MaximumLength(50).WithMessage("Identification number cannot exceed 50 characters.");
 
         RuleFor(x => x.MembershipType)
-            .IsInEnum().WithMessage("A valid membership type must be provided.");
+            .IsEnumValue<OnboardMemberRequest, MembershipType>().WithMessage("A valid membership type must be provided.");
     }
 }

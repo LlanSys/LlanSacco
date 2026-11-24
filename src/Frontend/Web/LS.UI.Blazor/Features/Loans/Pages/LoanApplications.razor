@@ -4,10 +4,10 @@
 @inject ILoanService LoanService
 @inject ISnackbar Snackbar
 @inject SweetAlertService Swal
-@attribute [Authorize(Policy = "ControlPlane.Manage")]
-@layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
+@* SACCO credit staff work here; actions mirror the API permissions they call. *@
+@attribute [Authorize(Policy = "applications.view")]
 
-<PageTitle>Loan Applications - Control Plane</PageTitle>
+<PageTitle>Loan Applications</PageTitle>
 
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Loan Applications</MudText>
@@ -76,12 +76,14 @@ else
                 <MudButton Href="@($"/loans/applications/{context.Id}/guarantees")">Guarantees</MudButton>
                 @if (context.Status == "Submitted")
                 {
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Success"
-                               OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Error"
-                               OnClick="@(() => RejectApplication(context))">Reject</MudButton>
+                    <AuthorizeView Policy="applications.approve" Context="approvalPermission">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Success"
+                                   OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   OnClick="@(() => RejectApplication(context))">Reject</MudButton>
+                    </AuthorizeView>
                 }
             </MudTd>
         </RowTemplate>

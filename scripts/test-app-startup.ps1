@@ -75,27 +75,19 @@ $environment = @{
     ProfileImageStorage__Provider = 'Local'
 }
 
-$log = Join-Path ([IO.Path]::GetTempPath()) "llansacco-startup-$Port.log"
 $dll = "src/Backend/Api/LS.Api/bin/$Configuration/net10.0/LS.Api.dll"
+# The API writes straight to this console (no redirection), so its full startup log, including any
+# fatal exception, appears in the CI job output in order.
 $startInfo = [Diagnostics.ProcessStartInfo]::new('dotnet', "`"$(Join-Path $repoRoot $dll)`"")
 $startInfo.WorkingDirectory = Join-Path $repoRoot 'src/Backend/Api/LS.Api'
-$startInfo.RedirectStandardOutput = $true
-$startInfo.RedirectStandardError = $true
 $startInfo.UseShellExecute = $false
 foreach ($key in $environment.Keys) { $startInfo.Environment[$key] = $environment[$key] }
 foreach ($name in $connectionNames) { $startInfo.Environment["ConnectionStrings__$name"] = $SqlConnectionString }
 
-$process = [Diagnostics.Process]::new()
-$process.StartInfo = $startInfo
-$output = [Collections.Concurrent.ConcurrentQueue[string]]::new()
-$handler = { if ($EventArgs.Data) { $Event.MessageData.Enqueue($EventArgs.Data) } }
-$null = Register-ObjectEvent $process OutputDataReceived -Action $handler -MessageData $output
-$null = Register-ObjectEvent $process ErrorDataReceived -Action $handler -MessageData $output
-$null = $process.Start()
-$process.BeginOutputReadLine()
-$process.BeginErrorReadLine()
+$process = [Diagnostics.Process]::Start($startInfo)
 
 $healthy = $false
+$lastReport = 'no health response received'
 $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 try {
     while ([DateTime]::UtcNow -lt $deadline) {
@@ -103,6 +95,7 @@ try {
         try {
             $live = Invoke-WebRequest "http://localhost:$Port/health" -UseBasicParsing -TimeoutSec 5 -SkipHttpErrorCheck
             $ready = Invoke-WebRequest "http://localhost:$Port/health/ready" -UseBasicParsing -TimeoutSec 5 -SkipHttpErrorCheck
+            $lastReport = "/health $($live.StatusCode): $($live.Content)  /health/ready $($ready.StatusCode)"
             if ($live.StatusCode -eq 200 -and $ready.StatusCode -eq 200) {
                 # Stay up long enough for hosted services (bus, outbox workers, jobs) to start.
                 Start-Sleep -Seconds 10
@@ -115,14 +108,14 @@ try {
     }
 }
 finally {
+    $exitedEarly = $process.HasExited
+    $exitCode = if ($exitedEarly) { $process.ExitCode } else { $null }
     if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit(10000) | Out-Null }
-    $output.ToArray() | Set-Content $log
 }
 
-$fatal = @($output.ToArray() | Where-Object { $_ -match 'Unhandled exception|Unable to resolve service|ConfigurationException|Host terminated unexpectedly' })
-if (-not $healthy -or $fatal.Count) {
-    Get-Content $log | Select-Object -Last 80 | Write-Host
-    throw "API did not start healthy with messaging enabled. Full log: $log"
+if (-not $healthy) {
+    $reason = if ($exitedEarly) { "the API process exited with code $exitCode (see its log above)" } else { "it did not report healthy within $TimeoutSeconds seconds" }
+    throw "API did not start healthy with messaging enabled: $reason. Last health report: $lastReport"
 }
 
-Write-Host "PASS: API started healthy with RabbitMQ messaging and background jobs enabled. Log: $log"
+Write-Host 'PASS: API started healthy with RabbitMQ messaging and background jobs enabled.'

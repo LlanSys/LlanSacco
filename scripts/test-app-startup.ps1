@@ -73,6 +73,8 @@ $environment = @{
     CacheSettings__Provider = 'Redis'
     CacheSettings__Redis__ConnectionString = $RedisConnectionString
     ProfileImageStorage__Provider = 'Local'
+    # The check must not depend on developer user-secrets or external providers.
+    EmailSettings__Provider = 'NoOp'
 }
 
 $dll = "src/Backend/Api/LS.Api/bin/$Configuration/net10.0/LS.Api.dll"
@@ -82,6 +84,11 @@ $startInfo = [Diagnostics.ProcessStartInfo]::new('dotnet', "`"$(Join-Path $repoR
 $startInfo.WorkingDirectory = Join-Path $repoRoot 'src/Backend/Api/LS.Api'
 $startInfo.UseShellExecute = $false
 foreach ($key in $environment.Keys) { $startInfo.Environment[$key] = $environment[$key] }
+# Hide developer user-secrets so a local run sees only committed configuration, exactly like CI.
+$isolatedProfile = Join-Path ([IO.Path]::GetTempPath()) "llansacco-startup-profile-$Port"
+New-Item -ItemType Directory -Force $isolatedProfile | Out-Null
+$startInfo.Environment['APPDATA'] = $isolatedProfile
+$startInfo.Environment['HOME'] = $isolatedProfile
 foreach ($name in $connectionNames) { $startInfo.Environment["ConnectionStrings__$name"] = $SqlConnectionString }
 
 $process = [Diagnostics.Process]::Start($startInfo)

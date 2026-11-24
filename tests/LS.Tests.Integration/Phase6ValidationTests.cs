@@ -31,7 +31,8 @@ public sealed class Phase6ValidationTests
             typeof(ProcessPendingPromisesCommand),
             typeof(ScanForArrearsCommand),
             typeof(SendPromiseRemindersCommand),
-            typeof(RegisterMpesaC2BUrlsCommand)
+            typeof(RegisterMpesaC2BUrlsCommand),
+            typeof(LS.Application.Features.Banking.GuarantorReservations.Commands.ExpireGuarantorReservationsCommand)
         };
 
         await using var services = ApplicationServices().BuildServiceProvider();

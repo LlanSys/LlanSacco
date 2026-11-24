@@ -2,6 +2,7 @@ using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Contracts.Interfaces.Loans;
 using LS.Domain.Features.Loans.Contracts;
 using LS.Domain.Features.Loans.Entities;
+using LS.Domain.Features.Loans.Enums;
 using LS.Domain.Shared.Contracts.Common;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
@@ -30,7 +31,7 @@ internal sealed partial class ApplyForLoanCommandHandler(
     ICreditScoringService creditScoringService,
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider,
-    ILogger<ApplyForLoanCommandHandler> logger)
+    ILogger<ApplyForLoanCommandHandler> logger, TimeProvider clock)
     : IRequestHandler<ApplyForLoanCommand, AppResponse<Guid>>
 {
     public async Task<AppResponse<Guid>> Handle(ApplyForLoanCommand request, CancellationToken cancellationToken)
@@ -39,6 +40,7 @@ internal sealed partial class ApplyForLoanCommandHandler(
         var actorId = actorProvider.ActorId;
 
         var product = await unitOfWork.LoanProductRepository.FindByIdAsync(request.LoanProductId, cancellationToken).ConfigureAwait(false);
+
         if (product == null || !product.IsActive)
         {
             return AppResponses.NotFound<Guid>("An active loan product could not be found.");
@@ -55,17 +57,26 @@ internal sealed partial class ApplyForLoanCommandHandler(
         }
 
         // Generate Application Number (In a real system, you'd use a sequence or generator)
-        var appNumber = $"LN-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        var now = clock.GetUtcNow();
+        var appNumber = $"LN-{now:yyyyMMddHHmmss}-{Guid.CreateVersion7():N}";
 
         // Fetch member's savings and shares
         var savingsAccounts = await bankingUnitOfWork.SavingsAccountRepository.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
         var shareAccounts = await bankingUnitOfWork.ShareAccountRepository.ListAsync(q => q.Where(x => x.MemberId == request.MemberId), cancellationToken).ConfigureAwait(false);
 
         decimal totalSavings = 0;
-        foreach (var acc in savingsAccounts) totalSavings += acc.Balance;
+
+        foreach (var acc in savingsAccounts)
+        {
+            totalSavings += acc.Balance;
+        }
 
         decimal totalShares = 0;
-        foreach (var acc in shareAccounts) totalShares += acc.TotalValue;
+
+        foreach (var acc in shareAccounts)
+        {
+            totalShares += acc.TotalValue;
+        }
 
         var assessment = new CreditAssessment
         {
@@ -76,6 +87,7 @@ internal sealed partial class ApplyForLoanCommandHandler(
         };
 
         var scoringResult = await creditScoringService.EvaluateAsync(assessment, cancellationToken).ConfigureAwait(false);
+
         if (!scoringResult.IsApproved)
         {
             return AppResponses.Failure<Guid>($"Credit scoring rejected: {scoringResult.Reason}");
@@ -93,6 +105,10 @@ internal sealed partial class ApplyForLoanCommandHandler(
             createdBy: actorId.ToString()
         );
 
+        loanApp.Status = LoanStatus.Submitted;
+        loanApp.ApplicationDate = now;
+        loanApp.CreatedAt = now;
+
         foreach (var guarantorInput in request.Guarantors)
         {
             var guarantor = LoanGuarantor.Create(
@@ -102,6 +118,8 @@ internal sealed partial class ApplyForLoanCommandHandler(
                 guaranteedAmount: guarantorInput.GuaranteedAmount,
                 createdBy: actorId.ToString()
             );
+
+            guarantor.CreatedAt = now;
             loanApp.Guarantors.Add(guarantor);
         }
 

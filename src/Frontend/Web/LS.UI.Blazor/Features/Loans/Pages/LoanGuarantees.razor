@@ -1,0 +1,319 @@
+@page "/loans/applications/{LoanId:guid}/guarantees"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.SharedKernel.Features.Membership.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Shared.Messaging
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Policy = "applications.view")]
+@implements IAsyncDisposable
+
+<PageTitle>Loan guarantee operations</PageTitle>
+<div class="d-flex justify-end gap-2 mb-3">
+    <MudButton Href="/loans/applications">Applications</MudButton>
+    <AuthorizeView Policy="banking-accounts.view"
+                   Context="reconciliationPermission">
+        <MudButton Href="/loans/guarantor-reconciliation">Hold reconciliation</MudButton>
+    </AuthorizeView>
+    <MudButton OnClick="LoadAsync"
+               Disabled="_busy">Refresh status</MudButton>
+</div>
+@if (_loan is null)
+{
+    <MudText>@(_busy ? "Loading loan guarantees…" : "Loan details are unavailable.")</MudText>
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4"
+              Elevation="1">
+        <div class="d-flex justify-space-between align-center">
+            <MudText Typo="Typo.h5">@_loan.ApplicationNumber — guarantees</MudText>
+            <MudChip T="string">@_loan.Status</MudChip>
+        </div>
+        <MudText Class="my-3">Outstanding principal: @_loan.OutstandingPrincipal.ToString("N2") KES. Pending recovery: @_loan.PendingRecoveryPrincipal.ToString("N2") KES.</MudText>
+        @if (_loan.SecurityFailure is not null)
+        {
+            <MudAlert Severity="Severity.Warning">@UserMessageSanitizer.Normalize(_loan.SecurityFailure, "Review the loan security decision before proceeding.")</MudAlert>
+        }
+        @if (_loan.Status == "DisbursementPending")
+        {
+            <MudAlert Severity="Severity.Info">Disbursement is waiting for confirmed security. Refresh to check the outcome.</MudAlert>
+        }
+        <MudTable T="LoanGuarantorResponse"
+                  Items="_loan.Guarantors"
+                  Dense="true"
+                  Hover="true"
+                  HorizontalScrollbar="true">
+            <HeaderContent>
+                <MudTh>Guarantor</MudTh>
+                <MudTh>Nominated</MudTh>
+                <MudTh>Accepted</MudTh>
+                <MudTh>Held</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Terms / consent</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Guarantor">@context.MemberName</MudTd>
+                <MudTd DataLabel="Nominated">@context.GuaranteedAmount.ToString("N2")</MudTd>
+                <MudTd DataLabel="Accepted">@context.AcceptedAmount.ToString("N2")</MudTd>
+                <MudTd DataLabel="Held">@context.LockedAmount.ToString("N2")</MudTd>
+                <MudTd DataLabel="Status">@(context.Status == "Accepted" ? "Legacy review required" : context.Status) @if (context.ReservationFailure is not null)
+                    {
+                        <MudText Typo="Typo.caption">@UserMessageSanitizer.Normalize(context.ReservationFailure, "Review this pledge.")</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Terms / consent">@context.PolicyVersion @context.ConsentAt?.ToString("yyyy-MM-dd HH:mm 'UTC'")</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+        <AuthorizeView Policy="applications.disburse"
+                       Context="disbursementPermission">
+            @if (_loan.Status == "Approved")
+            {
+                <MudButton Class="mt-3"
+                           Color="Color.Primary"
+                           OnClick="DisburseAsync"
+                           Disabled="_busy">Request disbursement</MudButton>
+            }
+        </AuthorizeView>
+    </MudPaper>
+
+    <AuthorizeView Policy="applications.approve"
+                   Context="preparationPermission">
+        <MudPaper Class="pa-4 mb-4"
+                  Elevation="1">
+            <MudText Typo="Typo.h6">Prepare a security operation</MudText>
+            <MudText Typo="Typo.body2"
+                     Class="my-2">A different authorized officer must approve the request. For recovery, attach the approved notice and recovery authority; principal is allocated proportionally to remaining committed guarantees.</MudText>
+            <MudSelect T="string"
+                       Value="_kind"
+                       ValueChanged="KindChangedAsync"
+                       Label="Operation"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense">
+                <MudSelectItem Value="@("RecoverPrincipal")">Recover principal</MudSelectItem>
+                <MudSelectItem Value="@("AdoptLegacy")">Reconcile an existing legacy hold</MudSelectItem>
+                <MudSelectItem Value="@("Substitute")">Substitute a guarantor</MudSelectItem>
+            </MudSelect>
+            @if (_kind == "RecoverPrincipal")
+            {
+                <MudNumericField T="decimal"
+                                 @bind-Value="_amount"
+                                 Label="Principal to recover (KES)"
+                                 Min="0.01M"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" />
+            }
+            else
+            {
+                <MudSelect T="Guid"
+                           Value="_pledgeId"
+                           ValueChanged="PledgeChangedAsync"
+                           Label="Existing guarantee"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    @foreach (var pledge in _loan.Guarantors.Where(x => _kind == "AdoptLegacy" ? x.Status == "Accepted" : x.Status == "Committed"))
+                    {
+                        <MudSelectItem Value="pledge.Id">@pledge.MemberName — @pledge.LockedAmount.ToString("N2") KES held</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_kind == "AdoptLegacy")
+                {
+                    <MudSelect T="Guid"
+                               @bind-Value="_accountId"
+                               Label="Verified source account"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var account in _reviewAccounts)
+                        {
+                            <MudSelectItem Value="account.Id">@account.ProductName — @account.LockedFunds.ToString("N2") KES held</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    <MudAutocomplete T="MemberOptionResponse"
+                                     @bind-Value="_replacement"
+                                     SearchFunc="SearchMembersAsync"
+                                     ToStringFunc="MemberLabel"
+                                     MinCharacters="2"
+                                     Label="Replacement member"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                    <MudText Typo="Typo.caption">The replacement must give consent and obtain a confirmed hold before another officer approves substitution.</MudText>
+                }
+            }
+            <MudTextField @bind-Value="_evidence"
+                          Label="Approval / source evidence reference"
+                          MaxLength="200"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="PrepareAsync"
+                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_evidence))">Prepare request</MudButton>
+            @if (_loan.Status is "Draft" or "Submitted" or "Approved" or "UnderReview")
+            {
+                <MudDivider Class="my-4" />
+                <MudTextField @bind-Value="_cancelReason"
+                              Label="Reason for cancelling this loan"
+                              MaxLength="300"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+                <MudButton Color="Color.Warning"
+                           OnClick="CancelLoanAsync"
+                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_cancelReason))">Cancel loan and request release</MudButton>
+            }
+        </MudPaper>
+    </AuthorizeView>
+    <MudPaper Class="pa-4"
+              Elevation="1">
+        <div class="d-flex justify-space-between align-center">
+            <MudText Typo="Typo.h6">Latest recovery and security reviews</MudText>
+            <MudChip T="string">Showing @_operations.Count</MudChip>
+        </div>
+        <MudTextField @bind-Value="_filter"
+                      Label="Filter these operations"
+                      Immediate="true"
+                      Class="my-3"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+        <MudTable T="GuarantorOperationResponse"
+                  Items="_operations"
+                  Filter="Matches"
+                  Dense="true"
+                  Hover="true"
+                  HorizontalScrollbar="true">
+            <HeaderContent>
+                <MudTh>Prepared</MudTh>
+                <MudTh>Operation</MudTh>
+                <MudTh>Principal / held amount</MudTh>
+                <MudTh>Evidence</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Prepared">@context.CreatedAt.ToString("yyyy-MM-dd HH:mm 'UTC'")</MudTd>
+                <MudTd DataLabel="Operation">@context.Kind @OperationTarget(context)</MudTd>
+                <MudTd DataLabel="Principal / held amount">@context.Amount.ToString("N2") KES</MudTd>
+                <MudTd DataLabel="Evidence">@context.EvidenceReference</MudTd>
+                <MudTd DataLabel="Status">@context.Status @if (context.FailureReason is not null)
+                    {
+                        <MudText Typo="Typo.caption">@UserMessageSanitizer.Normalize(context.FailureReason, "Review the recorded exception.")</MudText>
+                    }
+                </MudTd>
+                <MudTd>
+                    <AuthorizeView Policy="applications.approve"
+                                   Context="approvalPermission">
+                        @if (context.Status == "AwaitingApproval")
+                        {
+                            <MudButton OnClick="@(() => ApproveAsync(context))"
+                                       Disabled="_busy">Approve</MudButton>
+                            <MudButton OnClick="@(() => CancelReviewAsync(context))"
+                                       Disabled="_busy">Cancel request</MudButton>
+                        }
+                    </AuthorizeView>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid LoanId { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private LoanApplicationResponse? _loan;
+    private List<GuarantorOperationResponse> _operations = [];
+    private List<GuarantorSavingsAccountResponse> _reviewAccounts = [];
+    private MemberOptionResponse? _replacement;
+    private string _kind = "RecoverPrincipal", _evidence = "", _cancelReason = "", _filter = "";
+    private Guid _pledgeId, _accountId;
+    private Guid _operationId = Guid.CreateVersion7();
+    private decimal _amount;
+    private bool _busy;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        try
+        {
+            var summary = await LoanService.GetGuarantorSummaryAsync(LoanId, _lifetime.Token);
+            if (!summary.IsSuccess) { Error(summary.Error?.Message, "Loan guarantees could not be loaded."); return; }
+            _loan = summary.Data;
+            var operations = await LoanService.GetGuarantorOperationsAsync(LoanId, _lifetime.Token);
+            if (operations.IsSuccess) _operations = operations.Data ?? [];
+            else Error(operations.Error?.Message, "Security operations could not be loaded.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Navigation ended the read. */ }
+        catch (Exception) { Error(null, "Loan guarantees could not be loaded. Try again."); }
+        finally { _busy = false; }
+    }
+    private Task KindChangedAsync(string kind) { _kind = kind; _operationId = Guid.CreateVersion7(); _pledgeId = Guid.Empty; _accountId = Guid.Empty; _replacement = null; _reviewAccounts = []; return Task.CompletedTask; }
+    private async Task PledgeChangedAsync(Guid pledge)
+    {
+        _pledgeId = pledge; _accountId = Guid.Empty;
+        if (_kind != "AdoptLegacy") return;
+        var result = await LoanService.GetReviewAccountsAsync(LoanId, pledge, _lifetime.Token);
+        if (result.IsSuccess) _reviewAccounts = result.Data ?? [];
+        else Error(result.Error?.Message, "The source accounts could not be loaded.");
+    }
+    private async Task<IEnumerable<MemberOptionResponse>> SearchMembersAsync(string search, CancellationToken ct)
+    {
+        var result = await LoanService.GetGuarantorMemberOptionsAsync(search, ct);
+        return result.IsSuccess ? result.Data ?? [] : [];
+    }
+    private static string MemberLabel(MemberOptionResponse? member) => member is null ? "" : $"{member.MemberNumber} — {member.Name}";
+    private async Task PrepareAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = _kind == "RecoverPrincipal"
+                ? await LoanService.RequestGuarantorRecoveryAsync(LoanId, new(_operationId, _amount, _evidence), _lifetime.Token)
+                : await LoanService.RequestGuarantorSecurityReviewAsync(LoanId, new(_operationId, _pledgeId, _kind, _evidence,
+                    _kind == "AdoptLegacy" ? _accountId : null, _kind == "Substitute" ? _replacement?.Id : null), _lifetime.Token);
+            if (result.IsSuccess) { Snackbar.Add("Request recorded for independent approval.", Severity.Info); _operationId = Guid.CreateVersion7(); _evidence = ""; }
+            else Error(result.Error?.Message, "The request could not be prepared.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Durable status is available after sign-in. */ }
+        catch (Exception) { Error(null, "The outcome is uncertain. Refresh the operation list before retrying."); }
+        finally { _busy = false; }
+        await LoadAsync();
+    }
+    private async Task ApproveAsync(GuarantorOperationResponse operation) => await RunAsync(() => LoanService.ApproveGuarantorOperationAsync(operation.Id, operation.Kind == "RecoverPrincipal", _lifetime.Token));
+    private async Task CancelReviewAsync(GuarantorOperationResponse operation) => await RunAsync(() => operation.Kind == "RecoverPrincipal"
+        ? LoanService.CancelGuarantorRecoveryAsync(operation.Id, _lifetime.Token)
+        : LoanService.CancelGuarantorSecurityReviewAsync(operation.Id, _lifetime.Token));
+    private async Task DisburseAsync() => await RunAsync(() => LoanService.DisburseLoanAsync(LoanId, _lifetime.Token));
+    private async Task CancelLoanAsync() => await RunAsync(() => LoanService.CancelLoanAsync(LoanId, _cancelReason, _lifetime.Token));
+    private async Task RunAsync(Func<Task<LS.SharedKernel.Dtos.Common.AppResponse<bool>>> action)
+    {
+        _busy = true;
+        try
+        {
+            var result = await action();
+            if (result.IsSuccess) Snackbar.Add("Request recorded. Refresh to check the authoritative outcome.", Severity.Info);
+            else Error(result.Error?.Message, "The operation was not accepted.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Navigation ended the request. */ }
+        catch (Exception) { Error(null, "The outcome is uncertain. Refresh before trying again."); }
+        finally { _busy = false; }
+        await LoadAsync();
+    }
+    private string OperationTarget(GuarantorOperationResponse operation)
+    {
+        var original = _loan?.Guarantors.FirstOrDefault(x => x.Id == operation.PledgeId)?.MemberName;
+        var replacement = _loan?.Guarantors.FirstOrDefault(x => x.GuarantorMemberId == operation.ReplacementMemberId)?.MemberName;
+        return operation.Kind == "Substitute" ? $"{original} → {replacement}" : original ?? "";
+    }
+    private bool Matches(GuarantorOperationResponse item) => string.IsNullOrWhiteSpace(_filter) ||
+        item.Kind.Contains(_filter, StringComparison.OrdinalIgnoreCase) || item.Status.Contains(_filter, StringComparison.OrdinalIgnoreCase) || item.EvidenceReference.Contains(_filter, StringComparison.OrdinalIgnoreCase);
+    private void Error(string? message, string fallback) => Snackbar.Add(UserMessageSanitizer.Normalize(message, fallback), Severity.Error);
+    public async ValueTask DisposeAsync() { await _lifetime.CancelAsync(); _lifetime.Dispose(); }
+}

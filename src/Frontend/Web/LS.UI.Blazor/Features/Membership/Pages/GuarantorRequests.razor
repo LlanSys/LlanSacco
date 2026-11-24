@@ -8,27 +8,43 @@
 @attribute [Authorize]
 
 <PageTitle>Guarantor Requests</PageTitle>
+<div class="d-flex justify-end mb-3">
+    <MudButton Href="/loans/my-guarantees">My loan guarantees</MudButton>
+</div>
 
-<MudText Typo="Typo.h6" Class="mb-4">Pending Guarantor Requests</MudText>
+<MudText Typo="Typo.h6"
+         Class="mb-4">Pending Guarantor Requests</MudText>
 
-<MudPaper Class="pa-4" Elevation="1">
+<MudPaper Class="pa-4"
+          Elevation="1">
     <MudText Class="mb-4">Enter a request ID to respond to a pending guarantor request.</MudText>
-    
+
     <MudGrid>
-        <MudItem xs="12" md="8">
-            <MudTextField @bind-Value="RequestIdString" Label="Guarantor Request ID (Guid)" Required="true"  />
+        <MudItem xs="12"
+                 md="8">
+            <MudTextField @bind-Value="RequestIdString"
+                          Label="Guarantor Request ID (Guid)"
+                          Required="true" />
         </MudItem>
-        <MudItem xs="12" md="12">
-            <MudTextField @bind-Value="ResponseNote" Label="Response Note (Optional)" Lines="3"  />
+        <MudItem xs="12"
+                 md="12">
+            <MudTextField @bind-Value="ResponseNote"
+                          Label="Response Note (Optional)"
+                          Lines="3" />
         </MudItem>
     </MudGrid>
 
     <div class="mt-4 d-flex gap-4">
-        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="() => Submit(true)" Disabled="@IsSubmitting">
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Success"
+                   OnClick="() => Submit(true)"
+                   Disabled="@IsSubmitting">
             @if (IsSubmitting)
             {
-                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
-                <MudText Class="ms-2" Typo="Typo.body2">Processing...</MudText>
+                <MudProgressCircular Class="ms-n1"
+                                     Indeterminate="true" />
+                <MudText Class="ms-2"
+                         Typo="Typo.body2">Processing...</MudText>
             }
             else
             {
@@ -36,10 +52,14 @@
             }
         </MudButton>
 
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="() => Submit(false)" Disabled="@IsSubmitting">
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Error"
+                   OnClick="() => Submit(false)"
+                   Disabled="@IsSubmitting">
             @if (IsSubmitting)
             {
-                <MudProgressCircular Class="ms-n1" Indeterminate="true"/>
+                <MudProgressCircular Class="ms-n1"
+                                     Indeterminate="true" />
             }
             else
             {

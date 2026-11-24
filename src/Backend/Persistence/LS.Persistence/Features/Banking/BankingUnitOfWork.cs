@@ -6,12 +6,15 @@ using LS.Domain.Features.Banking.Contracts;
 using LS.Persistence.Common;
 using LS.Persistence.Features.Banking.DataContext;
 using MediatR;
+using LS.Domain.Features.Banking.GuarantorReservations.Contracts.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace LS.Persistence.Features.Banking;
 
 internal sealed class BankingUnitOfWork(
     BankingDBContext context,
+    IGuarantorReservationRepository guarantorReservationRepository,
+    IGuarantorReservationReceiptRepository guarantorReservationReceiptRepository,
     IVaultTransferRepository vaultTransferRepository,
     IShareProductRepository shareProductRepository,
     IShareAccountRepository shareAccountRepository,
@@ -31,6 +34,8 @@ internal sealed class BankingUnitOfWork(
     ILogger<BankingUnitOfWork> logger
 ) : BaseUnitOfWork<BankingDBContext>(context, publisher, logger), IBankingUnitOfWork
 {
+    public IGuarantorReservationRepository GuarantorReservationRepository { get; } = guarantorReservationRepository;
+    public IGuarantorReservationReceiptRepository GuarantorReservationReceiptRepository { get; } = guarantorReservationReceiptRepository;
     public IVaultTransferRepository VaultTransferRepository { get; } = vaultTransferRepository;
 
     public IShareProductRepository ShareProductRepository { get; } = shareProductRepository;

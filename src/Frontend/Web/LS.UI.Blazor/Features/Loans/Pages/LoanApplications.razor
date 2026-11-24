@@ -11,16 +11,24 @@
 
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Loan Applications</MudText>
-    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/loans/apply">Apply for Loan</MudButton>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/loans/apply">Apply for Loan</MudButton>
 </div>
 
 @if (_isLoading)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <MudProgressCircular Color="Color.Primary"
+                         Indeterminate="true" />
 }
 else
 {
-    <MudTable Items="@_applications" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+    <MudTable Items="@_applications"
+              Hover="true"
+              Breakpoint="Breakpoint.Sm"
+              Elevation="1"
+              Dense="true">
         <HeaderContent>
             <MudTh>App #</MudTh>
             <MudTh>Date</MudTh>
@@ -41,26 +49,39 @@ else
             <MudTd DataLabel="Status">
                 @if (context.Status == "Submitted")
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Warning">Pending</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Warning">Pending</MudChip>
                 }
                 else if (context.Status == "Approved")
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Approved</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Success">Approved</MudChip>
                 }
                 else if (context.Status == "Rejected")
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Rejected</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Error">Rejected</MudChip>
                 }
                 else
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Info">@context.Status.ToString()</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Info">@context.Status.ToString()</MudChip>
                 }
             </MudTd>
             <MudTd DataLabel="Actions">
+                <MudButton Href="@($"/loans/applications/{context.Id}/guarantees")">Guarantees</MudButton>
                 @if (context.Status == "Submitted")
                 {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => RejectApplication(context))">Reject</MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Success"
+                               OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               OnClick="@(() => RejectApplication(context))">Reject</MudButton>
                 }
             </MudTd>
         </RowTemplate>

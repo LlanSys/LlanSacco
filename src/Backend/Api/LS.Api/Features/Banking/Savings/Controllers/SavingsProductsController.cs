@@ -15,6 +15,11 @@ namespace LS.Api.Features.Banking.Savings.Controllers;
 [Route("api/banking/savings-products")]
 public class SavingsProductsController(IMediator mediator) : BaseController
 {
+    [HttpPut("{id:guid}/security-policy")]
+    [RequirePermission("banking-products.manage")]
+    public async Task<IActionResult> ConfigureSecurity(Guid id, ConfigureSavingsSecurityRequest request, CancellationToken ct) =>
+        HandleResponse(await mediator.Send(new ConfigureSavingsSecurityCommand(id, request), ct));
+
     [HttpGet]
     [RequirePermission("banking-products.view")]
     public async Task<IActionResult> Get([FromQuery] bool onlyActive = true)

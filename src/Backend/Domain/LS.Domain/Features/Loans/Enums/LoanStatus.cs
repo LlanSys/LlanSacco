@@ -11,5 +11,7 @@ public enum LoanStatus
     Active = 7,
     Arrears = 8,
     Defaulted = 9,
-    Closed = 10
+    Closed = 10,
+    DisbursementPending = 11,
+    Cancelled = 12
 }

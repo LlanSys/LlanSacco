@@ -11,16 +11,19 @@ namespace LS.UI.Blazor.Features.Banking.Contracts.Implementations;
 
 internal sealed class SavingsService(IBackendApiClient apiClient) : ISavingsService
 {
+    public Task<AppResponse<bool>> ConfigureSecurityAsync(Guid productId, ConfigureSavingsSecurityRequest request, CancellationToken ct = default) =>
+        apiClient.SendAsync<bool>(HttpMethod.Put, $"api/banking/savings-products/{productId}/security-policy", request, cancellationToken: ct);
+
     public Task<AppResponse<IEnumerable<SavingsProductResponse>>> GetSavingsProductsAsync(bool includeInactive = false)
     {
         return apiClient.SendAsync<IEnumerable<SavingsProductResponse>>(
             HttpMethod.Get,
-            $"api/banking/savings-products?includeInactive={includeInactive}");
+            $"api/banking/savings-products?onlyActive={!includeInactive}");
     }
 
-    public Task<AppResponse<Guid>> CreateSavingsProductAsync(CreateSavingsProductRequest request)
+    public Task<AppResponse<SavingsProductResponse>> CreateSavingsProductAsync(CreateSavingsProductRequest request)
     {
-        return apiClient.SendAsync<Guid>(
+        return apiClient.SendAsync<SavingsProductResponse>(
             HttpMethod.Post,
             "api/banking/savings-products",
             request);
@@ -33,17 +36,17 @@ internal sealed class SavingsService(IBackendApiClient apiClient) : ISavingsServ
             $"api/banking/savings/members/{memberId}");
     }
 
-    public Task<AppResponse<Guid>> DepositSavingsAsync(DepositSavingsRequest request)
+    public Task<AppResponse<SavingsAccountResponse>> DepositSavingsAsync(DepositSavingsRequest request)
     {
-        return apiClient.SendAsync<Guid>(
+        return apiClient.SendAsync<SavingsAccountResponse>(
             HttpMethod.Post,
             "api/banking/savings/deposit",
             request);
     }
 
-    public Task<AppResponse<Guid>> WithdrawSavingsAsync(WithdrawSavingsRequest request)
+    public Task<AppResponse<SavingsAccountResponse>> WithdrawSavingsAsync(WithdrawSavingsRequest request)
     {
-        return apiClient.SendAsync<Guid>(
+        return apiClient.SendAsync<SavingsAccountResponse>(
             HttpMethod.Post,
             "api/banking/savings/withdraw",
             request);

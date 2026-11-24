@@ -14,6 +14,8 @@ public record SavingsProductResponse(
     decimal WithdrawalFee,
     decimal? DailyWithdrawalLimit,
     decimal? MonthlyWithdrawalLimit,
-    bool IsActive
+    bool IsActive,
+    bool AllowsGuarantorReservations = false,
+    bool CountsTowardLoanLimit = false
 );
 

@@ -10,7 +10,11 @@ internal sealed class CurrentMemberResolver(
     ICurrentTenantProvider tenantProvider,
     ICurrentActorProvider actorProvider) : ICurrentMemberResolver
 {
-    public Task<Guid?> FindActiveMemberIdAsync(CancellationToken cancellationToken)
+    public Task<Guid?> FindActiveMemberIdAsync(CancellationToken cancellationToken) => FindAsync(false, cancellationToken);
+
+    public Task<Guid?> FindVerifiedActiveMemberIdAsync(CancellationToken cancellationToken) => FindAsync(true, cancellationToken);
+
+    private Task<Guid?> FindAsync(bool requireVerified, CancellationToken cancellationToken)
     {
         var tenantId = tenantProvider.TenantId;
 
@@ -21,7 +25,8 @@ internal sealed class CurrentMemberResolver(
 
         return unitOfWork.MemberRepository.FirstOrDefaultAsync(
             query => query
-                .Where(member => member.TenantId == tenantId && member.AppUserId == userId && member.Status == MemberStatus.Active)
+                .Where(member => member.TenantId == tenantId && member.AppUserId == userId && member.Status == MemberStatus.Active &&
+                    (!requireVerified || member.KycStatus == KycStatus.Verified))
                 .Select(member => (Guid?)member.Id),
             cancellationToken);
     }

@@ -14,6 +14,10 @@ public class LoanProduct : BaseEntity
     public int MaxTermInMonths { get; set; }
     public decimal MaxAmount { get; set; }
     public bool IsActive { get; set; }
+    public int GuarantorReservationDays { get; set; } = 30;
+    public int GuarantorConsentDays { get; set; } = 14;
+    public string GuarantorPolicyVersion { get; set; } = "LLANSACCO-REFERENCE/0.1";
+    public decimal EligibleDepositMultiple { get; set; } = 3;
 
     public static LoanProduct Create(
         Guid tenantId,

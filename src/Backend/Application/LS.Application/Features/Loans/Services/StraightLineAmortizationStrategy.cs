@@ -1,45 +1,55 @@
 using LS.Domain.Features.Loans.Contracts;
 using LS.Domain.Features.Loans.Entities;
 using LS.Domain.Features.Loans.Enums;
-using System;
-using System.Collections.Generic;
 
 namespace LS.Application.Features.Loans.Services;
 
-public class StraightLineAmortizationStrategy : IAmortizationStrategy
+public sealed class StraightLineAmortizationStrategy : IAmortizationStrategy
 {
     public InterestMethod SupportedMethod => InterestMethod.Flat;
 
     public List<LoanRepaymentSchedule> GenerateSchedule(LoanApplication loan)
     {
-        var schedules = new List<LoanRepaymentSchedule>();
-        
-        // Flat Interest = (Principal * Rate * Term) / (12 * 100) assuming Rate is annual
-        // Or if Rate is monthly, (Principal * Rate * Term) / 100
-        // Wait, typical flat rate is annual. Let's assume InterestRate is annual percentage.
-        decimal annualRate = loan.InterestRate / 100m;
-        decimal totalInterest = loan.PrincipalAmount * annualRate * (loan.TermInMonths / 12m);
-        
-        decimal principalPerMonth = loan.PrincipalAmount / loan.TermInMonths;
-        decimal interestPerMonth = totalInterest / loan.TermInMonths;
+        ArgumentNullException.ThrowIfNull(loan);
 
-        DateTimeOffset nextDueDate = (loan.DisbursementDate ?? DateTimeOffset.UtcNow).AddMonths(1);
-
-        for (int i = 1; i <= loan.TermInMonths; i++)
+        if (loan.TermInMonths is < 1 or > 600 || loan.InterestRate is < 0 or > 100 || loan.PrincipalAmount <= 0)
         {
-            schedules.Add(LoanRepaymentSchedule.Create(
-                loan.TenantId,
-                loan.Id,
-                i,
-                nextDueDate,
-                principalPerMonth,
-                interestPerMonth,
-                "System-Amortization"
-            ));
-
-            nextDueDate = nextDueDate.AddMonths(1);
+            throw new InvalidOperationException("The loan terms are outside supported schedule limits.");
         }
 
+        var disbursedAt = loan.DisbursementDate ?? throw new InvalidOperationException("A disbursement date is required.");
+        var totalInterest = decimal.Round(loan.PrincipalAmount * loan.InterestRate / 1200m * loan.TermInMonths, 2, MidpointRounding.ToEven);
+        var monthlyPrincipal = decimal.Round(loan.PrincipalAmount / loan.TermInMonths, 2, MidpointRounding.ToEven);
+        var monthlyInterest = decimal.Round(totalInterest / loan.TermInMonths, 2, MidpointRounding.ToEven);
+        var remainingPrincipal = loan.PrincipalAmount;
+        var remainingInterest = totalInterest;
+        var schedules = new List<LoanRepaymentSchedule>(loan.TermInMonths);
+
+        for (var index = 1; index <= loan.TermInMonths; index++)
+        {
+            var principal = index == loan.TermInMonths ? remainingPrincipal : Math.Min(remainingPrincipal, monthlyPrincipal);
+            var interest = index == loan.TermInMonths ? remainingInterest : Math.Min(remainingInterest, monthlyInterest);
+            var due = disbursedAt.AddMonths(index);
+
+            if (disbursedAt.Day == DateTime.DaysInMonth(disbursedAt.Year, disbursedAt.Month))
+            {
+                due = due.AddDays(DateTime.DaysInMonth(due.Year, due.Month) - due.Day);
+            }
+
+            var schedule = LoanRepaymentSchedule.Create(
+                loan.TenantId,
+                loan.Id,
+                index,
+                due,
+                principal,
+                interest,
+                loan.UpdatedBy ?? loan.CreatedBy);
+
+            schedule.CreatedAt = disbursedAt;
+            schedules.Add(schedule);
+            remainingPrincipal -= principal;
+            remainingInterest -= interest;
+        }
         return schedules;
     }
 }

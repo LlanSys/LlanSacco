@@ -15,6 +15,7 @@ internal sealed class SavingsProductConfiguration : IEntityTypeConfiguration<Sav
         builder.Property(x => x.Name).IsRequired().HasMaxLength(100);
         builder.Property(x => x.Code).IsRequired().HasMaxLength(20);
         builder.Property(x => x.Description).HasMaxLength(500);
+        builder.Property(x => x.SecurityPolicyEvidenceReference).HasMaxLength(200);
 
         builder.Property(x => x.InterestRate).HasPrecision(18, 4);
         builder.Property(x => x.MinimumBalance).HasPrecision(18, 4);

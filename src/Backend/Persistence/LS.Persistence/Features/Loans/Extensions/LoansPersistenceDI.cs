@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Reflection;
 using LS.Persistence.Common.Interceptors;
 using System;
+using LS.Domain.Features.Loans.Guarantors.Contracts.Repositories;
 
 namespace LS.Persistence.Features.Loans.Extensions;
 
@@ -33,25 +34,31 @@ public static class LoansPersistenceDI
         {
             if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
             {
-                options.UseNpgsql(connectionString, pgOptions =>
-                {
-                    pgOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-                    pgOptions.CommandTimeout(30);
-                    pgOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
-                    pgOptions.MigrationsHistoryTable("__EFMigrationsHistory_Loans");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
+                options.UseNpgsql(
+                    connectionString,
+                    pgOptions =>
+                    {
+                        pgOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+                        pgOptions.CommandTimeout(30);
+                        pgOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
+                        pgOptions.MigrationsHistoryTable("__EFMigrationsHistory_Loans");
+                    })
+                    .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
             }
             else
             {
-                options.UseSqlServer(connectionString, sqlOptions =>
-                {
-                    sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                    sqlOptions.CommandTimeout(30);
-                    sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
-                    sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_Loans");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>();
+                options.UseSqlServer(
+                    connectionString,
+                    sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+                        sqlOptions.CommandTimeout(30);
+                        sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
+                        sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_Loans");
+                    })
+                    .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>();
             }
-            
+
             options.AddInterceptors(provider.GetRequiredService<TenantConnectionInterceptor>());
         }
 
@@ -73,6 +80,8 @@ public static class LoansPersistenceDI
         services.AddScoped<ICollectionActionRepository, CollectionActionRepository>();
         services.AddScoped<ICollectionPromiseRepository, CollectionPromiseRepository>();
         services.AddScoped<ILoansUnitOfWork, LoansUnitOfWork>();
+        services.AddScoped<IGuarantorRecoveryRepository, GuarantorRecoveryRepository>();
+        services.AddScoped<IGuarantorSecurityReviewRepository, GuarantorSecurityReviewRepository>();
 
         return services;
     }

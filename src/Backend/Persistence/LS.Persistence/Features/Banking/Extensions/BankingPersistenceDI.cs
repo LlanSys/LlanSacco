@@ -17,6 +17,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Reflection;
 using LS.Persistence.Common.Interceptors;
 using System;
+using LS.Domain.Features.Banking.GuarantorReservations.Contracts.Repositories;
+using LS.Persistence.Features.Banking.GuarantorReservations.Repositories;
 
 namespace LS.Persistence.Features.Banking.Extensions;
 
@@ -37,25 +39,31 @@ public static class BankingPersistenceDI
         {
             if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
             {
-                options.UseNpgsql(connectionString, pgOptions =>
-                {
-                    pgOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
-                    pgOptions.CommandTimeout(30);
-                    pgOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
-                    pgOptions.MigrationsHistoryTable("__EFMigrationsHistory_Banking");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
+                options.UseNpgsql(
+                    connectionString,
+                    pgOptions =>
+                    {
+                        pgOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+                        pgOptions.CommandTimeout(30);
+                        pgOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
+                        pgOptions.MigrationsHistoryTable("__EFMigrationsHistory_Banking");
+                    })
+                    .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentNpgsqlMigrationsSqlGenerator>();
             }
             else
             {
-                options.UseSqlServer(connectionString, sqlOptions =>
-                {
-                    sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                    sqlOptions.CommandTimeout(30);
-                    sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
-                    sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_Banking");
-                }).ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>();
+                options.UseSqlServer(
+                    connectionString,
+                    sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
+                        sqlOptions.CommandTimeout(30);
+                        sqlOptions.MigrationsAssembly(Assembly.GetExecutingAssembly().FullName);
+                        sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory_Banking");
+                    })
+                    .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, IdempotentSqlServerMigrationsSqlGenerator>();
             }
-            
+
             options.AddInterceptors(provider.GetRequiredService<TenantConnectionInterceptor>());
         }
 
@@ -84,6 +92,8 @@ public static class BankingPersistenceDI
         services.AddScoped<ITillBalancingRecordRepository, TillBalancingRecordRepository>();
         services.AddScoped<IVaultRepository, VaultRepository>();
         services.AddScoped<IBankingUnitOfWork, BankingUnitOfWork>();
+        services.AddScoped<IGuarantorReservationRepository, GuarantorReservationRepository>();
+        services.AddScoped<IGuarantorReservationReceiptRepository, GuarantorReservationReceiptRepository>();
 
         return services;
     }

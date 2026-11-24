@@ -18,11 +18,12 @@ internal sealed class GetLoanApplicationsQueryHandler(ILoansUnitOfWork unitOfWor
             q =>
             {
                 var query = q.AsQueryable();
+
                 if (request.MemberId.HasValue)
                 {
                     query = query.Where(l => l.MemberId == request.MemberId.Value);
                 }
-                
+
                 return query.OrderByDescending(l => l.ApplicationDate)
                     .Select(a => new LoanApplicationResponse
                     {
@@ -41,8 +42,14 @@ internal sealed class GetLoanApplicationsQueryHandler(ILoansUnitOfWork unitOfWor
                         {
                             Id = g.Id,
                             GuarantorMemberId = g.GuarantorMemberId,
-                            GuaranteedAmount = g.GuaranteedAmount
-                        }).ToList()
+                            GuaranteedAmount = g.GuaranteedAmount,
+                            AcceptedAmount = g.AcceptedAmount,
+                            LockedAmount = g.LockedAmount,
+                            SavingsAccountId = g.SavingsAccountId,
+                            Status = g.Status.ToString(),
+                            ReservationFailure = g.ReservationFailure
+                        })
+                            .ToList()
                     });
             },
             cancellationToken);

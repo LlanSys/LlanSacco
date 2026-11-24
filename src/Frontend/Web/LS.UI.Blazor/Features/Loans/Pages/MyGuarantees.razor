@@ -1,0 +1,170 @@
+@page "/loans/my-guarantees"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Shared.Messaging
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+<PageTitle>My loan guarantees</PageTitle>
+<div class="d-flex justify-end mb-3">
+    <MudButton OnClick="LoadAsync"
+               Disabled="_busy">Refresh status</MudButton>
+</div>
+<MudPaper Class="pa-4"
+          Elevation="1">
+    <div class="d-flex justify-space-between align-center">
+        <MudText Typo="Typo.h5">My loan guarantees</MudText>
+        <MudChip T="string"
+                 Size="Size.Small">Showing @_pledges.Count</MudChip>
+    </div>
+    <MudText Class="my-3">Consent is recorded first. Funds are reserved only after the account check succeeds.</MudText>
+    <MudTable T="MyGuarantorPledgeResponse"
+              Items="_pledges"
+              Dense="true"
+              Hover="true"
+              Loading="_busy"
+              HorizontalScrollbar="true">
+        <HeaderContent>
+            <MudTh>Loan</MudTh>
+            <MudTh>Borrower</MudTh>
+            <MudTh>Requested guarantee</MudTh>
+            <MudTh>Held funds</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Loan">@context.LoanNumber</MudTd>
+            <MudTd DataLabel="Borrower">@context.BorrowerName</MudTd>
+            <MudTd DataLabel="Requested guarantee">@context.NominatedAmount.ToString("N2") KES</MudTd>
+            <MudTd DataLabel="Held funds">@context.LockedAmount.ToString("N2") KES</MudTd>
+            <MudTd DataLabel="Status">@StatusLabel(context.Status)
+                @if (context.FailureReason is not null)
+                {
+                    <MudText Typo="Typo.caption">@UserMessageSanitizer.Normalize(context.FailureReason, "Contact the SACCO to review this guarantee.")</MudText>
+                }
+            </MudTd>
+            <MudTd>
+                <MudButton OnClick="@(() => Select(context))"
+                           Disabled="@(context.Status != "Nominated" || _busy)">Review guarantee</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No loan guarantees on this page.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+    <div class="d-flex justify-end gap-2 mt-3">
+        <MudButton Disabled="@(_page == 1 || _busy)"
+                   OnClick="PreviousAsync">Previous</MudButton>
+        <MudText Class="align-self-center">Page @_page</MudText>
+        <MudButton Disabled="@(!_hasMore || _busy)"
+                   OnClick="NextAsync">Next</MudButton>
+    </div>
+</MudPaper>
+
+@if (_selected is not null)
+{
+    <MudPaper Class="pa-4 mt-4"
+              Elevation="1">
+        <MudText Typo="Typo.h6">Review guarantee for @_selected.LoanNumber</MudText>
+        <MudText>Borrower: @_selected.BorrowerName. Loan: @_selected.LoanPrincipal.ToString("N2") KES over @_selected.LoanTermMonths months.</MudText>
+        <MudText Class="my-2">Selected funds become unavailable while the guarantee is active. Any recovery must follow the approved default process. Review the SACCO's guarantee terms before accepting.</MudText>
+        <MudText Typo="Typo.caption">Terms reference: @_selected.PolicyVersion</MudText>
+        <MudSelect T="Guid"
+                   @bind-Value="_accountId"
+                   Label="Account to back this guarantee"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense">
+            @foreach (var account in _accounts)
+            {
+                <MudSelectItem Value="account.Id">@account.ProductName — @account.AvailableBalance.ToString("N2") KES available</MudSelectItem>
+            }
+        </MudSelect>
+        <MudNumericField T="decimal"
+                         @bind-Value="_amount"
+                         Label="Accepted guarantee amount (KES)"
+                         Min="0.01M"
+                         Max="_selected.NominatedAmount"
+                         Variant="Variant.Outlined"
+                         Margin="Margin.Dense" />
+        <MudCheckBox T="bool"
+                     @bind-Value="_termsAccepted"
+                     Label="I have reviewed and accept these guarantee terms." />
+        <div class="d-flex gap-2 mt-3">
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="AcceptAsync"
+                       Disabled="@(_busy || !_termsAccepted || _accountId == Guid.Empty || _amount <= 0)">Record my consent</MudButton>
+            <MudButton OnClick="@(() => _selected = null)"
+                       Disabled="_busy">Close</MudButton>
+        </div>
+    </MudPaper>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private List<MyGuarantorPledgeResponse> _pledges = [];
+    private IReadOnlyList<GuarantorSavingsAccountResponse> _accounts = [];
+    private MyGuarantorPledgeResponse? _selected;
+    private int _page = 1;
+    private bool _hasMore;
+    private bool _busy;
+    private bool _termsAccepted;
+    private Guid _accountId;
+    private decimal _amount;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = await LoanService.GetMyGuarantorPledgesAsync(_page, _lifetime.Token);
+            if (result.IsSuccess && result.Data is not null)
+            {
+                _pledges = result.Data.Pledges.ToList(); _accounts = result.Data.Accounts; _hasMore = result.Data.HasMore;
+            }
+            else Snackbar.Add(UserMessageSanitizer.Normalize(result.Error?.Message, "Loan guarantees could not be loaded."), Severity.Error);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Navigation ended the read. */ }
+        catch (Exception) { Snackbar.Add("Loan guarantees could not be loaded. Try again or contact the SACCO.", Severity.Error); }
+        finally { _busy = false; }
+    }
+
+    private void Select(MyGuarantorPledgeResponse pledge)
+    {
+        _selected = pledge; _amount = pledge.NominatedAmount; _accountId = Guid.Empty; _termsAccepted = false;
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (_selected is null) return;
+        _busy = true;
+        try
+        {
+            var result = await LoanService.AcceptGuarantorPledgeAsync(_selected.LoanId, new AcceptGuarantorPledgeRequest
+            {
+                GuarantorMemberId = _selected.MemberId, AcceptedAmount = _amount, SavingsAccountId = _accountId,
+                PledgeId = _selected.PledgeId,
+                TermsAccepted = _termsAccepted, TermsVersion = _selected.PolicyVersion
+            }, _lifetime.Token);
+            if (result.IsSuccess) { Snackbar.Add("Consent recorded. Refresh to check the funds reservation outcome.", Severity.Info); _selected = null; }
+            else Snackbar.Add(UserMessageSanitizer.Normalize(result.Error?.Message, "The guarantee could not be accepted."), Severity.Error);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Navigation ended the request. Its durable status is available after sign-in. */ }
+        catch (Exception) { Snackbar.Add("The outcome is not yet known. Refresh the status before trying again.", Severity.Warning); }
+        finally { _busy = false; }
+        await LoadAsync();
+    }
+
+    private async Task PreviousAsync() { if (_page > 1) _page--; await LoadAsync(); }
+    private async Task NextAsync() { if (_hasMore) _page++; await LoadAsync(); }
+    private static string StatusLabel(string status) => status switch
+    {
+        "Nominated" => "Awaiting consent", "PendingReservation" => "Reservation pending", "ReservationHeld" => "Funds reserved",
+        "Committed" => "Guarantee active", "ReleasePending" => "Release pending", "Accepted" => "Legacy review required", _ => status
+    };
+    public async ValueTask DisposeAsync() { await _lifetime.CancelAsync(); _lifetime.Dispose(); }
+}

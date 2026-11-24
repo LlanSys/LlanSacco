@@ -47,6 +47,13 @@ public abstract partial class AccountingEventHandlerBase<TEvent> : IConsumer<TEv
                 return;
             }
 
+            var rejection = await ValidateMappingAsync(evt, mapping, context.CancellationToken).ConfigureAwait(false);
+
+            if (rejection is not null)
+            {
+                await RecordFailureAsync(context, rejection).ConfigureAwait(false);
+                return;
+            }
             var entries = await CreateJournalEntriesAsync(evt, mapping).ConfigureAwait(false);
             var result = await _ledgerService.PostJournalAsync(
                 referenceNumber: GetReferenceNumber(evt),
@@ -54,7 +61,8 @@ public abstract partial class AccountingEventHandlerBase<TEvent> : IConsumer<TEv
                 transactionDate: evt.OccurredAt,
                 entries: entries,
                 createdBy: ICurrentActorProvider.SystemActor,
-                cancellationToken: context.CancellationToken).ConfigureAwait(false);
+                cancellationToken: context.CancellationToken)
+                .ConfigureAwait(false);
 
             if (!result.IsSuccess)
             {
@@ -97,6 +105,10 @@ public abstract partial class AccountingEventHandlerBase<TEvent> : IConsumer<TEv
     }
 
     protected abstract string GetTransactionTypeCode(TEvent evt);
+
+    protected virtual Task<string?> ValidateMappingAsync(TEvent evt, TransactionTypeGlMapping mapping, CancellationToken cancellationToken)
+        => Task.FromResult<string?>(null);
+
     protected abstract string GetReferenceNumber(TEvent evt);
     protected abstract string GetDescription(TEvent evt);
     protected abstract Guid GetTenantId(TEvent evt);

@@ -16,6 +16,8 @@ public record LoanApplicationResponse
     public DateTimeOffset ApplicationDate { get; init; }
     public decimal OutstandingPrincipal { get; init; }
     public decimal OutstandingInterest { get; init; }
+    public decimal PendingRecoveryPrincipal { get; init; }
+    public string? SecurityFailure { get; init; }
     public List<LoanGuarantorResponse> Guarantors { get; init; } = new();
 }
 

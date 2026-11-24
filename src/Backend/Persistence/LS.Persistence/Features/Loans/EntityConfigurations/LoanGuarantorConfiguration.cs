@@ -12,5 +12,11 @@ internal sealed class LoanGuarantorConfiguration : IEntityTypeConfiguration<Loan
 
         builder.Property(x => x.GuaranteedAmount).HasPrecision(18, 2);
         builder.Property(x => x.LockedAmount).HasPrecision(18, 2);
+        builder.Property(x => x.AcceptedAmount).HasPrecision(18, 2);
+        builder.Property(x => x.ReservationPolicyVersion).HasMaxLength(80);
+        builder.Property(x => x.ReservationFailure).HasMaxLength(300);
+        builder.Property(x => x.ConsentActorId).HasMaxLength(200);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.HasIndex(x => new { x.TenantId, x.LoanApplicationId, x.GuarantorMemberId });
     }
 }

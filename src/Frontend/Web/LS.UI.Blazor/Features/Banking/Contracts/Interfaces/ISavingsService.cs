@@ -8,9 +8,10 @@ namespace LS.UI.Blazor.Features.Banking.Contracts.Interfaces;
 
 internal interface ISavingsService
 {
+    Task<AppResponse<bool>> ConfigureSecurityAsync(Guid productId, ConfigureSavingsSecurityRequest request, CancellationToken ct = default);
     Task<AppResponse<IEnumerable<SavingsProductResponse>>> GetSavingsProductsAsync(bool includeInactive = false);
-    Task<AppResponse<Guid>> CreateSavingsProductAsync(CreateSavingsProductRequest request);
+    Task<AppResponse<SavingsProductResponse>> CreateSavingsProductAsync(CreateSavingsProductRequest request);
     Task<AppResponse<IEnumerable<SavingsAccountResponse>>> GetMemberSavingsAccountsAsync(Guid memberId);
-    Task<AppResponse<Guid>> DepositSavingsAsync(DepositSavingsRequest request);
-    Task<AppResponse<Guid>> WithdrawSavingsAsync(WithdrawSavingsRequest request);
+    Task<AppResponse<SavingsAccountResponse>> DepositSavingsAsync(DepositSavingsRequest request);
+    Task<AppResponse<SavingsAccountResponse>> WithdrawSavingsAsync(WithdrawSavingsRequest request);
 }

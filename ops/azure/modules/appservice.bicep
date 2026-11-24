@@ -54,6 +54,10 @@ resource apiApp 'Microsoft.Web/sites@2022-09-01' = {
       alwaysOn: true
       appSettings: [
         {
+          name: 'Tenant__CentralApiHosts__0'
+          value: '${apiAppName}.azurewebsites.net'
+        }
+        {
           name: 'KeyVault__Uri'
           value: keyVaultUri
         }

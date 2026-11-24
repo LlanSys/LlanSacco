@@ -147,6 +147,13 @@ UseAuthentication()                            ← JWT tenant_id claim is availa
 UseAuthorization()
 ```
 
+**Ingress rules (enforced, aligned with StarterTemplate):**
+- A tenant selector header (`X-Tenant-Id`) must be exactly one non-empty GUID, otherwise 400.
+- A request to a host not listed in `Tenant:CentralApiHosts` must match exactly one Active tenant host name on this stamp (`Tenant:DeploymentStampId` when set), otherwise 404. A selector that names a different tenant is a 400.
+- On a central API host a selector must name an Active tenant on this stamp, otherwise 404.
+- After authentication, `TenantClaimBoundaryMiddleware` returns 403 when the token's `tenant_id` differs from the resolved tenant, or (with `DeploymentStampId` set) when the token's tenant is not Active on this stamp.
+- `Tenant:CentralApiHosts` must list the public API DNS name and the internal name the UI calls (Azure modules set `Tenant__CentralApiHosts__0`; local development uses `localhost`, `127.0.0.1`, `::1`, `api`). An unlisted API host returns 404 for every request.
+
 **Why before `UseAuthentication()`?**
 Hostname resolution does not require an authenticated user. The middleware resolves the tenant purely from the `Host` HTTP header (or `X-Forwarded-Host` for proxied requests), reads the active hostname mapping from the ControlPlane database at the start of the request, and injects the resolved tenant ID into a request header.
 
@@ -156,7 +163,7 @@ Hostname resolution does not require an authenticated user. The middleware resol
 3. `OrgSettings:DefaultTenantId` configuration value (single-stamp deployments).
 4. Throws `TenantNotResolvedException` if none of the above resolves.
 
-**Claim vs. header precedence:** JWT claim wins. For isolated stamps, the JWT `tenant_id` claim is the authoritative source. The header is a fallback for anonymous or pre-auth paths.
+**Claim vs. header precedence:** JWT claim wins, and a claim that disagrees with the resolved tenant never reaches a handler (403 at the boundary). The header is a fallback for anonymous or pre-auth paths.
 
 **Security implication:** If a proxied request arrives with a forged `X-Forwarded-Host`, it could influence hostname-based resolution. Mitigate this by configuring `ForwardedHeadersOptions.KnownProxies` or `KnownNetworks` to only accept forwarded headers from trusted upstream addresses.
 

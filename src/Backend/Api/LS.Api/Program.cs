@@ -5,6 +5,7 @@ using LS.Api.Configuration;
 using LS.Api.Extensions;
 using LS.Api.Features.Shared.Realtime;
 using LS.Api.Health;
+using LS.Api.Middleware;
 using LS.Api.Utilities;
 using LS.Application.Extensions;
 using LS.Infrastructure.Extensions;
@@ -387,6 +388,8 @@ try
     //app.UsePreAuthMiddleware();
 
     app.UseAuthentication();
+
+    app.UseMiddleware<TenantClaimBoundaryMiddleware>();
 
     app.UsePostAuthMiddleware();
 

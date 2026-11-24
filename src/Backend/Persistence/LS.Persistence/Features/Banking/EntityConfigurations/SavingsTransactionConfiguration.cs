@@ -8,6 +8,7 @@ internal sealed class SavingsTransactionConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<SavingsTransaction> builder)
     {
+        builder.HasIndex(x => new { x.TenantId, x.GuarantorOperationId, x.GuarantorPledgeId });
         builder.ToTable("SavingsTransactions", "banking");
 
         builder.HasKey(x => x.Id);

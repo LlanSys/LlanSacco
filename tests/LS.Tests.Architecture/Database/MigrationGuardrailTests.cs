@@ -6,6 +6,8 @@ using LS.Persistence.Features.HR.DataContext;
 using LS.Persistence.Features.IAM.DataContext;
 using LS.Persistence.Features.Membership.DataContext;
 using LS.Persistence.Features.Shared.DataContext;
+using LS.Persistence.Features.Banking.DataContext;
+using LS.Persistence.Features.Loans.DataContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -15,6 +17,18 @@ namespace LS.Tests.Architecture.Database;
 [Trait("Category", "Guardrail")]
 public class MigrationGuardrailTests
 {
+    [Fact]
+    public void BankingSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<BankingSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
+
+    [Fact]
+    public void BankingPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<BankingPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
+
+    [Fact]
+    public void LoansSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<LoansSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
+
+    [Fact]
+    public void LoansPostgreSql_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<LoansPostgreSqlDBContext>(options => options.UseNpgsql("Host=localhost;Database=dummy;Username=postgres;Password=postgres"));
+
     [Fact]
     public void IamSqlServer_ShouldNotHavePendingModelChanges() => AssertNoPendingModelChanges<IamSqlServerDBContext>(options => options.UseSqlServer("Server=.;Database=dummy;Integrated Security=true"));
 

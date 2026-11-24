@@ -15,6 +15,8 @@ public class SavingsTransaction : BaseEntity, IRetainedFinancialRecord
     public string? Notes { get; set; }
 
     public string? ExternalReferenceId { get; set; }
+    public Guid? GuarantorOperationId { get; set; }
+    public Guid? GuarantorPledgeId { get; set; }
 
     public static SavingsTransaction Create(
         Guid savingsAccountId,

@@ -1,4 +1,5 @@
 using MassTransit;
+using LS.Domain.Features.Banking.GuarantorReservations.Entities;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
@@ -54,6 +55,8 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
     public DbSet<SavingsProduct> SavingsProducts { get; set; }
     public DbSet<SavingsAccount> SavingsAccounts { get; set; }
     public DbSet<SavingsTransaction> SavingsTransactions { get; set; }
+    public DbSet<GuarantorReservation> GuarantorReservations { get; set; }
+    public DbSet<GuarantorReservationReceipt> GuarantorReservationReceipts { get; set; }
 
     public DbSet<DepositProduct> DepositProducts { get; set; }
     public DbSet<DepositAccount> DepositAccounts { get; set; }
@@ -85,9 +88,14 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);
+
         if (Database.IsNpgsql())
+        {
             foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(t => typeof(BaseEntity).IsAssignableFrom(t.ClrType)))
+            {
                 modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).ValueGeneratedNever();
+            }
+        }
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -97,9 +105,15 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
+
             if (Database.IsNpgsql())
+            {
                 foreach (var entry in ChangeTracker.Entries<BaseEntity>().Where(e => e.State is EntityState.Added or EntityState.Modified))
+                {
                     entry.Entity.RowVersion = Guid.CreateVersion7().ToByteArray();
+                }
+            }
+
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _collectedDomainEvents ??= [];
             _collectedDomainEvents.AddRange(domainEvents);
@@ -110,8 +124,12 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
             foreach (var entry in ex.Entries)
             {
                 var entityId = entry.Entity is BaseEntity b ? b.Id.ToString() : "(unknown)";
+
                 if (_logger is not null)
+                {
                     PersistenceLogDefinitions.LogConcurrencyConflict(_logger, entry.Entity.GetType().Name, entityId);
+                }
+
                 _ = await entry.GetDatabaseValuesAsync(cancellationToken).ConfigureAwait(false);
             }
             _collectedDomainEvents?.Clear();
@@ -120,15 +138,23 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
         catch (DbUpdateException ex)
         {
             foreach (var entry in ex.Entries)
+            {
                 if (_logger is not null)
+                {
                     PersistenceLogDefinitions.LogDatabaseError(_logger, entry.Entity.GetType().Name, ex);
+                }
+            }
+
             _collectedDomainEvents?.Clear();
             throw;
         }
         catch (Exception ex)
         {
             if (_logger is not null)
+            {
                 PersistenceLogDefinitions.LogDBContextSaveChangesError(_logger, nameof(BankingDBContext), ex);
+            }
+
             _collectedDomainEvents?.Clear();
             throw;
         }

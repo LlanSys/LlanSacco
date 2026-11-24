@@ -9,9 +9,12 @@ using LS.Application.Features.HR.Employees.Contracts.Interfaces;
 using LS.Application.Features.Membership.Contracts.Interfaces;
 using LS.Application.Features.Membership.Contracts.Implementations;
 using LS.Domain.Features.HR.Payroll.Services;
+using LS.Domain.Features.Loans.Contracts;
+using LS.Application.Features.Loans.Services;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -63,6 +66,9 @@ public static class DependencyInjection
         services.AddScoped<IServiceManager, ServiceManager>();
         services.AddScoped<ILedgerService, LedgerService>();
         services.AddScoped<IKenyaTaxCalculatorService, KenyaTaxCalculatorService>();
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddTransient<IAmortizationStrategy, StraightLineAmortizationStrategy>();
+        services.AddTransient<IAmortizationStrategy, ReducingBalanceAmortizationStrategy>();
 
     }
 }

@@ -19,6 +19,10 @@ public class UpdateLoanProductCommand : IRequest<AppResponse<bool>>
     public InterestMethod InterestMethod { get; set; }
     public int MaxTermInMonths { get; set; }
     public decimal MaxAmount { get; set; }
+    public decimal? EligibleDepositMultiple { get; set; }
+    public int? GuarantorReservationDays { get; set; }
+    public int? GuarantorConsentDays { get; set; }
+    public string? GuarantorPolicyVersion { get; set; }
     public bool IsActive { get; set; }
 }
 
@@ -31,6 +35,7 @@ internal sealed partial class UpdateLoanProductCommandHandler(
     public async Task<AppResponse<bool>> Handle(UpdateLoanProductCommand request, CancellationToken cancellationToken)
     {
         var loanProduct = await unitOfWork.LoanProductRepository.FindByIdAsync(request.Id, cancellationToken);
+
         if (loanProduct == null)
         {
             return AppResponses.NotFound<bool>("Loan product not found.");
@@ -43,6 +48,10 @@ internal sealed partial class UpdateLoanProductCommandHandler(
         loanProduct.MaxTermInMonths = request.MaxTermInMonths;
         loanProduct.MaxAmount = request.MaxAmount;
         loanProduct.IsActive = request.IsActive;
+        loanProduct.GuarantorReservationDays = request.GuarantorReservationDays ?? loanProduct.GuarantorReservationDays;
+        loanProduct.EligibleDepositMultiple = request.EligibleDepositMultiple ?? loanProduct.EligibleDepositMultiple;
+        loanProduct.GuarantorConsentDays = request.GuarantorConsentDays ?? loanProduct.GuarantorConsentDays;
+        loanProduct.GuarantorPolicyVersion = request.GuarantorPolicyVersion ?? loanProduct.GuarantorPolicyVersion;
 
         loanProduct.UpdatedBy = actorProvider.ActorId.ToString();
         loanProduct.UpdatedAt = DateTimeOffset.UtcNow;

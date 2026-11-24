@@ -2,6 +2,7 @@
 @using LS.SharedKernel.Features.Banking.Savings.Dtos
 @using LS.UI.Blazor.Features.Banking.Contracts.Interfaces
 @using LS.UI.Blazor.Features.Banking.Components
+@using LS.UI.Blazor.Features.Shared.Messaging
 @inject ISavingsService SavingsService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -12,22 +13,33 @@
 
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Savings Products</MudText>
-    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">New Product</MudButton>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">New Product</MudButton>
 </div>
 
 @if (_isLoading)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <MudProgressCircular Color="Color.Primary"
+                         Indeterminate="true" />
 }
 else
 {
-    <MudTable Items="@_products" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+    <MudTable Items="@_products"
+              Hover="true"
+              Breakpoint="Breakpoint.Sm"
+              Elevation="1"
+              Dense="true">
         <HeaderContent>
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
             <MudTh>Interest Rate (%)</MudTh>
             <MudTh>Minimum Balance</MudTh>
             <MudTh>Status</MudTh>
+            <MudTh>Guarantees</MudTh>
+            <MudTh>Borrowing limit</MudTh>
+            <MudTh>Security policy</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Code">@context.Code</MudTd>
@@ -37,12 +49,24 @@ else
             <MudTd DataLabel="Status">
                 @if (context.IsActive)
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Active</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Success">Active</MudChip>
                 }
                 else
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Inactive</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Error">Inactive</MudChip>
                 }
+            </MudTd>
+            <MudTd DataLabel="Guarantees">@(context.AllowsGuarantorReservations ? "Eligible" : "Not eligible")</MudTd>
+            <MudTd DataLabel="Borrowing limit">@(context.CountsTowardLoanLimit ? "Eligible deposits" : "Excluded")</MudTd>
+            <MudTd>
+                <AuthorizeView Policy="banking-products.manage"
+                               Context="policyPermission">
+                    <MudButton OnClick="@(() => SelectSecurityPolicy(context))">Configure</MudButton>
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
         <PagerContent>
@@ -51,7 +75,56 @@ else
     </MudTable>
 }
 
+@if (_securityProduct is not null)
+{
+    <AuthorizeView Policy="banking-products.manage"
+                   Context="editingPermission">
+        <MudPaper Class="pa-4 mt-4"
+                  Elevation="1">
+            <MudText Typo="Typo.h6">Security policy — @_securityProduct.Name</MudText>
+            <MudSwitch T="bool"
+                       @bind-Value="_allowGuarantees"
+                       Label="Allow guarantor reservations" />
+            <MudSwitch T="bool"
+                       @bind-Value="_countForLoans"
+                       Label="Count deposits toward the borrowing limit"
+                       Disabled="_securityProduct.AllowsWithdrawals" />
+            <MudText Typo="Typo.caption">Only non-withdrawable products can support the reference borrowing limit. Existing holds stay retained when new reservations are disabled.</MudText>
+            <MudTextField @bind-Value="_securityEvidence"
+                          Label="Approved policy evidence reference"
+                          MaxLength="200"
+                          Margin="Margin.Dense"
+                          Variant="Variant.Outlined" />
+            <MudButton Color="Color.Primary"
+                       OnClick="SaveSecurityAsync"
+                       Disabled="@(_savingSecurity || string.IsNullOrWhiteSpace(_securityEvidence))">Save policy</MudButton>
+            <MudButton OnClick="@(() => _securityProduct = null)"
+                       Disabled="_savingSecurity">Close</MudButton>
+        </MudPaper>
+    </AuthorizeView>
+}
+
 @code {
+    private SavingsProductResponse? _securityProduct;
+    private bool _allowGuarantees, _countForLoans, _savingSecurity;
+    private string _securityEvidence = "";
+    private void SelectSecurityPolicy(SavingsProductResponse product)
+    {
+        _securityProduct = product; _allowGuarantees = product.AllowsGuarantorReservations; _countForLoans = product.CountsTowardLoanLimit; _securityEvidence = "";
+    }
+    private async Task SaveSecurityAsync()
+    {
+        if (_securityProduct is null) return;
+        _savingSecurity = true;
+        try
+        {
+            var result = await SavingsService.ConfigureSecurityAsync(_securityProduct.Id, new(_allowGuarantees, _countForLoans, _securityEvidence));
+            if (result.IsSuccess) { _securityProduct = null; await LoadProductsAsync(); }
+            else Snackbar.Add(UserMessageSanitizer.Normalize(result.Error?.Message, "The security policy could not be saved."), Severity.Error);
+        }
+        catch (Exception) { Snackbar.Add("The security policy could not be saved. Refresh before retrying.", Severity.Error); }
+        finally { _savingSecurity = false; }
+    }
     private bool _isLoading = true;
     private List<SavingsProductResponse> _products = new();
 

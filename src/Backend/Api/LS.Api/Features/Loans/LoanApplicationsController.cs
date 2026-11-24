@@ -5,6 +5,10 @@ using LS.SharedKernel.Features.Loans.Dtos;
 using LS.Application.Features.Loans.LoanApplications.Commands;
 using LS.Application.Features.Loans.LoanApplications.Queries;
 using LS.Application.Features.Loans.LoanRepayments.Commands;
+using LS.Application.Features.Loans.Guarantors.Commands;
+using LS.Application.Features.Banking.GuarantorReservations.Queries;
+using LS.Application.Features.Loans.Guarantors.Queries;
+using LS.Application.Features.Membership.Queries;
 using LS.SharedKernel.Dtos.Common;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -20,6 +24,91 @@ namespace LS.Api.Features.Loans;
 [Route("api/v{version:apiVersion}/loans/applications")]
 public class LoanApplicationsController(ISender sender) : BaseController
 {
+    [HttpGet("{id:guid}/guarantor-summary")]
+    [RequirePermission("applications.view")]
+    public async Task<IActionResult> GetGuarantorSummary(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new GetLoanGuarantorSummaryQuery(id), ct));
+
+    [HttpGet("{id:guid}/guarantor-review-accounts/{pledgeId:guid}")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> GetReviewAccounts(Guid id, Guid pledgeId, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new GetGuarantorReviewAccountsQuery(id, pledgeId), ct));
+
+    [HttpGet("guarantor-member-options")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> GetMemberOptions([FromQuery] string search, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new GetGuarantorMemberOptionsQuery(search), ct));
+
+    [HttpGet("my-guarantor-pledges")]
+    [MemberSelfService]
+    public async Task<IActionResult> GetMyGuarantorPledges(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default) => HandleResponse(await sender.Send(new GetMyGuarantorPledgesQuery(page, pageSize), ct));
+
+    [HttpGet("{id:guid}/guarantor-operations")]
+    [RequirePermission("applications.view")]
+    public async Task<IActionResult> GetGuarantorOperations(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new GetGuarantorOperationsQuery(id), ct));
+
+    [HttpPost("guarantor-security-reviews/{id:guid}/cancel")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> CancelSecurityReview(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new CancelGuarantorSecurityReviewCommand(id), ct));
+
+    [HttpPost("{id:guid}/guarantor-security-reviews")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> RequestSecurityReview(Guid id, GuarantorSecurityReviewRequest request, CancellationToken ct) =>
+        HandleResponse(await sender.Send(
+            new RequestGuarantorSecurityReviewCommand(
+            request.ReviewId,
+            id,
+            request.PledgeId,
+                request.Kind,
+            request.EvidenceReference,
+            request.SavingsAccountId,
+            request.ReplacementMemberId),
+            ct));
+
+    [HttpPost("guarantor-security-reviews/{id:guid}/approve")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> ApproveSecurityReview(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new ApproveGuarantorSecurityReviewCommand(id), ct));
+
+    [HttpGet("guarantor-reconciliation")]
+    [RequirePermission("applications.view")]
+    [RequirePermission("banking-accounts.view")]
+    public async Task<IActionResult> GetGuarantorReconciliation(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default) => HandleResponse(await sender.Send(new GetGuarantorReconciliationQuery(page, pageSize), ct));
+
+    [HttpPost("{id:guid}/cancel")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> Cancel(Guid id, [FromBody] string reason, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new CancelGuaranteedLoanCommand(id, reason), ct));
+
+    [HttpPost("{id:guid}/guarantor-recoveries")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> RequestRecovery(Guid id, [FromBody] GuarantorRecoveryRequest request, CancellationToken ct) =>
+        HandleResponse(await sender.Send(
+            new RequestGuarantorRecoveryCommand(
+            id,
+            request.RecoveryId,
+            request.Amount,
+                request.EvidenceReference),
+            ct));
+
+    [HttpPost("guarantor-recoveries/{id:guid}/cancel")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> CancelRecovery(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new CancelGuarantorRecoveryCommand(id), ct));
+
+    [HttpPost("guarantor-recoveries/{id:guid}/approve")]
+    [RequirePermission("applications.approve")]
+    public async Task<IActionResult> ApproveRecovery(Guid id, CancellationToken ct) =>
+        HandleResponse(await sender.Send(new ApproveGuarantorRecoveryCommand(id), ct));
+
     [HttpPost]
     [RequirePermission("applications.create")]
     [ProducesResponseType(typeof(AppResponse<Guid>), StatusCodes.Status200OK)]
@@ -91,13 +180,19 @@ public class LoanApplicationsController(ISender sender) : BaseController
     [HttpPost("{id}/guarantors/accept")]
     [MemberSelfService]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AcceptGuarantor(Guid id, [FromBody] AcceptGuarantorPledgeRequest request)
+    public async Task<IActionResult> AcceptGuarantor(Guid id, [FromBody] AcceptGuarantorPledgeRequest request, CancellationToken ct)
     {
-        var result = await sender.Send(new AcceptGuarantorPledgeCommand(
-            id,
-            request.GuarantorMemberId,
-            request.AcceptedAmount
-        ));
+        var result = await sender.Send(
+            new AcceptGuarantorPledgeCommand(
+                id,
+                request.GuarantorMemberId,
+                request.AcceptedAmount,
+                request.SavingsAccountId,
+                request.TermsAccepted,
+                request.TermsVersion,
+                request.PledgeId
+                ),
+            ct);
 
         return HandleResponse(result);
     }

@@ -12,16 +12,24 @@
 
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Loan Products</MudText>
-    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">New Product</MudButton>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">New Product</MudButton>
 </div>
 
 @if (_isLoading)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    <MudProgressCircular Color="Color.Primary"
+                         Indeterminate="true" />
 }
 else
 {
-    <MudTable Items="@_products" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1" Dense="true">
+    <MudTable Items="@_products"
+              Hover="true"
+              Breakpoint="Breakpoint.Sm"
+              Elevation="1"
+              Dense="true">
         <HeaderContent>
             <MudTh>Code</MudTh>
             <MudTh>Name</MudTh>
@@ -42,15 +50,21 @@ else
             <MudTd DataLabel="Status">
                 @if (context.IsActive)
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Success">Active</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Success">Active</MudChip>
                 }
                 else
                 {
-                    <MudChip Variant="Variant.Outlined" T="string" Color="Color.Error">Inactive</MudChip>
+                    <MudChip Variant="Variant.Outlined"
+                             T="string"
+                             Color="Color.Error">Inactive</MudChip>
                 }
             </MudTd>
             <MudTd DataLabel="Actions">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           OnClick="@(() => OpenEditDialog(context))">Edit</MudButton>
             </MudTd>
         </RowTemplate>
         <PagerContent>
@@ -113,7 +127,11 @@ else
                 ProductName = model.ProductName,
                 Description = model.Description,
                 InterestRate = model.InterestRate,
-                InterestMethod = model.InterestMethod,
+                InterestMethod = model.InterestMethod ?? "ReducingBalance",
+                GuarantorConsentDays = model.GuarantorConsentDays,
+                GuarantorReservationDays = model.GuarantorReservationDays,
+                GuarantorPolicyVersion = model.GuarantorPolicyVersion,
+                EligibleDepositMultiple = model.EligibleDepositMultiple,
                 MaxTermInMonths = model.MaxTermInMonths,
                 MaxAmount = model.MaxAmount
             };
@@ -145,6 +163,10 @@ else
                     Description = product.Description,
                     InterestRate = product.InterestRate,
                     InterestMethod = product.InterestMethod,
+                    GuarantorConsentDays = product.GuarantorConsentDays,
+                    GuarantorReservationDays = product.GuarantorReservationDays,
+                    GuarantorPolicyVersion = product.GuarantorPolicyVersion,
+                    EligibleDepositMultiple = product.EligibleDepositMultiple,
                     MaxTermInMonths = product.MaxTermInMonths,
                     MaxAmount = product.MaxAmount,
                     IsActive = product.IsActive
@@ -163,7 +185,11 @@ else
                 ProductName = model.ProductName,
                 Description = model.Description,
                 InterestRate = model.InterestRate,
-                InterestMethod = model.InterestMethod,
+                InterestMethod = model.InterestMethod ?? "ReducingBalance",
+                GuarantorConsentDays = model.GuarantorConsentDays,
+                GuarantorReservationDays = model.GuarantorReservationDays,
+                GuarantorPolicyVersion = model.GuarantorPolicyVersion,
+                EligibleDepositMultiple = model.EligibleDepositMultiple,
                 MaxTermInMonths = model.MaxTermInMonths,
                 MaxAmount = model.MaxAmount,
                 IsActive = model.IsActive

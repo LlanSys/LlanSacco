@@ -1,0 +1,83 @@
+@page "/loans/guarantor-reconciliation"
+@using LS.SharedKernel.Features.Loans.Dtos
+@using LS.UI.Blazor.Features.Loans.Contracts.Interfaces
+@using LS.UI.Blazor.Features.Shared.Messaging
+@inject ILoanService LoanService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Policy = "applications.view")]
+@attribute [Authorize(Policy = "banking-accounts.view")]
+@implements IAsyncDisposable
+
+<PageTitle>Guarantor hold reconciliation</PageTitle>
+<div class="d-flex justify-end gap-2 mb-3">
+    <MudButton Href="/loans/applications">Applications</MudButton>
+    <MudButton OnClick="LoadAsync"
+               Disabled="_busy">Refresh</MudButton>
+</div>
+<MudPaper Class="pa-4"
+          Elevation="1">
+    <div class="d-flex justify-space-between align-center">
+        <MudText Typo="Typo.h5">Guarantor hold reconciliation</MudText>
+        <MudChip T="string">Showing @_rows.Count</MudChip>
+    </div>
+    <MudText Class="my-3">Compare account holds with retained reservations. Investigate every difference before enabling new guarantees on an affected account.</MudText>
+    <MudTable T="GuarantorReconciliationResponse"
+              Items="_rows"
+              Dense="true"
+              Hover="true"
+              Loading="_busy"
+              HorizontalScrollbar="true">
+        <HeaderContent>
+            <MudTh>Member</MudTh>
+            <MudTh>Product</MudTh>
+            <MudTh>Balance KES</MudTh>
+            <MudTh>Held KES</MudTh>
+            <MudTh>Reservations KES</MudTh>
+            <MudTh>Difference KES</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Member">@context.MemberName</MudTd>
+            <MudTd DataLabel="Product">@context.ProductName</MudTd>
+            <MudTd DataLabel="Balance KES">@context.Balance.ToString("N2")</MudTd>
+            <MudTd DataLabel="Held KES">@context.LockedFunds.ToString("N2")</MudTd>
+            <MudTd DataLabel="Reservations KES">@context.ExplainedReservations.ToString("N2")</MudTd>
+            <MudTd DataLabel="Difference KES">
+                <MudText Color="@(context.UnexplainedDifference == 0 ? Color.Success : Color.Error)">@context.UnexplainedDifference.ToString("N2")</MudText>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No held accounts on this page.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+    <div class="d-flex justify-end gap-2 mt-3">
+        <MudButton OnClick="PreviousAsync"
+                   Disabled="@(_page == 1 || _busy)">Previous</MudButton>
+        <MudText Class="align-self-center">Page @_page</MudText>
+        <MudButton OnClick="NextAsync"
+                   Disabled="@(_rows.Count < 50 || _busy)">Next</MudButton>
+    </div>
+</MudPaper>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private List<GuarantorReconciliationResponse> _rows = [];
+    private int _page = 1;
+    private bool _busy;
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = await LoanService.GetGuarantorReconciliationAsync(_page, _lifetime.Token);
+            if (result.IsSuccess) _rows = result.Data ?? [];
+            else Snackbar.Add(UserMessageSanitizer.Normalize(result.Error?.Message, "The reconciliation report could not be loaded."), Severity.Error);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { /* Navigation ended the read. */ }
+        catch (Exception) { Snackbar.Add("The reconciliation report could not be loaded. Try again.", Severity.Error); }
+        finally { _busy = false; }
+    }
+    private async Task PreviousAsync() { if (_page > 1) _page--; await LoadAsync(); }
+    private async Task NextAsync() { _page++; await LoadAsync(); }
+    public async ValueTask DisposeAsync() { await _lifetime.CancelAsync(); _lifetime.Dispose(); }
+}

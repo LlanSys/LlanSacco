@@ -5,6 +5,7 @@ using LS.Api.Common.Authorization;
 using LS.Api.Features.Accounting.Controllers;
 using LS.Api.Features.CheckOff.Controllers;
 using LS.Api.Features.HR.Payroll.Controllers;
+using LS.Api.Features.Loans;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -19,6 +20,7 @@ public sealed class SaccoOperationAuthorizationTests
     [InlineData("BatchDetails", typeof(CheckOffController), nameof(CheckOffController.GetBatchDetails), "checkoff.view", "checkoff.post")]
     [InlineData("Payroll", typeof(PayrollController), nameof(PayrollController.GetDashboardStats), "hr.payroll.view", "hr.payroll.run")]
     [InlineData("AccountingDlq", typeof(FinanceController), nameof(FinanceController.GetIntegrationErrors), "accounting-integrations.view", "accounting-integrations.retry")]
+    [InlineData("LoanGuarantees", typeof(LoanApplicationsController), nameof(LoanApplicationsController.GetGuarantorSummary), "applications.view", "applications.approve")]
     public async Task Signed_in_route_and_api_require_the_same_read_grant(
         string component, Type controller, string action, string readPermission, string writePermission)
     {

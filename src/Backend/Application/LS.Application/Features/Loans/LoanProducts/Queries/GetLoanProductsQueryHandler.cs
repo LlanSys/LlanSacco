@@ -15,9 +15,9 @@ internal sealed class GetLoanProductsQueryHandler(ILoansUnitOfWork unitOfWork)
     public async Task<AppResponse<List<LoanProductResponse>>> Handle(GetLoanProductsQuery request, CancellationToken cancellationToken)
     {
         var products = await unitOfWork.LoanProductRepository.ListAsync(
-            q => request.IsActive.HasValue 
-                ? q.Where(p => p.IsActive == request.IsActive.Value) 
-                : q, 
+            q => request.IsActive.HasValue
+                ? q.Where(p => p.IsActive == request.IsActive.Value)
+                : q,
             cancellationToken);
 
         var dtos = products.Select(p => new LoanProductResponse
@@ -30,8 +30,13 @@ internal sealed class GetLoanProductsQueryHandler(ILoansUnitOfWork unitOfWork)
             InterestMethod = p.InterestMethod.ToString(),
             MaxTermInMonths = p.MaxTermInMonths,
             MaxAmount = p.MaxAmount,
-            IsActive = p.IsActive
-        }).ToList();
+            IsActive = p.IsActive,
+            GuarantorReservationDays = p.GuarantorReservationDays,
+            GuarantorConsentDays = p.GuarantorConsentDays,
+            EligibleDepositMultiple = p.EligibleDepositMultiple,
+            GuarantorPolicyVersion = p.GuarantorPolicyVersion
+        })
+            .ToList();
 
         return AppResponses.Success(dtos);
     }

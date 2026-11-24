@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using LS.Infrastructure.Features.Banking.Savings.Jobs;
+using LS.Infrastructure.Features.Banking.GuarantorReservations.Jobs;
 using LS.Persistence.Common.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -23,8 +24,8 @@ public static class HangfireExtensions
         services.AddHangfire(config =>
         {
             config.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                  .UseSimpleAssemblyNameTypeSerializer()
-                  .UseRecommendedSerializerSettings();
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings();
 
             if (dbSettings.Provider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
             {
@@ -33,14 +34,16 @@ public static class HangfireExtensions
             }
             else
             {
-                config.UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
-                {
-                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-                    QueuePollInterval = TimeSpan.Zero,
-                    UseRecommendedIsolationLevel = true,
-                    DisableGlobalLocks = true
-                });
+                config.UseSqlServerStorage(
+                    connectionString,
+                    new Hangfire.SqlServer.SqlServerStorageOptions
+                    {
+                        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                        QueuePollInterval = TimeSpan.Zero,
+                        UseRecommendedIsolationLevel = true,
+                        DisableGlobalLocks = true
+                    });
             }
         });
 
@@ -50,6 +53,7 @@ public static class HangfireExtensions
         });
 
         services.AddTransient<TenantSavingsInterestJob>();
+        services.AddTransient<TenantGuarantorReservationJob>();
         services.AddTransient<LS.Application.Features.Banking.Savings.Jobs.CalculateSavingsInterestJob>();
 
         return services;
@@ -59,12 +63,17 @@ public static class HangfireExtensions
     {
         // Require authorization in a real setup.
         // For now, making it accessible on /hangfire for local development/control plane
-        app.UseHangfireDashboard("/hangfire", new DashboardOptions
-        {
-            // Authorization = new[] { new HangfireAuthorizationFilter() }
-        });
+        app.UseHangfireDashboard(
+            "/hangfire",
+            new DashboardOptions
+            {
+                // Authorization = new[] { new HangfireAuthorizationFilter() }
+            });
 
         // Schedule Background Jobs
+        RecurringJob.AddOrUpdate<TenantGuarantorReservationJob>(
+            "expire-guarantor-reservations", job => job.ScheduleAsync(CancellationToken.None), "*/5 * * * *");
+
         RecurringJob.AddOrUpdate<TenantSavingsInterestJob>(
             "calculate-savings-interest",
             job => job.ScheduleAsync(CancellationToken.None),

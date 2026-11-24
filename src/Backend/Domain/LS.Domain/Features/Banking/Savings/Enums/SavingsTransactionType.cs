@@ -5,5 +5,6 @@ public enum SavingsTransactionType
     Deposit,
     Withdrawal,
     Interest,
-    Fee
+    Fee,
+    GuarantorRecovery
 }

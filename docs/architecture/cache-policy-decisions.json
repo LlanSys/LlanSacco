@@ -44,6 +44,18 @@
     "Reason": "Moves cash between teller and vault. Cash operations read current till and vault balances."
   },
   {
+    "Symbol": "LS.Application.Features.Banking.GuarantorReservations.Commands.ExpireGuarantorReservationsCommand",
+    "Reason": "Expires current pre-disbursement reservations and dispatches authoritative outcomes. Financial and reconciliation reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.GuarantorReservations.Commands.ProcessGuarantorReservationCommand",
+    "Reason": "Reservation, balance, receipt and reconciliation reads require current committed state and bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Banking.Savings.Commands.ConfigureSavingsSecurityCommand",
+    "Reason": "Changes eligible financial products. Product, credit assessment and guarantor reads use current committed state without caching."
+  },
+  {
     "Symbol": "LS.Application.Features.Banking.Savings.Commands.CreateSavingsProductCommand",
     "Reason": "Adds savings terms. Product availability and pricing reads bypass caching."
   },
@@ -358,6 +370,38 @@
   {
     "Symbol": "LS.Application.Features.Loans.Collections.Commands.SendPromiseRemindersCommand",
     "Reason": "Processes promise reminders. Promise and case reads use current state directly."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.ApplyGuarantorReservationOutcomeCommand",
+    "Reason": "Updates loan security and recovery state. Loan and guarantor reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.ApproveGuarantorRecoveryCommand",
+    "Reason": "Earmarks recoverable principal and dispatches Banking work. Loan and security reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.ApproveGuarantorSecurityReviewCommand",
+    "Reason": "Dispatches independently approved legacy adoption or substitution. Security and financial reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.CancelGuaranteedLoanCommand",
+    "Reason": "Cancels pre-disbursement lending and dispatches releases. Loan and guarantor status reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.CancelGuarantorRecoveryCommand",
+    "Reason": "Cancels an unapproved recovery. Guarantor operations and balances are always read fresh."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.CancelGuarantorSecurityReviewCommand",
+    "Reason": "Cancels a review and releases only replacement security. Guarantor, approval and reconciliation reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.RequestGuarantorRecoveryCommand",
+    "Reason": "Records an approval request. Recovery and current loan reads bypass caching."
+  },
+  {
+    "Symbol": "LS.Application.Features.Loans.Guarantors.Commands.RequestGuarantorSecurityReviewCommand",
+    "Reason": "Stages tenant-owned security review and replacement consent. Loan and guarantor reads bypass caching."
   },
   {
     "Symbol": "LS.Application.Features.Loans.LoanApplications.Commands.AcceptGuarantorPledgeCommand",

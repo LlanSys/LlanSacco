@@ -5,4 +5,5 @@ namespace LS.Domain.Features.Loans.Contracts.Repositories;
 
 public interface ILoanApplicationRepository : IRepository<LoanApplication>
 {
+    Task LockBorrowerAsync(Guid memberId, CancellationToken cancellationToken);
 }

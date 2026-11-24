@@ -11,6 +11,15 @@ public class LoanGuarantor : BaseEntity
     public decimal GuaranteedAmount { get; set; }
     public GuarantorStatus Status { get; set; }
     public decimal LockedAmount { get; set; }
+    public decimal AcceptedAmount { get; set; }
+    public Guid? SavingsAccountId { get; set; }
+    public string ReservationPolicyVersion { get; set; } = string.Empty;
+    public DateTimeOffset? ReservationExpiresAt { get; set; }
+    public long ReservationRevision { get; set; }
+    public string? ReservationFailure { get; set; }
+    public Guid? ReplacesPledgeId { get; set; }
+    public string? ConsentActorId { get; set; }
+    public DateTimeOffset? ConsentAt { get; set; }
 
     public LoanApplication Loan { get; set; } = null!;
 

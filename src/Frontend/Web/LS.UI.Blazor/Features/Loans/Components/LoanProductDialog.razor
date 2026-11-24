@@ -2,46 +2,115 @@
 
 <MudDialog>
     <DialogContent>
-        <MudForm Margin="Margin.Dense" Variant="Variant.Outlined" @ref="_form" @bind-IsValid="@_success">
+        <MudForm Margin="Margin.Dense"
+                 Variant="Variant.Outlined"
+                 @ref="_form"
+                 @bind-IsValid="@_success">
             <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Model.ProductCode" Label="Product Code" Required="true"  />
+                <MudItem xs="12"
+                         sm="6">
+                    <MudTextField @bind-Value="Model.ProductCode"
+                                  Label="Product Code"
+                                  Required="true" />
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="Model.ProductName" Label="Product Name" Required="true"  />
+                <MudItem xs="12"
+                         sm="6">
+                    <MudTextField @bind-Value="Model.ProductName"
+                                  Label="Product Name"
+                                  Required="true" />
                 </MudItem>
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3"  />
+                    <MudTextField @bind-Value="Model.Description"
+                                  Label="Description"
+                                  Lines="3" />
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.InterestRate" Label="Interest Rate (%)" Required="true"  />
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField Margin="Margin.Dense"
+                                     Variant="Variant.Outlined"
+                                     @bind-Value="Model.InterestRate"
+                                     Label="Interest Rate (%)"
+                                     Required="true" />
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudSelect Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.InterestMethod" Label="Interest Method" Required="true" >
-                        @foreach (string method in Enum.GetValues(typeof(string)))
+                <MudItem xs="12"
+                         sm="6">
+                    <MudSelect Margin="Margin.Dense"
+                               Variant="Variant.Outlined"
+                               @bind-Value="Model.InterestMethod"
+                               Label="Interest Method"
+                               Required="true">
+                        @foreach (string method in new[] {  "Flat",  "ReducingBalance" }  )
                         {
                             <MudSelectItem Value="@method">@method.ToString()</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.MaxTermInMonths" Label="Max Term (Months)" Required="true"  />
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField Margin="Margin.Dense"
+                                     Variant="Variant.Outlined"
+                                     @bind-Value="Model.MaxTermInMonths"
+                                     Label="Max Term (Months)"
+                                     Required="true" />
                 </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.MaxAmount" Label="Max Amount" Required="true"  />
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField Margin="Margin.Dense"
+                                     Variant="Variant.Outlined"
+                                     @bind-Value="Model.MaxAmount"
+                                     Label="Max Amount"
+                                     Required="true" />
+                </MudItem>
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField @bind-Value="Model.GuarantorConsentDays"
+                                     Label="Guarantor consent window (days)"
+                                     Min="1"
+                                     Max="365"
+                                     Required="true" />
+                </MudItem>
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField @bind-Value="Model.GuarantorReservationDays"
+                                     Label="Pre-disbursement hold (days)"
+                                     Min="1"
+                                     Max="365"
+                                     Required="true" />
+                </MudItem>
+                <MudItem xs="12"
+                         sm="6">
+                    <MudNumericField @bind-Value="Model.EligibleDepositMultiple"
+                                     Label="Eligible deposit multiple"
+                                     Min="0.01M"
+                                     Max="100M"
+                                     Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.GuarantorPolicyVersion"
+                                  Label="Guarantor policy reference"
+                                  Required="true"
+                                  MaxLength="80" />
                 </MudItem>
                 @if (IsEditMode)
                 {
                     <MudItem xs="12">
-                        <MudSwitch Margin="Margin.Dense" Variant="Variant.Outlined" @bind-Value="Model.IsActive" Label="Is Active" Color="Color.Primary" />
+                        <MudSwitch Margin="Margin.Dense"
+                                   Variant="Variant.Outlined"
+                                   @bind-Value="Model.IsActive"
+                                   Label="Is Active"
+                                   Color="Color.Primary" />
                     </MudItem>
                 }
             </MudGrid>
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Outlined" OnClick="Cancel" >Cancel</MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="Submit" Disabled="@(!_success)">@(_isEditMode ? "Save" : "Create")</MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   OnClick="Submit"
+                   Disabled="@(!_success)">@(_isEditMode ? "Save" : "Create")</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -79,7 +148,11 @@
         public string? InterestMethod { get; set; }
         public int MaxTermInMonths { get; set; }
         public decimal MaxAmount { get; set; }
+        public decimal EligibleDepositMultiple { get; set; } = 3;
         public bool IsActive { get; set; }
+        public int GuarantorConsentDays { get; set; } = 14;
+        public int GuarantorReservationDays { get; set; } = 30;
+        public string GuarantorPolicyVersion { get; set; } = "LLANSACCO-REFERENCE/0.1";
     }
 }
 

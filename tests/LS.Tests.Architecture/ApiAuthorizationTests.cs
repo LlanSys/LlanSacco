@@ -32,7 +32,8 @@ public sealed class ApiAuthorizationTests
         "DividendsController.SetPreferences",
         "GuarantorsController.NominateGuarantor",
         "GuarantorsController.RespondToGuarantor",
-        "LoanApplicationsController.AcceptGuarantor"
+        "LoanApplicationsController.AcceptGuarantor",
+        "LoanApplicationsController.GetMyGuarantorPledges"
     ];
 
     private static readonly string[] AuthControllerAllowedActions =

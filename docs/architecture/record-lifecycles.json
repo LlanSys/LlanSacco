@@ -1,5 +1,25 @@
 [
   {
+    "Entity": "LS.Domain.Features.Loans.Guarantors.Entities.GuarantorSecurityReview",
+    "Mode": "FinancialHistory",
+    "Reason": "Retains the identified old pledge, replacement consent, independent approval, source evidence and authoritative Banking outcome."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.GuarantorReservations.Entities.GuarantorReservation",
+    "Mode": "FinancialHistory",
+    "Reason": "The retained reservation identity, lifecycle, remaining encumbrance and revision support replay, release and recovery reconciliation."
+  },
+  {
+    "Entity": "LS.Domain.Features.Banking.GuarantorReservations.Entities.GuarantorReservationReceipt",
+    "Mode": "FinancialHistory",
+    "Reason": "The immutable instruction fingerprint and recorded outcome prevent duplicate or mismatched financial effects."
+  },
+  {
+    "Entity": "LS.Domain.Features.Loans.Guarantors.Entities.GuarantorRecovery",
+    "Mode": "FinancialHistory",
+    "Reason": "Maker/checker approval, evidence, pending debt and final recovery status preserve the authorized source of guarantor debits."
+  },
+  {
     "Entity": "LS.Domain.Features.Accounting.Entities.Account",
     "Mode": "BusinessLifecycle",
     "Reason": "An inactive chart-of-accounts entry stays available to its historical journal lines."

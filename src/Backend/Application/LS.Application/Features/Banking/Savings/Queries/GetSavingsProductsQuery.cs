@@ -15,34 +15,39 @@ public record GetSavingsProductsQuery(bool OnlyActive = true) : IRequest<AppResp
     string IUncachedQuery.CacheBypassReason => "Savings terms and availability reflect current product configuration.";
 }
 
-internal class GetSavingsProductsQueryHandler(IBankingUnitOfWork unitOfWork) 
+internal class GetSavingsProductsQueryHandler(IBankingUnitOfWork unitOfWork)
     : IRequestHandler<GetSavingsProductsQuery, AppResponse<List<SavingsProductResponse>>>
 {
     public async Task<AppResponse<List<SavingsProductResponse>>> Handle(GetSavingsProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await unitOfWork.SavingsProductRepository.ListAsync(q =>
-        {
-            var query = q;
-            if (request.OnlyActive)
+        var products = await unitOfWork.SavingsProductRepository.ListAsync(
+            q =>
             {
-                query = query.Where(x => x.IsActive);
-            }
-            return query
-                .OrderBy(x => x.Name)
-                .Select(p => new SavingsProductResponse(
-                    p.Id,
-                    p.Name,
-                    p.Code,
-                    p.Description,
-                    p.InterestRate,
-                    p.MinimumBalance,
-                    p.AllowsWithdrawals,
-                    p.WithdrawalFee,
-                    p.DailyWithdrawalLimit,
-                    p.MonthlyWithdrawalLimit,
-                    p.IsActive
-                ));
-        }, cancellationToken);
+                var query = q;
+
+                if (request.OnlyActive)
+                {
+                    query = query.Where(x => x.IsActive);
+                }
+                return query
+                    .OrderBy(x => x.Name)
+                    .Select(p => new SavingsProductResponse(
+                        p.Id,
+                        p.Name,
+                        p.Code,
+                        p.Description,
+                        p.InterestRate,
+                        p.MinimumBalance,
+                        p.AllowsWithdrawals,
+                        p.WithdrawalFee,
+                        p.DailyWithdrawalLimit,
+                        p.MonthlyWithdrawalLimit,
+                        p.IsActive,
+                        p.AllowsGuarantorReservations,
+                        p.CountsTowardLoanLimit
+                    ));
+            },
+            cancellationToken);
 
         return AppResponses.Success(products);
     }

@@ -19,6 +19,20 @@ public class LoanApplication : BaseEntity
     public DateTimeOffset? DisbursementDate { get; set; }
     public decimal OutstandingPrincipal { get; set; }
     public decimal OutstandingInterest { get; set; }
+    public decimal PendingRecoveryPrincipal { get; set; }
+    public Guid? DisbursementOperationId { get; set; }
+    public string? DisbursementRequestedBy { get; set; }
+    public Guid? DisbursementBranchId { get; set; }
+    public Guid? DisbursementCostCenterId { get; set; }
+    public Guid? DisbursementPaymentChannelGlAccountId { get; set; }
+    public string? SecurityFailure { get; set; }
+    public decimal ApprovedExposureLimit { get; set; }
+    public decimal ApprovedEligibleDeposits { get; set; }
+    public decimal ApprovedDepositMultiple { get; set; }
+    public string? CreditPolicyVersion { get; set; }
+    public string? CreditApprovedBy { get; set; }
+    public DateTimeOffset? CreditApprovedAt { get; set; }
+    public Guid? PendingSecurityReviewId { get; set; }
 
     public LoanProduct Product { get; set; } = null!;
     public ICollection<LoanGuarantor> Guarantors { get; set; } = new List<LoanGuarantor>();

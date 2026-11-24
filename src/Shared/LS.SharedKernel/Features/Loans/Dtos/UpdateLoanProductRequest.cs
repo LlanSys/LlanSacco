@@ -11,6 +11,10 @@ public class UpdateLoanProductRequest
     public required string InterestMethod { get; set; }
     public int MaxTermInMonths { get; set; }
     public decimal MaxAmount { get; set; }
+    public decimal? EligibleDepositMultiple { get; set; }
+    public int? GuarantorReservationDays { get; set; }
+    public int? GuarantorConsentDays { get; set; }
+    public string? GuarantorPolicyVersion { get; set; }
     public bool IsActive { get; set; }
 }
 

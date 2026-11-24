@@ -3,16 +3,19 @@ using LS.Domain.Features.Banking.Deposits.Contracts.Repositories;
 using LS.Domain.Features.Banking.Savings.Contracts.Repositories;
 using LS.Domain.Features.Banking.Shares.Contracts.Repositories;
 using LS.Domain.Shared.Contracts;
+using LS.Domain.Features.Banking.GuarantorReservations.Contracts.Repositories;
 
 
 namespace LS.Domain.Features.Banking.Contracts;
 
 public interface IBankingUnitOfWork : ITransactionalUnitOfWork
 {
+    IGuarantorReservationRepository GuarantorReservationRepository { get; }
+    IGuarantorReservationReceiptRepository GuarantorReservationReceiptRepository { get; }
     IShareProductRepository ShareProductRepository { get; }
     IShareAccountRepository ShareAccountRepository { get; }
     IShareTransactionRepository ShareTransactionRepository { get; }
-    
+
     ISavingsProductRepository SavingsProductRepository { get; }
     ISavingsAccountRepository SavingsAccountRepository { get; }
     ISavingsTransactionRepository SavingsTransactionRepository { get; }

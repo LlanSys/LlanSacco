@@ -20,6 +20,10 @@ public class CreateLoanProductCommand : IRequest<AppResponse<Guid>>
     public InterestMethod InterestMethod { get; set; }
     public int MaxTermInMonths { get; set; }
     public decimal MaxAmount { get; set; }
+    public decimal EligibleDepositMultiple { get; set; } = 3;
+    public int GuarantorReservationDays { get; set; } = 30;
+    public int GuarantorConsentDays { get; set; } = 14;
+    public string GuarantorPolicyVersion { get; set; } = "LLANSACCO-REFERENCE/0.1";
 }
 
 internal sealed partial class CreateLoanProductCommandHandler(
@@ -48,6 +52,10 @@ internal sealed partial class CreateLoanProductCommandHandler(
             createdBy: actorId.ToString()
         );
 
+        loanProduct.EligibleDepositMultiple = request.EligibleDepositMultiple;
+        loanProduct.GuarantorReservationDays = request.GuarantorReservationDays;
+        loanProduct.GuarantorConsentDays = request.GuarantorConsentDays;
+        loanProduct.GuarantorPolicyVersion = request.GuarantorPolicyVersion;
         await unitOfWork.LoanProductRepository.CreateAsync(loanProduct, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
 

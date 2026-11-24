@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -554,6 +554,142 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     b.ToTable("VaultTransfers", (string)null);
                 });
 
+            modelBuilder.Entity("LS.Domain.Features.Banking.GuarantorReservations.Entities.GuarantorReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LoanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PledgeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("RemainingAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasDefaultValue(new byte[0]);
+
+                    b.Property<Guid>("SavingsAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "LoanId");
+
+                    b.HasIndex("TenantId", "PledgeId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "SavingsAccountId");
+
+                    b.ToTable("GuarantorReservations", "banking");
+                });
+
+            modelBuilder.Entity("LS.Domain.Features.Banking.GuarantorReservations.Entities.GuarantorReservationReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("LoanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OutcomeJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasDefaultValue(new byte[0]);
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "OperationId")
+                        .IsUnique();
+
+                    b.ToTable("GuarantorReservationReceipts", "banking");
+                });
+
             modelBuilder.Entity("LS.Domain.Features.Banking.Savings.Entities.SavingsAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -618,6 +754,9 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AllowsGuarantorReservations")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("AllowsWithdrawals")
                         .HasColumnType("boolean");
 
@@ -625,6 +764,9 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("CountsTowardLoanLimit")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -670,6 +812,10 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                         .HasColumnType("bytea")
                         .HasDefaultValue(new byte[0]);
 
+                    b.Property<string>("SecurityPolicyEvidenceReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -712,6 +858,12 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("GuarantorOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("GuarantorPledgeId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -742,6 +894,8 @@ namespace LS.Persistence.Migrations.BankingPostgreSqlDB
                     b.HasKey("Id");
 
                     b.HasIndex("SavingsAccountId");
+
+                    b.HasIndex("TenantId", "GuarantorOperationId", "GuarantorPledgeId");
 
                     b.HasIndex("TenantId", "Type", "ExternalReferenceId")
                         .IsUnique()

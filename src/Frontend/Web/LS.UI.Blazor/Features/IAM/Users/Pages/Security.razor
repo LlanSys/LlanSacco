@@ -13,7 +13,10 @@
 <RequireAuthenticated>
     <section class="security-page">
         <div class="mb-2">
-            <MudButton Href="/profile" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="ps-0 text-muted">Back to Profile</MudButton>
+            <MudButton Href="/profile"
+                       Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       Class="ps-0 text-muted">Back to Profile</MudButton>
         </div>
         <div class="security-hero">
             <div>
@@ -21,7 +24,9 @@
                 <h3>@DisplayName</h3>
                 <p>@AuthSession.CurrentUser?.Email</p>
             </div>
-            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Logout" OnClick="SignOutAsync">Sign out</MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Logout"
+                       OnClick="SignOutAsync">Sign out</MudButton>
         </div>
 
         <div class="security-grid">
@@ -30,34 +35,53 @@
                     <span>Password</span>
                 </div>
                 <p>Change your account password.</p>
+                @if (AuthSession.PasswordChangeRequired)
+                {
+                    <MudAlert Severity="Severity.Warning"
+                              Class="mt-2">You must change your password before you can continue.</MudAlert>
+                }
 
-                <EditForm Model="_passwordModel" OnValidSubmit="ChangePasswordAsync">
+                <EditForm Model="_passwordModel"
+                          OnValidSubmit="ChangePasswordAsync">
                     <DataAnnotationsValidator />
                     <div class="form-stack mt-3">
                         <div>
                             <label for="current-password">Current password</label>
-                            <InputText id="current-password" type="password" class="form-control" @bind-Value="_passwordModel.CurrentPassword" />
+                            <InputText id="current-password"
+                                       type="password"
+                                       class="form-control"
+                                       @bind-Value="_passwordModel.CurrentPassword" />
                             <ValidationMessage For="@(() => _passwordModel.CurrentPassword)" />
                         </div>
                         <div>
                             <label for="new-password">New password</label>
-                            <InputText id="new-password" type="password" class="form-control" @bind-Value="_passwordModel.NewPassword" />
+                            <InputText id="new-password"
+                                       type="password"
+                                       class="form-control"
+                                       @bind-Value="_passwordModel.NewPassword" />
                             <ValidationMessage For="@(() => _passwordModel.NewPassword)" />
                         </div>
                         <div>
                             <label for="confirm-new-password">Confirm new password</label>
-                            <InputText id="confirm-new-password" type="password" class="form-control" @bind-Value="_passwordModel.ConfirmNewPassword" />
+                            <InputText id="confirm-new-password"
+                                       type="password"
+                                       class="form-control"
+                                       @bind-Value="_passwordModel.ConfirmNewPassword" />
                             <ValidationMessage For="@(() => _passwordModel.ConfirmNewPassword)" />
                         </div>
 
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit" Disabled="@_isChangingPassword">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   ButtonType="ButtonType.Submit"
+                                   Disabled="@_isChangingPassword">
                             @(_isChangingPassword ? "Changing..." : "Change password")
                         </MudButton>
                     </div>
                 </EditForm>
                 @if (!string.IsNullOrWhiteSpace(_passwordMessage))
                 {
-                    <MudAlert Severity="@(_passwordIsError ? Severity.Error : Severity.Success)" Class="mt-3">@_passwordMessage</MudAlert>
+                    <MudAlert Severity="@(_passwordIsError ? Severity.Error : Severity.Success)"
+                              Class="mt-3">@_passwordMessage</MudAlert>
                 }
             </article>
 
@@ -73,8 +97,10 @@
 
                 @if (!_hasLoadedPasskeys)
                 {
-                    <MudAlert Severity="Severity.Info" Class="mb-3">
-                        <MudProgressCircular Indeterminate="true" Class="me-2" />
+                    <MudAlert Severity="Severity.Info"
+                              Class="mb-3">
+                        <MudProgressCircular Indeterminate="true"
+                                             Class="me-2" />
                         Loading passkeys...
                     </MudAlert>
                 }
@@ -91,13 +117,18 @@
                     </dl>
                 }
 
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RegisterPasskeyAsync" Disabled="@_isRegisteringPasskey" Class="mt-3">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="RegisterPasskeyAsync"
+                           Disabled="@_isRegisteringPasskey"
+                           Class="mt-3">
                     @(_isRegisteringPasskey ? "Registering..." : "Register New Passkey")
                 </MudButton>
 
                 @if (!string.IsNullOrWhiteSpace(_passkeyMessage))
                 {
-                    <MudAlert Severity="@(_passkeyIsError ? Severity.Error : Severity.Success)" Class="mt-3">@_passkeyMessage</MudAlert>
+                    <MudAlert Severity="@(_passkeyIsError ? Severity.Error : Severity.Success)"
+                              Class="mt-3">@_passkeyMessage</MudAlert>
                 }
             </article>
 
@@ -116,7 +147,8 @@
                 @if (!_hasLoadedOtpStatus)
                 {
                     <MudAlert Severity="Severity.Info">
-                        <MudProgressCircular Indeterminate="true" Class="me-2" />
+                        <MudProgressCircular Indeterminate="true"
+                                             Class="me-2" />
                         Loading two-factor status...
                     </MudAlert>
                 }
@@ -140,14 +172,22 @@
                     </dl>
                 }
 
-                <MudStack Row="true" Spacing="2" Class="security-actions">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StartTotpSetupAsync" Disabled="@(_isBusy || IsTotpEnabled)">
+                <MudStack Row="true"
+                          Spacing="2"
+                          Class="security-actions">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="StartTotpSetupAsync"
+                               Disabled="@(_isBusy || IsTotpEnabled)">
                         @SetupButtonText
                     </MudButton>
 
                     @if (IsTotpEnabled)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DisableTotpAsync" Disabled="@_isBusy">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   OnClick="DisableTotpAsync"
+                                   Disabled="@_isBusy">
                             Disable authenticator app
                         </MudButton>
                     }
@@ -162,32 +202,40 @@
 
                 @if (_setupInfo is null)
                 {
-                    <p>@(IsTotpEnabled
-                            ? "Authenticator-app 2FA is enabled. Use the audited disable action if this device is lost, replaced, or no longer trusted."
-                            : "Start setup to generate a temporary TOTP secret. The secret is only committed after a valid code is verified.")</p>
+                    <p>@(IsTotpEnabled ? "Authenticator-app 2FA is enabled. Use the audited disable action if this device is lost, replaced, or no longer trusted." : "Start setup to generate a temporary TOTP secret. The secret is only committed after a valid code is verified.")</p>
                 }
                 else
                 {
                     <p>Add this account to your authenticator app, then verify the first generated code below.</p>
 
                     <div class="qr-panel">
-                        <img src="@_qrCodeDataUri" alt="Authenticator app QR code" />
+                        <img src="@_qrCodeDataUri"
+                             alt="Authenticator app QR code" />
                         <span>Scan with Microsoft Authenticator, Google Authenticator, 1Password, or another TOTP app.</span>
                     </div>
 
                     <label>Manual entry key</label>
                     <div class="copy-box">@_setupInfo.ManualEntryKey</div>
 
-                <EditForm FormName="iam-security-verify-setup" Model="_verification" OnValidSubmit="VerifySetupAsync">
-                    <DataAnnotationsValidator />
+                    <EditForm FormName="iam-security-verify-setup"
+                              Model="_verification"
+                              OnValidSubmit="VerifySetupAsync">
+                        <DataAnnotationsValidator />
                         <div class="form-stack mt-3">
                             <div>
                                 <label for="setup-code">6-digit code</label>
-                                <InputText id="setup-code" class="form-control form-control-lg otp-input" @bind-Value="_verification.Code" inputmode="numeric" autocomplete="one-time-code" />
+                                <InputText id="setup-code"
+                                           class="form-control form-control-lg otp-input"
+                                           @bind-Value="_verification.Code"
+                                           inputmode="numeric"
+                                           autocomplete="one-time-code" />
                                 <ValidationMessage For="@(() => _verification.Code)" />
                             </div>
 
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit" Disabled="@_isBusy">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       ButtonType="ButtonType.Submit"
+                                       Disabled="@_isBusy">
                                 @(_isBusy ? "Verifying..." : "Verify and enable 2FA")
                             </MudButton>
                         </div>
@@ -196,7 +244,8 @@
 
                 @if (!string.IsNullOrWhiteSpace(_message))
                 {
-                    <MudAlert Severity="@(_isError ? Severity.Error : Severity.Success)" Class="mt-3">@_message</MudAlert>
+                    <MudAlert Severity="@(_isError ? Severity.Error : Severity.Success)"
+                              Class="mt-3">@_message</MudAlert>
                 }
             </article>
         </div>
@@ -248,7 +297,10 @@
 
         _verification.UserId = AuthSession.CurrentUser.AppUserId;
         await LoadOtpStatusAsync();
-        await LoadPasskeysAsync();
+        if (!AuthSession.PasswordChangeRequired)
+        {
+            await LoadPasskeysAsync();
+        }
         StateHasChanged();
     }
 
@@ -378,6 +430,24 @@
         _passwordModel.NewPassword = string.Empty;
         _passwordModel.ConfirmNewPassword = string.Empty;
         _passwordMessage = "Password changed successfully.";
+
+        if (!AuthSession.PasswordChangeRequired)
+        {
+            return;
+        }
+
+        // The current access token still carries the password-change gate; renew it so the API lifts the block.
+        if (!await AuthSession.RenewSessionAsync())
+        {
+            await AuthSession.SignOutAsync();
+            Navigation.NavigateTo("/iam/sign-in", replace: true);
+            return;
+        }
+
+        if (!AuthSession.MfaEnrollmentRequired && !AuthSession.PasswordChangeRequired)
+        {
+            Navigation.NavigateTo("/dashboard", replace: true);
+        }
     }
 
     private async Task DisableTotpAsync()

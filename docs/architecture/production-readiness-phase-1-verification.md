@@ -127,7 +127,14 @@ Member portal access and recovery tie-out (follow-up change):
 
 Findings recorded for follow-up (not fixed here):
 
-- **Security:** activation emails carry one shared temporary password from `IamProvisioning:TemporaryPassword` for every activated account (employees and members), and `RequirePasswordChange` is set but not enforced — the member reached the dashboard without changing it. Replace with per-user one-time set-password links (StarterTemplate uses invitation links) and enforce the change in the API and UI.
+- **Security:** activation emails carry one shared temporary password from `IamProvisioning:TemporaryPassword` for every activated account (employees and members), and `RequirePasswordChange` is set but not enforced — the member reached the dashboard without changing it. Replace with per-user one-time set-password links (StarterTemplate uses invitation links) and enforce the change in the API and UI. *Resolved:* activation now emails a one-time set-password link (no password) and the API (`PASSWORD_CHANGE_REQUIRED`) and UI enforce the change. Proven live on 25 November 2026:
+  - A flagged user got 403 `PASSWORD_CHANGE_REQUIRED` and was held on `/iam/security`.
+  - The activation email for member 90000006 carried only a 72-hour link.
+  - The link set the password; reusing it returned 422.
+  - `RequirePasswordChange` was cleared and the member signed in to the dashboard.
+- **Client endpoint drift (fixed):** the UI's change-password call targeted a non-existent route (`iam/users/password/change`), so changing a password from the UI never worked. The `FrontendEndpointGuardrailTests` architecture test now checks every `BackendApiSettings` path against the API controller routes. Twelve client endpoints have no API yet (lookups, M-Pesa C2B registration and simulation, banking customers) and are listed explicitly in the test.
+- **Password recovery pages unreachable (fixed):** `/iam/forgot-password` and `/iam/reset-password` redirected signed-out users to sign-in. `AuthorizeRouteView` briefly renders the default layout while it authorises a page. The `RequireAuthenticated` gate in that layout was disposed, then still redirected. A disposed gate no longer redirects.
+- After a password change the UI signs the user out, because completing the change revokes refresh tokens. They sign in again with the new password.
 - **No default workflow:** nothing moves a loan to `Defaulted` (the arrears scan is a stub and disbursed loans never become `Active`), so guarantor recovery cannot start in production. Needs a default declaration per the reference policy (90 days past due, guarantor notice, maker-checker).
 - **No resolution path for unexplained locks:** once Finance investigates an unexplained lock there is no workflow to correct it, so the account stays blocked for new guarantees and recovery indefinitely.
 - GL mapping changes take effect for any holder of `gl-mappings.manage` without a second approver; the account pickers also need `transactions.view`; there is no menu entry (menus are seeded).

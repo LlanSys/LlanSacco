@@ -28,6 +28,11 @@ internal sealed class ChangePasswordCommandHandler(
                 return AppResponses.Failure<bool>("Your account is not active or could not be found.");
             }
 
+            // Stage the completion before ChangePasswordAsync: Identity persists the user (hash, rotated security stamp and these
+            // fields) in one update, and nothing is saved when the current password or the new password is rejected.
+            // Clearing RequirePasswordChange lifts the API password-change gate once the client refreshes its access token.
+            user.CompletePasswordReset(user.Id);
+
             var result = await userManager.ChangePasswordAsync(user, command.Request.CurrentPassword, command.Request.NewPassword).ConfigureAwait(false);
 
             if (!result.Succeeded)

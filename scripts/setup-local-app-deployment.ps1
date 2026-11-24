@@ -81,9 +81,6 @@ if (-not $environment.Contains('APP_BLAZOR_HOST_PORT')) {
 if (-not $environment.Contains('APP_JWT_SECRET') -or [string]::IsNullOrWhiteSpace($environment.APP_JWT_SECRET)) {
     Set-EnvironmentValue $envFile 'APP_JWT_SECRET' (New-LocalSecret)
 }
-if (-not $environment.Contains('APP_IAM_TEMPORARY_PASSWORD') -or [string]::IsNullOrWhiteSpace($environment.APP_IAM_TEMPORARY_PASSWORD)) {
-    Set-EnvironmentValue $envFile 'APP_IAM_TEMPORARY_PASSWORD' "BtTemp!$(Get-Random -Minimum 100000 -Maximum 999999)"
-}
 
 $environment = Read-EnvironmentFile $envFile
 

@@ -60,7 +60,6 @@ $environment = @{
     ASPNETCORE_ENVIRONMENT = 'Development'
     ASPNETCORE_URLS = "http://localhost:$Port"
     JwtSettings__SecretKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-    IamProvisioning__TemporaryPassword = "Startup!$([Guid]::NewGuid().ToString('N').Substring(0, 12))Aa1"
     DevelopmentSeed__AdminPassword = "Startup!$([Guid]::NewGuid().ToString('N').Substring(0, 12))Aa1"
     BackgroundJobs__Enabled = 'true'
     Messaging__Enabled = 'true'

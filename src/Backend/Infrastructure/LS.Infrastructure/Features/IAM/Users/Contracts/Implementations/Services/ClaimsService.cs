@@ -9,9 +9,10 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
 using System.Globalization;
+using LS.Infrastructure.Features.IAM.Users.Security;
 using LS.Infrastructure.Logging;
 
-namespace LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services; 
+namespace LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services;
 
 internal sealed class ClaimsService(
     UserManager<AppUser> userManager,
@@ -26,6 +27,7 @@ internal sealed class ClaimsService(
         try
         {
             var result = await _userManager.AddClaimAsync(user, claim).ConfigureAwait(false);
+
             if (result.Succeeded)
             {
                 ServiceLogDefinitions.LogClaimAdded(_logger, claim.Type, claim.Value, user.Id);
@@ -63,13 +65,26 @@ internal sealed class ClaimsService(
             };
 
             if (sessionId.HasValue && sessionId.Value != Guid.Empty)
+            {
                 claims.Add(new("session_id", sessionId.Value.ToString()));
+            }
+
+            // Enforcement decision: the flag travels as a claim (no per-request DB read). Login, 2FA, passkey, SSO and
+            // refresh all build claims here, so a token issued after the password is set no longer carries it.
+            if (user.RequirePasswordChange)
+            {
+                claims.Add(new(IamCustomClaimTypes.PasswordChangeRequired, "true"));
+            }
 
             if (user.EmployeeId.HasValue)
+            {
                 claims.Add(new("employee_id", user.EmployeeId.Value.ToString()));
+            }
 
             if (user.MemberId.HasValue)
+            {
                 claims.Add(new Claim("member_id", user.MemberId.Value.ToString()));
+            }
 
             var roles = await _userManager.GetRolesAsync(user).ConfigureAwait(false);
 
@@ -79,6 +94,7 @@ internal sealed class ClaimsService(
 
                 // 2. DYNAMICALLY fetch permissions linked to this role from the DB
                 var role = await _roleManager.FindByNameAsync(roleName).ConfigureAwait(false);
+
                 if (role != null)
                 {
                     var roleClaims = await _roleManager.GetClaimsAsync(role).ConfigureAwait(false);
@@ -120,9 +136,11 @@ internal sealed class ClaimsService(
 
         // Get permissions from the User's ROLES
         var roles = await _userManager.GetRolesAsync(user).ConfigureAwait(false);
+
         foreach (var roleName in roles)
         {
             var role = await _roleManager.FindByNameAsync(roleName).ConfigureAwait(false);
+
             if (role != null)
             {
                 var roleClaims = await _roleManager.GetClaimsAsync(role).ConfigureAwait(false);
@@ -143,6 +161,7 @@ internal sealed class ClaimsService(
         try
         {
             var result = await _userManager.RemoveClaimAsync(user, claim).ConfigureAwait(false);
+
             if (result.Succeeded)
             {
                 ServiceLogDefinitions.LogClaimRemoved(_logger, claim.Type, claim.Value, user.Id);
@@ -167,6 +186,7 @@ internal sealed class ClaimsService(
         {
             // Remove old claim and add new one
             var removeResult = await _userManager.RemoveClaimAsync(user, existingClaim).ConfigureAwait(false);
+
             if (!removeResult.Succeeded)
             {
                 ServiceLogDefinitions.LogFailedToRemoveExistingClaim(_logger, user.Id);
@@ -175,6 +195,7 @@ internal sealed class ClaimsService(
             }
 
             var addResult = await _userManager.AddClaimAsync(user, newClaim).ConfigureAwait(false);
+
             if (!addResult.Succeeded)
             {
                 // Try to rollback by adding the old claim back

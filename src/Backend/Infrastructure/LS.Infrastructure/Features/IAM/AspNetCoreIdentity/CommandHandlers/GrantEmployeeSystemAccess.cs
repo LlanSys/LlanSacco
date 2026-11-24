@@ -2,7 +2,6 @@ using LS.Application.Features.IAM.Users.Commands;
 using LS.Domain.Features.HR.Contracts;
 using LS.Domain.Features.IAM.Contracts;
 using LS.Domain.Features.IAM.Users.Entities;
-using LS.Infrastructure.Configuration;
 using LS.Infrastructure.Features.IAM.Users.Contracts.Implementations.Services;
 using LS.Infrastructure.Logging;
 using LS.SharedKernel.Dtos.Common;
@@ -10,7 +9,6 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace LS.Infrastructure.Features.IAM.AspNetCoreIdentity.CommandHandlers;
 
@@ -18,7 +16,6 @@ internal sealed class GrantEmployeeSystemAccess(
     UserManager<AppUser> userManager,
     IHrUnitOfWork hrUnitOfWork,
     IIamUnitOfWork iamUnitOfWork,
-    IOptions<IamProvisioningSettings> provisioningOptions,
     IamAccessActivator accessActivator,
     ILogger<GrantEmployeeSystemAccess> logger)
     : IRequestHandler<GrantEmployeeSystemAccessCommand, AppResponse<bool>>
@@ -29,12 +26,10 @@ internal sealed class GrantEmployeeSystemAccess(
 
         try
         {
-            var temporaryPassword = provisioningOptions.Value.TemporaryPassword;
-
-            if (string.IsNullOrWhiteSpace(temporaryPassword))
+            if (!accessActivator.CanBuildActivationLinks)
             {
-                return AppResponses.Failure<bool>(
-                    "IAM provisioning is not configured. Set IamProvisioning:TemporaryPassword via user secrets, environment variables, or Key Vault.");
+                return AppResponses.Failure<bool>(AppError.DependencyUnavailable(
+                    "IAM provisioning is not configured. Set EmailSettings:ClientBaseUrl so activation links can be sent."));
             }
 
             AppUser? user = null;
@@ -75,7 +70,9 @@ internal sealed class GrantEmployeeSystemAccess(
 
                         user.EmailConfirmed = true;
 
-                        var createResult = await userManager.CreateAsync(user, temporaryPassword).ConfigureAwait(false);
+                        // The account is created behind an unknown random password; the user sets their own through the emailed link.
+                        user.RequirePasswordChange = true;
+                        var createResult = await userManager.CreateAsync(user, IamAccessActivator.CreateUnusablePassword()).ConfigureAwait(false);
 
                         if (!createResult.Succeeded)
                         {
@@ -93,7 +90,7 @@ internal sealed class GrantEmployeeSystemAccess(
 
                     if (!createdNewUser)
                     {
-                        var passwordResetResult = await accessActivator.ResetTemporaryPasswordForReactivationAsync(user, temporaryPassword)
+                        var passwordResetResult = await accessActivator.LockPasswordForActivationAsync(user)
                             .ConfigureAwait(false);
 
                         if (!passwordResetResult.Succeeded)
@@ -145,7 +142,7 @@ internal sealed class GrantEmployeeSystemAccess(
             }
 
             var activationStamp = user!.ConcurrencyStamp;
-            var emailResponse = await accessActivator.SendActivationEmailAsync(user, provisioningOptions.Value, createdNewUser, ct)
+            var emailResponse = await accessActivator.SendActivationEmailAsync(user, createdNewUser, ct)
                 .ConfigureAwait(false);
 
             if (!emailResponse.IsSuccess)

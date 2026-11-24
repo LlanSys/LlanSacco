@@ -26,6 +26,8 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
 
     public bool MfaEnrollmentRequired => CurrentUser?.MfaEnrollmentRequired == true;
 
+    public bool PasswordChangeRequired => CurrentUser?.PasswordChangeRequired == true;
+
     public async Task InitializeAsync()
     {
         if (IsInitialized)
@@ -34,6 +36,7 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         }
 
         await _initializationLock.WaitAsync().ConfigureAwait(false);
+
         try
         {
             if (IsInitialized)
@@ -44,17 +47,20 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
             try
             {
                 var (accessToken, _, _) = await storage.GetAsync().ConfigureAwait(false);
+
                 if (!string.IsNullOrWhiteSpace(accessToken))
                 {
                     var currentUser = await authService.GetCurrentUserAsync().ConfigureAwait(false);
+
                     if (currentUser.IsSuccess)
                     {
                         CurrentUser = currentUser.Data;
                         LastError = null;
-                        
+
                         if (CurrentUser?.ProfilePictureUrl is not null)
                         {
                             var picture = await authService.GetProfilePictureAsync().ConfigureAwait(false);
+
                             if (picture.IsSuccess && picture.Data is not null)
                             {
                                 ProfilePictureDataUri = $"data:{picture.Data.ContentType};base64,{Convert.ToBase64String(picture.Data.Content)}";
@@ -91,11 +97,35 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         IsInitialized = true;
     }
 
+    public async Task<bool> RenewSessionAsync()
+    {
+        var (accessToken, refreshToken, _) = await storage.GetAsync().ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return false;
+        }
+
+        // AuthService saves the rotated tokens; the new access token is issued from the current account state.
+        var refreshed = await authService.RefreshTokenAsync(new RefreshTokenRequest(accessToken, refreshToken)).ConfigureAwait(false);
+
+        if (!refreshed.IsSuccess)
+        {
+            LastError = GetMeaningfulMessage(refreshed.Message, "Your session could not be renewed. Please sign in again.");
+            return false;
+        }
+
+        await RefreshCurrentUserAsync().ConfigureAwait(false);
+        IsInitialized = true;
+        return CurrentUser is not null;
+    }
+
     public async Task<AppResponse<LoginResponse>> SignInAsync(LoginRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var response = await authService.LoginAsync(request).ConfigureAwait(false);
+
         if (!response.IsSuccess || response.Data is null)
         {
             LastError = response.Message;
@@ -134,7 +164,8 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
                 [.. roles],
                 SessionId: response.Data.SessionId,
                 MfaEnrollmentRequired: response.Data.MfaEnrollmentRequired,
-                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl);
+                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl,
+                PasswordChangeRequired: response.Data.UserInfo.RequirePasswordChange);
 
             LastError = null;
         }
@@ -147,6 +178,7 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         ArgumentNullException.ThrowIfNull(request);
 
         var response = await authService.LoginWithPasskeyAsync(request).ConfigureAwait(false);
+
         if (!response.IsSuccess || response.Data is null)
         {
             LastError = response.Message;
@@ -185,7 +217,8 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
                 [.. roles],
                 SessionId: response.Data.SessionId,
                 MfaEnrollmentRequired: response.Data.MfaEnrollmentRequired,
-                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl);
+                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl,
+                PasswordChangeRequired: response.Data.UserInfo.RequirePasswordChange);
 
             LastError = null;
         }
@@ -198,6 +231,7 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
 
         var response = await authService.ExchangeSsoCodeAsync(code).ConfigureAwait(false);
+
         if (!response.IsSuccess || response.Data is null)
         {
             LastError = response.Message;
@@ -236,7 +270,8 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
                 [.. roles],
                 SessionId: response.Data.SessionId,
                 MfaEnrollmentRequired: response.Data.MfaEnrollmentRequired,
-                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl);
+                ProfilePictureUrl: response.Data.UserInfo.ProfilePictureUrl,
+                PasswordChangeRequired: response.Data.UserInfo.RequirePasswordChange);
 
             LastError = null;
         }
@@ -249,6 +284,7 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         ArgumentNullException.ThrowIfNull(request);
 
         var response = await authService.VerifyTotpAsync(request).ConfigureAwait(false);
+
         if (!response.IsSuccess || response.Data is null)
         {
             LastError = response.Message;
@@ -284,10 +320,7 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
             || CurrentUser?.Permissions?.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
     }
 
-    public bool HasAnyPermission(params string[] permissions)
-    {
-        return permissions.Length == 0 || permissions.Any(HasPermission);
-    }
+    public bool HasAnyPermission(params string[] permissions) => permissions.Length == 0 || permissions.Any(HasPermission);
 
     public bool IsInRole(string role)
     {
@@ -301,9 +334,11 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
         CurrentUser = currentUser.IsSuccess ? currentUser.Data : null;
         LastError = currentUser.IsSuccess ? null : GetMeaningfulMessage(currentUser.Message, "The API did not return a current user profile.");
         ProfilePictureDataUri = null;
+
         if (CurrentUser?.ProfilePictureUrl is not null)
         {
             var picture = await authService.GetProfilePictureAsync().ConfigureAwait(false);
+
             if (picture.IsSuccess && picture.Data is not null)
             {
                 ProfilePictureDataUri = $"data:{picture.Data.ContentType};base64,{Convert.ToBase64String(picture.Data.Content)}";
@@ -326,8 +361,5 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
     private static string GetMeaningfulMessage(string? message, string fallback)
         => UserMessageSanitizer.Normalize(message, fallback);
 
-    public void Dispose()
-    {
-        _initializationLock.Dispose();
-    }
+    public void Dispose() => _initializationLock.Dispose();
 }

@@ -7,6 +7,7 @@ using LS.Domain.Shared.Contracts;
 using LS.Domain.Shared.Contracts.Common;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Domain.Features.IAM.Users.Events;
+using LS.Infrastructure.Features.IAM.Users.Security;
 using LS.Infrastructure.Logging;
 using LS.SharedKernel.Features.IAM.Users.Dtos;
 using LS.SharedKernel.Dtos.Common;
@@ -32,63 +33,82 @@ internal sealed class ResetPassword(
         try
         {
             AppUser? committedUser = null;
-            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(async () =>
-            {
-                ct.ThrowIfCancellationRequested();
-                // Identity and the Unit of Work share the scoped IamDBContext. Identity's saves
-                // therefore enlist in this transaction; reload the user on every retry.
-                var user = await userManager.FindByEmailAsync(request.Email).ConfigureAwait(false);
-                if (user == null)
+            var result = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(
+                async () =>
                 {
-                    ServiceLogDefinitions.LogInvalidToken(logger);
-                    return AppResponses.Failure<bool>("Invalid reset request");
-                }
+                    ct.ThrowIfCancellationRequested();
+                    // Identity and the Unit of Work share the scoped IamDBContext. Identity's saves
+                    // therefore enlist in this transaction; reload the user on every retry.
+                    var user = await userManager.FindByEmailAsync(request.Email).ConfigureAwait(false);
 
-                var password = request.Password ?? request.NewPassword ?? string.Empty;
-                if (await userManager.CheckPasswordAsync(user, password).ConfigureAwait(false))
-                    return AppResponses.Failure<bool>("New password must be different from your current password");
+                    if (user == null)
+                    {
+                        ServiceLogDefinitions.LogInvalidToken(logger);
+                        return AppResponses.Failure<bool>("Invalid reset request");
+                    }
 
-                if (string.IsNullOrWhiteSpace(request.Token))
-                {
-                    ServiceLogDefinitions.LogInvalidToken(logger);
-                    return AppResponses.Failure<bool>("The password reset request is invalid or expired.");
-                }
+                    var password = request.Password ?? request.NewPassword ?? string.Empty;
 
-                ct.ThrowIfCancellationRequested();
-                var passwordResult = await userManager.ResetPasswordAsync(user, request.Token, password).ConfigureAwait(false);
-                if (!passwordResult.Succeeded)
-                {
-                    var errors = string.Join(", ", passwordResult.Errors.Select(e => e.Description));
-                    ServiceLogDefinitions.LogFailedToAddClaim(logger, "password", "reset", user.Id, errors);
-                    return AppResponses.Failure<bool>("Password reset failed. Please ensure your password meets all requirements.");
-                }
+                    if (await userManager.CheckPasswordAsync(user, password).ConfigureAwait(false))
+                    {
+                        return AppResponses.Failure<bool>("New password must be different from your current password");
+                    }
 
-                user.CompletePasswordReset(user.Id);
-                var updateResult = await userManager.UpdateAsync(user).ConfigureAwait(false);
-                if (!updateResult.Succeeded)
-                    return AppResponses.Failure<bool>(AppError.BusinessRule("Password reset could not be completed. Please try again."));
+                    if (string.IsNullOrWhiteSpace(request.Token))
+                    {
+                        ServiceLogDefinitions.LogInvalidToken(logger);
+                        return AppResponses.Failure<bool>("The password reset request is invalid or expired.");
+                    }
 
-                ct.ThrowIfCancellationRequested();
-                var refreshTokens = await iamUnitOfWork.TokenRepository.GetActiveTokensByUserIdAsync(user.Id, ct).ConfigureAwait(false);
-                if (refreshTokens.Count != 0)
-                {
-                    var revokedByIp = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
-                    await iamUnitOfWork.TokenRepository.RevokeTokensAsync(refreshTokens, "Password reset", revokedByIp, ct).ConfigureAwait(false);
-                }
-                committedUser = user;
-                return AppResponses.Success("Password reset successfully", true);
-            }, cancellationToken: ct, shouldCommit: response => response.IsSuccess).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    var passwordResult = await ResetWithRecoveryOrActivationTokenAsync(user, request.Token, password).ConfigureAwait(false);
+
+                    if (!passwordResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", passwordResult.Errors.Select(e => e.Description));
+                        ServiceLogDefinitions.LogFailedToAddClaim(logger, "password", "reset", user.Id, errors);
+                        return AppResponses.Failure<bool>("Password reset failed. Please ensure your password meets all requirements.");
+                    }
+
+                    user.CompletePasswordReset(user.Id);
+                    var updateResult = await userManager.UpdateAsync(user).ConfigureAwait(false);
+
+                    if (!updateResult.Succeeded)
+                    {
+                        return AppResponses.Failure<bool>(AppError.BusinessRule("Password reset could not be completed. Please try again."));
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+                    var refreshTokens = await iamUnitOfWork.TokenRepository.GetActiveTokensByUserIdAsync(user.Id, ct).ConfigureAwait(false);
+
+                    if (refreshTokens.Count != 0)
+                    {
+                        var revokedByIp = httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
+                        await iamUnitOfWork.TokenRepository.RevokeTokensAsync(refreshTokens, "Password reset", revokedByIp, ct).ConfigureAwait(false);
+                    }
+                    committedUser = user;
+                    return AppResponses.Success("Password reset successfully", true);
+                },
+                cancellationToken: ct,
+                shouldCommit: response => response.IsSuccess)
+                .ConfigureAwait(false);
 
             if (!result.IsSuccess)
+            {
                 return result;
+            }
+
             var user = committedUser!;
             await cacheService.RemoveAsync(CacheKeys.PasswordResetOtp(user.Id), ct).ConfigureAwait(false);
             await cacheService.RemoveAsync(CacheKeys.PasswordResetRateLimit(user.Id), ct).ConfigureAwait(false);
 
-            await publisher.Publish(new PasswordResetSuccessEvent(
-                user.Id,
-                user.Email!,
-                $"{user.FirstName} {user.LastName}"), ct).ConfigureAwait(false);
+            await publisher.Publish(
+                new PasswordResetSuccessEvent(
+                    user.Id,
+                    user.Email!,
+                    $"{user.FirstName} {user.LastName}"),
+                ct)
+                .ConfigureAwait(false);
 
             ServiceLogDefinitions.LogEmailOtpSent(logger, user.Id, "PasswordReset");
             return AppResponses.Success("Password reset successfully", true);
@@ -102,5 +122,27 @@ internal sealed class ResetPassword(
             ServiceLogDefinitions.LogUnexpectedTokenValidationError(logger, ex);
             return AppResponses.Failure<bool>("Password reset failed. Please try again.");
         }
+    }
+
+    /// <summary>
+    /// Accepts either an ordinary recovery token or an activation set-password token. Activation tokens come from the
+    /// long-lived <see cref="AccountActivationTokenProvider"/> and are honoured only while the account is active and still
+    /// requires a password change. Both embed the security stamp, which ResetPasswordAsync rotates, so each link works once.
+    /// </summary>
+    private async Task<IdentityResult> ResetWithRecoveryOrActivationTokenAsync(AppUser user, string token, string password)
+    {
+        if (user.IsActive
+            && user.RequirePasswordChange
+            && await userManager.VerifyUserTokenAsync(
+                user,
+                AccountActivationTokenProvider.ProviderName,
+                UserManager<AppUser>.ResetPasswordTokenPurpose,
+                token)
+                .ConfigureAwait(false))
+        {
+            token = await userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
+        }
+
+        return await userManager.ResetPasswordAsync(user, token, password).ConfigureAwait(false);
     }
 }

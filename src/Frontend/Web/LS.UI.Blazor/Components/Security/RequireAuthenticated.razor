@@ -2,6 +2,7 @@
 @inject IAuthSession AuthSession
 @inject NavigationManager Navigation
 @inject ILogger<RequireAuthenticated> Logger
+@implements IDisposable
 
 @if (!_hasResolved)
 {
@@ -9,9 +10,13 @@
 }
 else if (_hasError)
 {
-    <MudAlert Severity="Severity.Warning" Class="session-alert">
+    <MudAlert Severity="Severity.Warning"
+              Class="session-alert">
         @_errorMessage
-        <MudButton Href="/iam/sign-in" Variant="Variant.Filled" Color="Color.Primary" Class="ms-3">
+        <MudButton Href="/iam/sign-in"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Class="ms-3">
             Sign in again
         </MudButton>
     </MudAlert>
@@ -32,6 +37,7 @@ else if (AuthSession.IsAuthenticated)
     public bool RedirectToLogin { get; set; } = true;
 
     private bool _hasResolved;
+    private bool _isDisposed;
     private bool _hasError;
     private string _errorMessage = "We could not confirm your session. Please sign in again.";
 
@@ -51,6 +57,13 @@ else if (AuthSession.IsAuthenticated)
         {
             await AuthSession.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(12));
 
+            // AuthorizeRouteView briefly renders the default layout (and this gate) while authorizing a page that uses
+            // another layout, such as the anonymous reset-password page. A gate disposed meanwhile must not redirect.
+            if (_isDisposed)
+            {
+                return;
+            }
+
             if (!AuthSession.IsAuthenticated)
             {
                 _errorMessage = AuthSession.LastError ?? "Your session has expired. Please sign in again.";
@@ -63,11 +76,12 @@ else if (AuthSession.IsAuthenticated)
 
                 _hasError = true;
             }
-            else if (AuthSession.MfaEnrollmentRequired && !IsSecuritySetupPage())
+            else if (RedirectToSecuritySetupIfRequired())
             {
-                Navigation.NavigateTo("/iam/security");
                 return;
             }
+
+            Navigation.LocationChanged += OnLocationChanged;
         }
         catch (TimeoutException ex)
         {
@@ -84,8 +98,37 @@ else if (AuthSession.IsAuthenticated)
         finally
         {
             _hasResolved = true;
-            StateHasChanged();
+            if (!_isDisposed)
+            {
+                StateHasChanged();
+            }
         }
+    }
+
+    // Layouts keep this component alive across navigations, so the gate is re-applied on every location change
+    // until the required password change (or MFA enrollment) has been completed.
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = RedirectToSecuritySetupIfRequired();
+    }
+
+    private bool RedirectToSecuritySetupIfRequired()
+    {
+        if (!AuthSession.IsAuthenticated
+            || (!AuthSession.PasswordChangeRequired && !AuthSession.MfaEnrollmentRequired)
+            || IsSecuritySetupPage())
+        {
+            return false;
+        }
+
+        Navigation.NavigateTo("/iam/security");
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 
     private bool IsSecuritySetupPage()

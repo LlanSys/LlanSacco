@@ -235,16 +235,14 @@ Flow:
 2. Go to **Admin Center** -> **Employees**.
 3. Use **Grant System Access** for Allan or Laura.
 4. Assign a role such as `Employee`.
-5. Confirm the activation email is sent.
+5. Confirm the activation email is sent. It contains a one-time **Set your password** link (no password).
 6. Sign out.
-7. Sign in as the non-admin user with `IamProvisioning:TemporaryPassword`.
+7. Open the link (Mailpit locally), choose a password on `/iam/reset-password`, then sign in as the non-admin user.
 
-To confirm or change the temporary password:
-
-```powershell
-dotnet user-secrets list --project src\Backend\Api\LS.Api\LS.Api.csproj
-dotnet user-secrets set "IamProvisioning:TemporaryPassword" "<new-temp-password>" --project src\Backend\Api\LS.Api\LS.Api.csproj
-```
+Activation links use `EmailSettings:ClientBaseUrl` + `PasswordRecovery:ResetPath` (the same page as forgot-password links),
+expire after `IamProvisioning:ActivationLinkLifetimeHours` (default 72), and stop working once the password is set.
+Accounts flagged `RequirePasswordChange` (activated accounts and admin-set passwords) are blocked by the API with
+`403 PASSWORD_CHANGE_REQUIRED`, and the UI keeps them on `/iam/security`, until they change their password.
 
 ### Admin Flow
 

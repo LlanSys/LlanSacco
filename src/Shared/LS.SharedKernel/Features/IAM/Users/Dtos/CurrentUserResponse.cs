@@ -19,4 +19,5 @@ public record CurrentUserResponse(
     List<string>? Permissions = null,
     string? SessionId = null,
     bool MfaEnrollmentRequired = false,
-    Uri? ProfilePictureUrl = null);
+    Uri? ProfilePictureUrl = null,
+    bool PasswordChangeRequired = false);

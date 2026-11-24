@@ -13,9 +13,13 @@ public interface IAuthSession
     string? LastError { get; }
     bool HasFullAccess { get; }
     bool MfaEnrollmentRequired { get; }
+    bool PasswordChangeRequired { get; }
 
     Task InitializeAsync();
     Task RefreshAsync();
+
+    /// <summary>Obtains a fresh access token (dropping claims such as the password-change gate) and reloads the current user.</summary>
+    Task<bool> RenewSessionAsync();
     Task<AppResponse<LoginResponse>> SignInAsync(LoginRequest request);
     Task<AppResponse<LoginResponse>> SignInWithPasskeyAsync(LoginWithPasskeyRequest request);
     Task<AppResponse<LoginResponse>> ExchangeSsoCodeAsync(string code);

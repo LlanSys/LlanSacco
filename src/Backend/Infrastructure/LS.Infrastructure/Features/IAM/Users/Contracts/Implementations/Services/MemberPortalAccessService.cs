@@ -47,6 +47,7 @@ internal sealed class MemberPortalAccessService(
 
             AppUser? user = null;
             var activated = false;
+            var emailConfirmedBeforeActivation = false;
             var roleAssigned = false;
             string[] rolesAdded = [];
             var write = await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(
@@ -86,6 +87,7 @@ internal sealed class MemberPortalAccessService(
                             return AppResponses.Failure<bool>(AppError.BusinessRule(passwordResetResult.Errors.First().Description));
                         }
 
+                        emailConfirmedBeforeActivation = user.EmailConfirmed;
                         user.GrantAccess(grantedBy, [memberRole]);
                         user.EmailConfirmed = true;
                         activated = true;
@@ -139,7 +141,7 @@ internal sealed class MemberPortalAccessService(
 
             if (!emailResponse.IsSuccess)
             {
-                if (!await accessActivator.RollBackActivationAsync(user.Id, activationStamp, rolesAdded, grantedBy).ConfigureAwait(false))
+                if (!await accessActivator.RollBackActivationAsync(user.Id, activationStamp, rolesAdded, grantedBy, emailConfirmedBeforeActivation).ConfigureAwait(false))
                 {
                     ServiceLogDefinitions.LogGrantMemberPortalAccessError(
                         logger,

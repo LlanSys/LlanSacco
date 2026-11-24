@@ -81,8 +81,10 @@ internal sealed class IamAccessActivator(
 
     /// <summary>
     /// Reverts an activation whose email could not be delivered. Returns false when compensation could not be applied.
+    /// Pass <paramref name="restoreEmailConfirmed"/> when the activation also changed the confirmation flag.
     /// </summary>
-    public async Task<bool> RollBackActivationAsync(string userId, string? activationStamp, string[] rolesAdded, string changedBy)
+    public async Task<bool> RollBackActivationAsync(
+        string userId, string? activationStamp, string[] rolesAdded, string changedBy, bool? restoreEmailConfirmed = null)
     {
         // Complete compensation even if the HTTP request was cancelled after the provider rejected delivery.
         return await iamUnitOfWork.ExecuteInTransactionWithRetryAsync(
@@ -107,6 +109,11 @@ internal sealed class IamAccessActivator(
                 }
 
                 current.RevokeAccess(changedBy, "Activation email could not be sent.");
+                if (restoreEmailConfirmed.HasValue)
+                {
+                    current.EmailConfirmed = restoreEmailConfirmed.Value;
+                }
+
                 return (await userManager.UpdateAsync(current).ConfigureAwait(false)).Succeeded;
             },
             cancellationToken: CancellationToken.None,

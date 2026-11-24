@@ -116,10 +116,22 @@ Defects found and fixed during this acceptance:
 - Member onboarding and BOSA postings rejected every request: string fields were validated with `IsInEnum()`, which fails for all strings. They now accept exactly what the handler's `ToEnum` converts (unit tested).
 - Local Azurite had no `profile-images` container, so storage readiness failed until the first upload. The local setup now creates it, mirroring `ops/azure/modules/storage.bicep`.
 
+Member portal access and recovery tie-out (follow-up change):
+
+| Scenario | How it was exercised | Result |
+| --- | --- | --- |
+| Member portal access | New member onboarded and approved through the API (account inactive and unconfirmed), then the member officer used "Grant portal access" on the member page | Account activated, member role assigned, activation email delivered to Mailpit with username, temporary password and sign-in link; the member signed in |
+| GL mapping configuration | Admin signed in with TOTP and used `/accounting/gl-mappings`; a swapped liability/asset `GUARANTOR_RECOVERY` mapping was attempted through the API | Swapped mapping rejected at configuration time (422). Valid mapping saved: debit 2000 Member Deposits (BOSA), credit 1100 Normal Loans to Members |
+| Recovery blocked by unexplained locks | Recovery on a loan whose guarantor account still carries the unexplained 15,000 | Durably rejected by Banking ("cannot be covered by the committed reservation"); no balance, hold or journal change |
+| Recovery and source-to-ledger tie-out | Loan marked `Defaulted` directly in the database (**simulated** — no default workflow exists); maker requested 20,000 with notice/authority evidence; maker self-approval refused; checker approved | Guarantor balance 200,000 → 180,000 and lock 145,000 → 125,000; pledge held 30,000 → 10,000; loan outstanding principal 60,000 → 40,000 with nothing pending; exactly one journal `GR-…`: debit 2000 (Liability) 20,000, credit 1100 (Asset) 20,000 |
+
 Findings recorded for follow-up (not fixed here):
 
-- Users created through `POST api/v1/iam/admin/users` stay inactive and unconfirmed, and no API activates a non-employee user, so members cannot reach the portal. The rehearsal activated the fictional `@jamii.example` users directly in the local database.
-- There is no API or UI to configure `TransactionTypeGlMapping`, and no `GUARANTOR_RECOVERY` mapping is seeded, so default recovery cannot post its journal. The recovery and source-to-ledger tie-out were therefore not executed.
+- **Security:** activation emails carry one shared temporary password from `IamProvisioning:TemporaryPassword` for every activated account (employees and members), and `RequirePasswordChange` is set but not enforced — the member reached the dashboard without changing it. Replace with per-user one-time set-password links (StarterTemplate uses invitation links) and enforce the change in the API and UI.
+- **No default workflow:** nothing moves a loan to `Defaulted` (the arrears scan is a stub and disbursed loans never become `Active`), so guarantor recovery cannot start in production. Needs a default declaration per the reference policy (90 days past due, guarantor notice, maker-checker).
+- **No resolution path for unexplained locks:** once Finance investigates an unexplained lock there is no workflow to correct it, so the account stays blocked for new guarantees and recovery indefinitely.
+- GL mapping changes take effect for any holder of `gl-mappings.manage` without a second approver; the account pickers also need `transactions.view`; there is no menu entry (menus are seeded).
+- The recovery form on the guarantees page did not submit from the browser (no request was sent); the recovery was requested through the API. The GL mapping dialog closed without an error when the save returned 401.
 - Banking's rejection reason for an account with unexplained locks is generic ("ineligible, insufficient available funds, or expired") and does not name the unexplained difference.
 - Members land on the staff dashboard; the backing-account selector shows an empty identifier before selection; statuses and identifiers appear as raw codes and GUIDs on staff pages.
 - Signing the same user in elsewhere ends the existing browser session.
@@ -130,7 +142,7 @@ Findings recorded for follow-up (not fixed here):
 
 - Signed-in browser acceptance of cancellation before disbursement, settlement release, substitution and default recovery; desktop and mobile viewports; KYC state changes and tenant switching. Consent, member isolation, approval, disbursement, legacy adoption and recovery after restore passed on the local stack (above).
 - First-SACCO credit/security policy and enforceable consent/notice evidence, eligible products and real KYC route. Simulated KYC remains a separate production blocker tracked in Phase 6.
-- Actual legacy-book reconciliation with the first SACCO's records (the reference rehearsal passed), a way to configure and approve the `GUARANTOR_RECOVERY` mapping, and a signed recovery/source-to-ledger tie-out.
+- Actual legacy-book reconciliation with the first SACCO's records (the reference rehearsal passed), Finance approval of the `GUARANTOR_RECOVERY` mapping, a default declaration workflow, and a signed recovery/source-to-ledger tie-out (the reference tie-out passed with a simulated default).
 - Backup/restore and incident recovery on a representative deployed tenant/stamp with agreed recovery objectives. The local restore rehearsal passed; it does not prove production recovery objectives.
 
 The global local-endpoint audit reported existing port collisions across other project configurations, including a configured Mailpit overlap. Existing infrastructure was reused with `-SkipStart`; no application host or unrelated infrastructure was started or reconfigured. Resolve the relevant allocation before starting additional local hosts/services.

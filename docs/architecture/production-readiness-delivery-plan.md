@@ -1,6 +1,6 @@
 # LlanSacco Production Readiness Delivery Plan
 
-**Status** — Phases 0 and 1 are OPEN, 24 November 2026. Reference preparation is complete and Phase 1 core implementation has automated evidence. Neither phase has met its full completion checklist.
+**Status** — Phases 0 and 1 are OPEN, 24 November 2026. Reference preparation is complete. Phase 1 core implementation has automated evidence and was merged through LlanSys/LlanSacco#13 with passing CI. Neither phase has met its full completion checklist.
 
 Architecture remediation established the platform and CI guardrails. Product release depends on evidence that a SACCO can operate the financial workflows, reconcile the books, recover from failure, and support its members. This plan covers guarantor reservations, finance acceptance, M-Pesa, automated dividends, statements, and self-service. Fixing every named workflow is in scope. The first SACCO's approved operating profile determines which gates must pass before its first live transaction.
 

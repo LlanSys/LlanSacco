@@ -326,6 +326,7 @@ When checking screenshots or app settings, verify:
 - `EmailSettings:Provider` is `LocalMailpit` only in Development, `SendGrid` in Production, and `EmailSettings:FromAddress` is a verified sender/domain with the selected provider.
 - Use `OutputCache` for API response caching. Do not add legacy `ResponseCaching` unless a future requirement specifically needs HTTP header/proxy cache semantics.
 - `Microsoft.OpenApi` is pinned directly to a non-vulnerable compatible 2.x version because the ASP.NET OpenAPI source generator is not yet compatible with the 3.x package line.
+- `System.Security.Cryptography.Pkcs`, `Microsoft.AspNetCore.WebUtilities` and `System.Formats.Cbor` are pinned directly to patched versions in the projects that pull them in transitively (Persistence, SharedKernel and Infrastructure). Remove each pin once its parent package depends on a patched version.
 
 ## CI/CD Pipeline and Deployments
 

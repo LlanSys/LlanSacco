@@ -2,7 +2,7 @@
 
 **Phase status: OPEN**, 24 November 2026. Core implementation and automated verification are available for review. Browser execution, representative tenant/recovery verification, actual-book reconciliation and review/sign-off remain unfinished. Phase 2 has not started.
 
-**Implementation commit:** `f1d1060` on `codex/production-readiness-phase-1`, based on `main` at `2bd4bd4`. The local verification below covers that source tree.
+**Implementation commit:** `f1d1060` on `codex/production-readiness-phase-1`, based on `main` at `2bd4bd4`, merged to `main` as `fabaa0a` through [LlanSys/LlanSacco#13](https://github.com/LlanSys/LlanSacco/pull/13) after all required CI checks passed. The local verification below covers that source tree.
 
 This is the production-readiness delivery phase, distinct from the earlier architecture remediation phases. The user accepted LLANSACCO-REFERENCE v0.1 as the development baseline and authorized this implementation. That authorization does not supply a real SACCO's policies, KYC-provider approval, Finance mapping approval or release sign-off.
 
@@ -99,7 +99,6 @@ Deploy the updated API and member UI together. Consent now requires the exact pl
 
 ## Open acceptance gates
 
-- Required CI and implementation review on the PR. All local checks above have passed; CI evidence is recorded separately.
 - Signed-in browser acceptance on desktop/mobile with actual tenant roles, current terms, member ownership, KYC state changes and tenant switching. No browser acceptance is claimed by a successful build.
 - First-SACCO credit/security policy and enforceable consent/notice evidence, eligible products and real KYC route. Simulated KYC remains a separate production blocker tracked in Phase 6.
 - Actual legacy-book reconciliation, correct Finance-approved product/control-account mapping, and signed recovery/source-to-ledger tie-out.
@@ -107,4 +106,6 @@ Deploy the updated API and member UI together. Consent now requires the exact pl
 
 The global local-endpoint audit reported existing port collisions across other project configurations, including a configured Mailpit overlap. Existing infrastructure was reused with `-SkipStart`; no application host or unrelated infrastructure was started or reconfigured. Resolve the relevant allocation before starting additional local hosts/services.
 
-Builds currently report existing dependency vulnerability/analyzer warnings, including `System.Security.Cryptography.Pkcs` and `Microsoft.AspNetCore.WebUtilities`. This phase does not upgrade those dependencies. Record their remediation separately before release acceptance.
+The required CI checks and implementation review closed with the merge of PR #13.
+
+The Phase 1 builds reported known vulnerable transitive packages. A follow-up change pins the patched versions directly: `System.Security.Cryptography.Pkcs` 10.0.15 (via `Microsoft.Data.SqlClient`), `Microsoft.AspNetCore.WebUtilities` 2.3.14 (via `Microsoft.AspNetCore.Diagnostics`) and `System.Formats.Cbor` 10.0.15 (via `Fido2`). `dotnet list LlanSacco.slnx package --vulnerable --include-transitive` then reports no vulnerable packages. Analyzer warnings remain.

@@ -15,6 +15,7 @@
     <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" />
     <PackageReference Include="Azure.Storage.Blobs" />
     <PackageReference Include="Fido2.AspNet" />
+    <PackageReference Include="System.Formats.Cbor" />
     <PackageReference Include="MailKit" />
     <PackageReference Include="MassTransit" />
     <PackageReference Include="MassTransit.Azure.ServiceBus.Core" />

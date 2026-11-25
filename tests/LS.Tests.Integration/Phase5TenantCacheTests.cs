@@ -20,24 +20,24 @@ public sealed class Phase5TenantCacheTests
     public async Task New_requests_observe_tenant_suspension_immediately()
     {
         var tenant = NewTenant();
-        var repository = Substitute.For<ITenantRepository>();
-        repository.FirstOrDefaultAsync(Arg.Any<Expression<Func<Tenant, bool>>>(), Arg.Any<CancellationToken>())
-            .Returns(call => Task.FromResult<Tenant?>(call.Arg<Expression<Func<Tenant, bool>>>().Compile()(tenant) ? tenant : null));
-
-        await using var services = Services(repository);
-        var middleware = new TenantResolutionMiddleware(_ => Task.CompletedTask);
+        var repository = TenantIngressBoundaryTests.Repository(tenant);
+        var unitOfWork = Substitute.For<IControlPlaneUnitOfWork>();
+        unitOfWork.TenantRepository.Returns(repository);
+        var middleware = new TenantResolutionMiddleware(_ => Task.CompletedTask, Microsoft.Extensions.Options.Options.Create(new OrgSettings()));
         var activeRequest = new DefaultHttpContext();
         activeRequest.Request.Host = new HostString(tenant.HostName);
 
-        await middleware.InvokeAsync(activeRequest, services);
+        await middleware.InvokeAsync(activeRequest, unitOfWork);
         Assert.Equal(tenant.Id.ToString(), activeRequest.Request.Headers["X-Tenant-Id"].ToString());
 
         tenant.Status = TenantStatus.Suspended;
         var nextRequest = new DefaultHttpContext();
         nextRequest.Request.Host = activeRequest.Request.Host;
-        await middleware.InvokeAsync(nextRequest, services);
+        nextRequest.RequestServices = new ServiceCollection().AddLogging().BuildServiceProvider();
+        await middleware.InvokeAsync(nextRequest, unitOfWork);
 
-        Assert.False(nextRequest.Request.Headers.ContainsKey("X-Tenant-Id"));
+        Assert.Equal(StatusCodes.Status404NotFound, nextRequest.Response.StatusCode);
+        Assert.False(nextRequest.Items.ContainsKey(TenantResolutionMiddleware.ResolvedTenantItem));
     }
 
     [Fact]

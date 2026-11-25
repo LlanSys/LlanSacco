@@ -14,7 +14,19 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
 
     public bool IsAuthenticated => CurrentUser?.IsAuthenticated != false && CurrentUser is not null;
 
-    public CurrentUserResponse? CurrentUser { get; private set; }
+    public event Action? AuthenticationChanged;
+
+    private CurrentUserResponse? _currentUser;
+
+    public CurrentUserResponse? CurrentUser
+    {
+        get => _currentUser;
+        private set
+        {
+            _currentUser = value;
+            AuthenticationChanged?.Invoke();
+        }
+    }
 
     public string? ProfilePictureDataUri { get; private set; }
 

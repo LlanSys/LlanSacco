@@ -116,6 +116,7 @@ builder.Services.AddScoped<ILoanService, LoanService>();
 builder.Services.AddScoped<ICheckOffService, CheckOffService>();
 builder.Services.AddScoped<LS.UI.Blazor.Features.Banking.Contracts.Interfaces.ISharesService, LS.UI.Blazor.Features.Banking.Contracts.Implementations.SharesService>();
 builder.Services.AddScoped<LS.UI.Blazor.Features.Banking.Contracts.Interfaces.ISavingsService, LS.UI.Blazor.Features.Banking.Contracts.Implementations.SavingsService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IAuthenticatorQrCodeService, AuthenticatorQrCodeService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<IAuditService, AuditService>();

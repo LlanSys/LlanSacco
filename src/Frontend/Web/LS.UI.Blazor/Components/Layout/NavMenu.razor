@@ -1,54 +1,106 @@
+@using LS.UI.Blazor.Features.IAM.Users.Utilities
+@using LS.UI.Blazor.Logging
+@implements IAsyncDisposable
+@inject TimeProvider Clock
+@inject ILogger<NavMenu> Logger
 @inject IAuthSession AuthSession
 @inject IIamAdminService IamAdminService
 
-<div class="side-shell d-flex flex-column" style="height: 100%;">
-    <div class="brand-row pa-4" style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-        <a class="brand-lockup d-flex align-center gap-2" href="/dashboard" style="text-decoration: none; color: inherit; background: #fff; padding: 0.5rem 0.75rem 0.5rem 1rem; border-radius: 0.8rem; min-height: 3rem;">
-            <span class="brand-mark d-flex align-center justify-center" style="background: #0f172a; color: white; border-radius: 0.55rem; width: 2rem; height: 2rem; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.04em;">LS</span>
-            <span class="brand-name font-weight-bold" style="color: #0f172a; font-size: 0.88rem; letter-spacing: 0.01em;">LlanSacco</span>
+<div class="side-shell">
+    <div class="brand-row">
+        <a class="brand-lockup"
+           href="/dashboard"
+           aria-label="@($"{BrandName} dashboard")">
+            <span class="brand-mark"
+                  aria-hidden="true">@OrganizationBranding.Initials(BrandName)</span>
+            <span class="brand-name"
+                  title="@BrandName">@BrandName</span>
         </a>
     </div>
 
-    <div class="nav-scrollable flex-grow-1" style="overflow-y: auto; padding: 0.7rem 0.55rem 1rem;">
-        <MudNavMenu Color="Color.Primary" Margin="Margin.Dense">
+    <input type="checkbox"
+           title="Navigation menu"
+           class="navbar-toggler" />
+
+    <div class="nav-scrollable">
+        <nav class="nav flex-column">
             @if (_isLoading)
             {
-                <MudProgressLinear Color="Color.Success" Indeterminate="true" Class="my-2" Style="opacity: 0.4;" />
+                <div class="nav-loading">
+                    <MudProgressLinear Color="Color.Success"
+                                       Indeterminate="true"
+                                       Class="my-2"
+                                       Style="opacity: 0.4;" />
+                </div>
             }
             else if (_loadError is not null)
             {
-                <div class="nav-error pa-3" style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">
-                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Class="me-1" Size="Size.Small" />
+                <div class="nav-error"
+                     style="padding: 0.75rem 1rem; color: var(--st-muted); font-size: 0.8rem;">
+                    <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                             Size="Size.Small"
+                             Class="me-1" />
                     @_loadError
                 </div>
             }
             else
             {
-                @foreach (var menu in _menus)
+                var previousSection = -1;
+                @foreach (var menu in _menus.Where(menu => !IsRetiredPage(menu) && menu.Url != "/admin" && !IsPlatformChild(menu)).OrderBy(Section))
                 {
-                    @RenderMenu(menu)
-                }
-
-                @if (_hasAdminGroup)
-                {
-                    <MudDivider Class="my-2" Style="background-color: rgba(255,255,255,0.12);" />
-                    @foreach (var admin in _adminMenus)
+                    @if (previousSection >= 0 && previousSection != Section(menu))
                     {
-                        @RenderMenu(admin)
+                        <div class="nav-separator"
+                             aria-hidden="true">
+                        </div>
                     }
+                    previousSection = Section(menu);
+                    <section class="nav-group">
+                        @RenderMenu(menu)
+                    </section>
                 }
             }
-        </MudNavMenu>
+        </nav>
     </div>
-
-    <UserProfileMenu />
+    <nav class="nav-bottom"
+         aria-label="Administration">
+        @foreach (var menu in _menus.Where(menu => menu.Url == "/admin"))
+        {
+            @RenderMenu(menu)
+        }
+    </nav>
+    <div class="nav-bottom-inset"
+         aria-hidden="true">
+    </div>
 </div>
 
 @code {
+    // LS has no workspace selection yet, so the product name is the brand (ST shows the selected organization).
+    private static string BrandName => OrganizationBranding.ProductName;
+
+    protected override void OnInitialized()
+    {
+        AuthSession.AuthenticationChanged += OnBrandChanged;
+    }
+
+    private void OnBrandChanged()
+    {
+        if (!_lifetime.IsCancellationRequested) { _ = InvokeAsync(StateHasChanged); }
+    }
+
+    private static bool IsRetiredPage(MenuResponse menu)
+    {
+        return TemplateNavigation.IsRetired(menu.Url);
+    }
+
+    // ST also hides tenant menus from platform staff (IsCurrentWorkspaceMenu). LS's System Administrator is both
+    // platform staff and the SACCO's administrator in the host tenant, so that filter waits for workspace selection.
+
+    private static int Section(MenuResponse menu) => menu.Url.Equals("/dashboard", StringComparison.OrdinalIgnoreCase) ? 0
+        : menu.Url.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) || menu.Url.Equals("/control-panel", StringComparison.OrdinalIgnoreCase) ? 2 : 1;
+    private static bool IsPlatformChild(MenuResponse menu) => menu.Url.StartsWith("/control-panel/", StringComparison.OrdinalIgnoreCase);
     private readonly List<MenuResponse> _menus = [];
-    private readonly List<MenuResponse> _adminMenus = [];
     private bool _isLoading = true;
-    private bool _hasAdminGroup;
     private string? _loadError;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -66,56 +118,77 @@
             return;
         }
 
+        await ReloadNavigationAsync();
+        _pollTask = PollPolicyAsync();
+    }
+    private readonly CancellationTokenSource _lifetime = new();
+    private Task? _pollTask;
+    private async Task ReloadNavigationAsync()
+    {
         var response = await IamAdminService.GetNavigationMenusAsync("Sidebar");
-        if (response.IsSuccess && response.Data is not null && response.Data.Count > 0)
-        {
-            _menus.Clear();
-
-            var adminKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "admin", "admin-center" };
-
-            var regularMenus = response.Data
-                .Where(m => !adminKeys.Contains(m.Key))
-                .OrderBy(m => m.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var adminMenus = response.Data
-                .Where(m => adminKeys.Contains(m.Key))
-                .ToList();
-
-            _menus.AddRange(regularMenus);
-
-            if (adminMenus.Count > 0)
-            {
-                _hasAdminGroup = true;
-                _adminMenus.AddRange(adminMenus);
-            }
-        }
-        else if (!response.IsSuccess)
-        {
-            _loadError = "Menus unavailable.";
-        }
-
+        _menus.Clear();
+        if (response.IsSuccess && response.Data is not null) { _menus.AddRange(response.Data); _loadError = null; }
+        else _loadError = "Navigation unavailable.";
         _isLoading = false;
         StateHasChanged();
     }
-
-    private RenderFragment<MenuResponse> RenderMenu => menu => __builder =>
+    private async Task PollPolicyAsync()
     {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15), Clock);
+        try
+        {
+            while(await timer.WaitForNextTickAsync(_lifetime.Token))
+            {
+                try { await InvokeAsync(async () => { await AuthSession.RefreshAsync(); if (AuthSession.IsAuthenticated) await ReloadNavigationAsync(); else { _menus.Clear(); StateHasChanged(); } }); }
+                catch (Exception ex) when (!_lifetime.IsCancellationRequested) { NavigationPolicyLogDefinitions.RefreshFailed(Logger, ex); }
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (ObjectDisposedException) when (_lifetime.IsCancellationRequested) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        AuthSession.AuthenticationChanged -= OnBrandChanged;
+        await _lifetime.CancelAsync();
+        if (_pollTask is not null) await _pollTask;
+        _lifetime.Dispose();
+    }
+
+    private RenderFragment RenderMenu(MenuResponse menu) => builder =>
+    {
+        var sequence = 0;
+        builder.OpenComponent<NavLink>(sequence++);
+        builder.AddAttribute(sequence++, "class", "nav-link");
+        builder.AddAttribute(sequence++, "href", menu.Url.TrimStart('/'));
+        if (menu.Key.Equals("dashboard", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.AddAttribute(sequence++, "Match", NavLinkMatch.All);
+        }
+
+        builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(childBuilder =>
+        {
+            var childSequence = 0;
+            childBuilder.OpenComponent<MudIcon>(childSequence++);
+            childBuilder.AddAttribute(childSequence++, "Icon", MenuIconMapper.Resolve(menu.Icon));
+            childBuilder.AddAttribute(childSequence++, "Size", Size.Small);
+            childBuilder.CloseComponent();
+            childBuilder.OpenElement(childSequence++, "span");
+            childBuilder.AddContent(childSequence++, menu.Title);
+            childBuilder.CloseElement();
+        }));
+        builder.CloseComponent();
+
         if (menu.Children is null || menu.Children.Count == 0)
         {
-            var match = menu.Key.Equals("dashboard", StringComparison.OrdinalIgnoreCase) ? NavLinkMatch.All : NavLinkMatch.Prefix;
-            <MudNavLink Href="@menu.Url.TrimStart('/')" Icon="@MenuIconMapper.Resolve(menu.Icon)" Match="@match" Style="color: rgba(255,255,255,0.82);">
-                @menu.Title
-            </MudNavLink>
+            return;
         }
-        else
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "nav-children");
+        foreach (var child in menu.Children.Where(child => !IsPlatformChild(child) && !IsRetiredPage(child)))
         {
-            <MudNavGroup Title="@menu.Title" Icon="@MenuIconMapper.Resolve(menu.Icon)" Style="color: rgba(255,255,255,0.82);">
-                @foreach (var child in menu.Children)
-                {
-                    @RenderMenu(child)
-                }
-            </MudNavGroup>
+            builder.AddContent(sequence++, RenderMenu(child));
         }
+        builder.CloseElement();
     };
 }

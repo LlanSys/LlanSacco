@@ -1,0 +1,69 @@
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Routing
+@inject IAuthSession AuthSession
+@inject NavigationManager Navigation
+
+@* Ported from StarterTemplate's WorkspaceSwitcher. ST also shows support-session and demo-workspace banners with
+   "Return To Platform"; LS has no workspace selection yet, so only the heading is ported. *@
+@if (IsAccountPage)
+{
+    <div class="workspace-heading">
+        <span class="workspace-kicker">Account</span><strong>@CurrentHeading</strong>
+    </div>
+}
+else if (IsControlPanel)
+{
+    <div class="workspace-heading">
+        <span class="workspace-kicker">Platform</span><strong>@CurrentHeading</strong>
+    </div>
+}
+else if (AuthSession.IsAuthenticated)
+{
+    <div class="workspace-heading">
+        <span class="workspace-kicker">Organization</span><strong>@CurrentHeading</strong>
+    </div>
+}
+
+@code {
+    private bool _disposed;
+
+    private string CurrentPath => new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToUpperInvariant();
+    private bool IsAccountPage => CurrentPath is "/PROFILE" or "/IAM/SECURITY";
+    private bool IsControlPanel => CurrentPath.StartsWith("/CONTROL-PANEL", StringComparison.Ordinal);
+
+    private string CurrentHeading => CurrentPath switch
+    {
+        "/PROFILE" => "Profile",
+        "/IAM/SECURITY" => "Security",
+        "/DASHBOARD" or "" => "Dashboard",
+        _ when CurrentPath.StartsWith("/ADMIN", StringComparison.Ordinal) => "Admin Center",
+        _ when IsControlPanel => "Control Panel",
+        _ => "Application"
+    };
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        AuthSession.AuthenticationChanged += OnAuthenticationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnAuthenticationChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Navigation.LocationChanged -= OnLocationChanged;
+        AuthSession.AuthenticationChanged -= OnAuthenticationChanged;
+    }
+}

@@ -24,7 +24,9 @@ internal sealed class GetNavigationMenusQueryHandler(
         {
             var permissionSet = query.PermissionKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
             var enabledModules = await moduleResolver.GetEnabledModulesAsync(cancellationToken).ConfigureAwait(false);
-            var moduleSet = enabledModules.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // Module keys are compared in SQL, where PostgreSQL string equality is case-sensitive: tenant modules
+            // are stored as "Core" while seeded menus require "core". Compare both sides in upper case.
+            var moduleKeys = enabledModules.Select(static module => module.ToUpperInvariant()).Distinct().ToList();
 
             var menus = await unitOfWork.MenuRepository
                 .ListAsync(
@@ -34,7 +36,7 @@ internal sealed class GetNavigationMenusQueryHandler(
                             menu.RequiredPermissionKey != null && menu.RequiredPermissionKey.StartsWith("control_plane.")
                                 ? permissionSet.Contains(menu.RequiredPermissionKey)
                                 : (query.HasFullAccess || menu.RequiredPermissionKey == null || permissionSet.Contains(menu.RequiredPermissionKey)))
-                        .Where(menu => menu.RequiredModule == null || moduleSet.Contains(menu.RequiredModule))
+                        .Where(menu => menu.RequiredModule == null || moduleKeys.Contains(menu.RequiredModule.ToUpper()))
                         .OrderBy(static menu => menu.DisplayOrder).ThenBy(static menu => menu.Title),
                     cancellationToken)
                 .ConfigureAwait(false);

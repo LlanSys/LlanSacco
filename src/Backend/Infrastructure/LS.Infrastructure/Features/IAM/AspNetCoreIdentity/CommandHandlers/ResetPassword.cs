@@ -44,24 +44,25 @@ internal sealed class ResetPassword(
                     if (user == null)
                     {
                         ServiceLogDefinitions.LogInvalidToken(logger);
-                        return AppResponses.Failure<bool>("Invalid reset request");
+                        return AppResponses.Failure<bool>(AppError.BusinessRule(PasswordResetLink.UnusableMessage));
+                    }
+
+                    // Revoked accounts, used or expired links are refused before anything else, with a message that
+                    // says so instead of blaming the password.
+                    if (!await PasswordResetLink.IsUsableAsync(userManager, user, request.Token).ConfigureAwait(false))
+                    {
+                        ServiceLogDefinitions.LogInvalidToken(logger);
+                        return AppResponses.Failure<bool>(AppError.BusinessRule(PasswordResetLink.UnusableMessage));
                     }
 
                     var password = request.Password ?? request.NewPassword ?? string.Empty;
-
                     if (await userManager.CheckPasswordAsync(user, password).ConfigureAwait(false))
                     {
                         return AppResponses.Failure<bool>("New password must be different from your current password");
                     }
 
-                    if (string.IsNullOrWhiteSpace(request.Token))
-                    {
-                        ServiceLogDefinitions.LogInvalidToken(logger);
-                        return AppResponses.Failure<bool>("The password reset request is invalid or expired.");
-                    }
-
                     ct.ThrowIfCancellationRequested();
-                    var passwordResult = await ResetWithRecoveryOrActivationTokenAsync(user, request.Token, password).ConfigureAwait(false);
+                    var passwordResult = await ResetWithRecoveryOrActivationTokenAsync(user, request.Token!, password).ConfigureAwait(false);
 
                     if (!passwordResult.Succeeded)
                     {
@@ -131,14 +132,7 @@ internal sealed class ResetPassword(
     /// </summary>
     private async Task<IdentityResult> ResetWithRecoveryOrActivationTokenAsync(AppUser user, string token, string password)
     {
-        if (user.IsActive
-            && user.RequirePasswordChange
-            && await userManager.VerifyUserTokenAsync(
-                user,
-                AccountActivationTokenProvider.ProviderName,
-                UserManager<AppUser>.ResetPasswordTokenPurpose,
-                token)
-                .ConfigureAwait(false))
+        if (await PasswordResetLink.IsActivationTokenAsync(userManager, user, token).ConfigureAwait(false))
         {
             token = await userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
         }

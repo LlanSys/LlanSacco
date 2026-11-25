@@ -1,3 +1,4 @@
+using LS.Application.Features.IAM.Users.Queries;
 using LS.Application.Contracts.Interfaces.Common;
 using LS.Application.Features.IAM.Users.Commands;
 using LS.Application.Features.Shared.Notifications.Contracts.Interfaces;
@@ -155,6 +156,86 @@ public sealed partial class IamAccessActivationTests : IAsyncDisposable
 
         Assert.False(replay.IsSuccess);
         Assert.True(await Users.CheckPasswordAsync((await Users.FindByIdAsync(user.Id))!, "Chosen-By-User1!"));
+    }
+
+    [Fact]
+    public async Task Revoking_access_retires_the_emailed_set_password_link_with_a_clear_message()
+    {
+        var user = await SeedMemberUserAsync(isActive: false);
+        Assert.True((await GrantAsync(user)).IsSuccess);
+        var link = new Uri(WebUtility.HtmlDecode(LinkPattern().Match(Assert.Single(_sent).Body!).Groups["href"].Value));
+        var token = QueryHelpers.ParseQuery(link.Query)["token"].ToString();
+        var validate = new ValidatePasswordResetLinkQueryHandler(new PasswordResetLinkInspector(Users));
+        var check = new ValidatePasswordResetLinkQuery(new ValidatePasswordResetLinkRequest(user.Email!, token));
+
+        var beforeRevoke = await validate.Handle(check, CancellationToken.None);
+        Assert.True(beforeRevoke.IsSuccess, beforeRevoke.Message);
+
+        var granted = (await Users.FindByIdAsync(user.Id))!;
+        granted.RevokeAccess(Staff, "Revoked by administrator");
+        Assert.True((await Users.UpdateAsync(granted)).Succeeded);
+
+        var afterRevoke = await validate.Handle(check, CancellationToken.None);
+        Assert.False(afterRevoke.IsSuccess);
+        Assert.Equal(PasswordResetLink.UnusableMessage, afterRevoke.Error?.Message);
+
+        var reset = new ResetPassword(
+            Users,
+            _uow,
+            Substitute.For<ICacheService>(),
+            Substitute.For<IHttpContextAccessor>(),
+            Substitute.For<IPublisher>(),
+            NullLogger<ResetPassword>.Instance);
+        var attempt = await reset.Handle(
+            new ResetPasswordCommand(new ResetPasswordRequest(user.Email!, "Chosen-By-User1!", null, "Chosen-By-User1!", token)),
+            CancellationToken.None);
+
+        Assert.False(attempt.IsSuccess);
+        Assert.Equal(PasswordResetLink.UnusableMessage, attempt.Error?.Message);
+        Assert.False(await Users.CheckPasswordAsync((await Users.FindByIdAsync(user.Id))!, "Chosen-By-User1!"));
+    }
+
+    [Fact]
+    public async Task Recovery_token_from_forgot_password_still_validates_and_resets()
+    {
+        var user = await SeedMemberUserAsync(isActive: true);
+        var active = (await Users.FindByIdAsync(user.Id))!;
+        var recoveryToken = await Users.GeneratePasswordResetTokenAsync(active);
+        _uow.TokenRepository.GetActiveTokensByUserIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns([]);
+
+        var check = await new ValidatePasswordResetLinkQueryHandler(new PasswordResetLinkInspector(Users)).Handle(
+            new ValidatePasswordResetLinkQuery(new ValidatePasswordResetLinkRequest(user.Email!, recoveryToken)), CancellationToken.None);
+        Assert.True(check.IsSuccess, check.Message);
+
+        var reset = new ResetPassword(
+            Users,
+            _uow,
+            Substitute.For<ICacheService>(),
+            Substitute.For<IHttpContextAccessor>(),
+            Substitute.For<IPublisher>(),
+            NullLogger<ResetPassword>.Instance);
+        var result = await reset.Handle(
+            new ResetPasswordCommand(new ResetPasswordRequest(user.Email!, "Recovered-Pass1!", null, "Recovered-Pass1!", recoveryToken)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Message);
+        Assert.True(await Users.CheckPasswordAsync((await Users.FindByIdAsync(user.Id))!, "Recovered-Pass1!"));
+    }
+
+    [Fact]
+    public async Task Unknown_accounts_and_garbage_tokens_get_the_same_answer()
+    {
+        var user = await SeedMemberUserAsync(isActive: true);
+        var validate = new ValidatePasswordResetLinkQueryHandler(new PasswordResetLinkInspector(Users));
+
+        var unknown = await validate.Handle(
+            new ValidatePasswordResetLinkQuery(new ValidatePasswordResetLinkRequest("nobody@example.test", "token")), CancellationToken.None);
+        var garbage = await validate.Handle(
+            new ValidatePasswordResetLinkQuery(new ValidatePasswordResetLinkRequest(user.Email!, "not-a-token")), CancellationToken.None);
+
+        Assert.False(unknown.IsSuccess);
+        Assert.False(garbage.IsSuccess);
+        Assert.Equal(unknown.Error?.Message, garbage.Error?.Message);
     }
 
     [Fact]

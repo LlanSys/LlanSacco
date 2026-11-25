@@ -45,6 +45,7 @@ public static class IamModuleDI
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Login>());
 
+        services.AddScoped<IPasswordResetLinkInspector, PasswordResetLinkInspector>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IClaimsService, ClaimsService>();
         services.AddScoped<IAppUserService, AppUserService>();

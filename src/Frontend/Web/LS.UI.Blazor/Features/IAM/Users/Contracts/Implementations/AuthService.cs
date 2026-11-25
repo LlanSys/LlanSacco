@@ -94,6 +94,15 @@ internal sealed class AuthService(IBackendApiClient apiClient, ITokenStorage sto
             request);
     }
 
+    public Task<AppResponse<bool>> ValidatePasswordResetLinkAsync(ValidatePasswordResetLinkRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return SendRecoveryAsync<bool>(
+            Format(_apiSettings.Endpoints.Iam.Auth.ValidatePasswordResetLink),
+            request);
+    }
+
     public Task<AppResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

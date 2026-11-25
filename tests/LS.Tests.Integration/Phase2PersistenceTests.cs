@@ -999,6 +999,8 @@ public abstract class Phase2PersistenceTests<TFixture>(TFixture fixture) : IClas
             "+254700000000",
             new Actor().ActorId);
 
+        // Only active accounts may reset a password; revoked (inactive) accounts are refused before the transaction.
+        user.IsActive = true;
         Assert.True((await manager.CreateAsync(user, "Original-Test-Password1!")).Succeeded);
         var originalHash = user.PasswordHash;
         var originalStamp = user.SecurityStamp;

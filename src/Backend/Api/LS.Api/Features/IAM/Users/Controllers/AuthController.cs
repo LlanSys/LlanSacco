@@ -166,6 +166,20 @@ public sealed class AuthController(ISender sender) : BaseController
         return HandleResponse(response);
     }
 
+    [HttpPost("password/reset/validate")]
+    [AllowAnonymous]
+    [EnableRateLimiting("PasswordResetPolicy")]
+    public async Task<IActionResult> ValidatePasswordResetLink(ValidatePasswordResetLinkRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var response = await sender
+            .Send(new ValidatePasswordResetLinkQuery(request))
+            .ConfigureAwait(false);
+
+        return HandleResponse(response);
+    }
+
     [HttpPost("password/reset/verify-otp")]
     [AllowAnonymous]
     [EnableRateLimiting("PasswordResetPolicy")]

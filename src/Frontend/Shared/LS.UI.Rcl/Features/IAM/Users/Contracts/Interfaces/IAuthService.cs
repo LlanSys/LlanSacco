@@ -14,6 +14,7 @@ public interface IAuthService
     Task<AppResponse<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordRequest request);
     Task<AppResponse<PasswordResetOtpVerificationResponse>> VerifyPasswordResetOtpAsync(VerifyPasswordResetOtpRequest request);
     Task<AppResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request);
+    Task<AppResponse<bool>> ValidatePasswordResetLinkAsync(ValidatePasswordResetLinkRequest request);
     Task<AppResponse<bool>> ChangePasswordAsync(ChangePasswordRequest request);
     Task<AppResponse<CurrentUserResponse>> GetCurrentUserAsync();
     Task<AppResponse<FileContentResponse>> GetProfilePictureAsync();

@@ -45,6 +45,7 @@ public sealed class ApiAuthorizationTests
         "Logout",
         "RefreshToken",
         "ResetPassword",
+        "ValidatePasswordResetLink",
         "SendEmailOtp",
         "VerifyEmailOtp",
         "VerifyPasswordResetOtp",

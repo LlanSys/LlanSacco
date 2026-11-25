@@ -81,6 +81,11 @@ public class HrDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuff
         {
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
+            if (_tenantProvider is not null)
+            {
+                DBContextHelper.EnforceTenantOwnership(ChangeTracker, CurrentTenantId);
+            }
+
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             _collectedDomainEvents ??= [];

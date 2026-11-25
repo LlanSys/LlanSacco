@@ -1,3 +1,4 @@
+using LS.SharedKernel.Features.ControlPlane;
 using LS.UI.Blazor.Components;
 using LS.UI.Blazor.Components.Security;
 using LS.UI.Blazor.Features.Accounting.Contracts.Implementations;
@@ -59,10 +60,16 @@ builder.Services.AddSweetAlert2();
 
 builder.Services.AddAuthorizationCore(options =>
 {
-    options.AddPolicy(
-        "ControlPlane.Manage",
-        policy =>
-            policy.RequireClaim("permission", "controlplane.manage"));
+    // Platform policies mirror StarterTemplate: explicit platform permission plus MFA; no role bypass.
+    options.AddPolicy("ControlPlane.Access", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => PlatformAccess.CanOpenControlPanel(context.User)));
+    foreach (var permission in PlatformPermissions.All)
+    {
+        options.AddPolicy(permission, policy => policy
+            .RequireAuthenticatedUser()
+            .RequireAssertion(context => PlatformAccess.Can(context.User, permission)));
+    }
 
     SaccoOperationPolicies.Configure(options);
 });

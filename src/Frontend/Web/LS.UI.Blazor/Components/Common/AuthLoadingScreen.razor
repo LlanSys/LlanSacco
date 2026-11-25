@@ -1,0 +1,22 @@
+<main class="app-loading-page">
+    <section class="auth-page">
+        <div class="auth-card auth-loading-card">
+            <div class="brand-lockup auth-loading-brand">
+                <div class="brand-mark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+                <strong>LlanSacco</strong>
+            </div>
+            <div class="auth-loading" role="status" aria-live="polite">
+                <span class="auth-loading-spinner" aria-hidden="true"></span>
+                <p>@Message</p>
+            </div>
+        </div>
+    </section>
+</main>
+
+@code {
+    [Parameter] public string Message { get; set; } = "Opening the application…";
+}

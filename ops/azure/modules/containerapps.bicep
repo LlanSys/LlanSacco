@@ -81,6 +81,10 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = if (manageContainerAp
           image: 'mcr.microsoft.com/dotnet/samples:aspnetapp'
           env: [
             {
+              name: 'Tenant__CentralApiHosts__0'
+              value: '${apiAppName}.${containerAppEnv.properties.defaultDomain}'
+            }
+            {
               name: 'KeyVault__Uri'
               value: keyVaultUri
             }

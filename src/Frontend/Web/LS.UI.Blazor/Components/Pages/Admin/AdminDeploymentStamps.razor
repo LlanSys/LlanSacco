@@ -2,6 +2,8 @@
 @layout ControlPlaneLayout
 @rendermode InteractiveServer
 @inject IAuthSession AuthSession
+@using LS.SharedKernel.Features.ControlPlane
+@attribute [Authorize(Policy = PlatformPermissions.ViewStamps)]
 @inject IDeploymentStampService StampService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
@@ -18,7 +20,7 @@
         <div class="panel-heading">
             <h2 style="color: var(--bt-moss); font-weight: 700;">Deployment Stamps</h2>
             <div class="d-flex align-center gap-3">
-                @if (AuthSession.HasPermission("controlplane.manage"))
+                @if (AuthSession.HasPermission(PlatformPermissions.ManageStamps))
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Dns" OnClick="@(() => OpenFormDialogAsync(null))">Create stamp</MudButton>
                 }
@@ -53,7 +55,7 @@
                     </MudTd>
                     <MudTd DataLabel="Actions">
                         <TableRowActions OnEdit="@(() => OpenFormDialogAsync(context))"
-                                         CanEdit="@AuthSession.HasPermission("controlplane.manage")" 
+                                         CanEdit="@AuthSession.HasPermission(PlatformPermissions.ManageStamps)" 
                                          CanView="true"
                                          OnView="@(() => Snackbar.Add($"Stamp: {context.Name} ({context.IsolationTier})", Severity.Info))"
                                          CanDelete="false" />

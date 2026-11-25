@@ -316,6 +316,13 @@ internal sealed class AuthSession(IAuthService authService, ITokenStorage storag
             return true;
         }
 
+        // A tenant role never implies a platform permission; it must be granted explicitly, with MFA.
+        if (LS.SharedKernel.Features.ControlPlane.PlatformPermissions.IsDefined(permission))
+        {
+            return CurrentUser?.TwoFactorEnabled == true
+                && CurrentUser.Permissions?.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
+        }
+
         return HasFullAccess
             || CurrentUser?.Permissions?.Contains(permission, StringComparer.OrdinalIgnoreCase) == true;
     }

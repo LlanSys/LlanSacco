@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using LS.SharedKernel.Features.ControlPlane;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Domain.Features.IAM.Users.Enums;
 using LS.Infrastructure.Configuration;
@@ -136,6 +138,7 @@ internal sealed class DevelopmentIdentitySeeder(
             if (employeeUser.IsBootstrapAdmin)
             {
                 await EnsureAdminRoleAsync(user).ConfigureAwait(false);
+                await EnsurePlatformPermissionsAsync(user).ConfigureAwait(false);
                 ServiceLogDefinitions.LogDevelopmentAdminSeeded(logger, user.Email ?? employeeUser.Email);
             }
         }
@@ -233,6 +236,30 @@ internal sealed class DevelopmentIdentitySeeder(
         }
 
         user.DeactivatedBy = seedActorId;
+    }
+
+    // The bootstrap admin belongs to the host tenant and operates the platform, so it holds every platform
+    // permission directly (platform permissions are never granted through shared roles).
+    private async Task EnsurePlatformPermissionsAsync(AppUser user)
+    {
+        var held = (await userManager.GetClaimsAsync(user).ConfigureAwait(false))
+            .Where(static claim => claim.Type == PlatformAccess.PermissionClaim)
+            .Select(static claim => claim.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = PlatformPermissions.All
+            .Where(permission => !held.Contains(permission))
+            .Select(static permission => new Claim(PlatformAccess.PermissionClaim, permission))
+            .ToList();
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        var result = await userManager.AddClaimsAsync(user, missing).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException($"Failed to grant development admin platform permissions: {FormatErrors(result)}");
+        }
     }
 
     private async Task EnsureAdminRoleAsync(AppUser user)

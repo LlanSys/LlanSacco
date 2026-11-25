@@ -93,6 +93,12 @@ public class IamDBContext : IdentityDbContext<AppUser, AppRole, string>, ITenant
         {
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
+            if (_tenantProvider is not null)
+            {
+                DBContextHelper.EnforceTenantOwnership(ChangeTracker, CurrentTenantId);
+                await IdentityTenantWriteBoundary.EnforceAsync(this, CurrentTenantId, cancellationToken).ConfigureAwait(false);
+            }
+
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
 
             var result = await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

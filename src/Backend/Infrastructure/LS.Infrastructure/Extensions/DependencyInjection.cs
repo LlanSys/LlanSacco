@@ -231,7 +231,9 @@ public static class DependencyInjection
             backgroundJobSettings.Enabled
                 ? new BackgroundJobService(
                     _.GetRequiredService<ISchedulerFactory>(),
-                    _.GetRequiredService<ILogger<BackgroundJobService>>())
+                    _.GetRequiredService<ILogger<BackgroundJobService>>(),
+                    _.GetRequiredService<ICurrentTenantProvider>(),
+                    _.GetRequiredService<ICurrentActorProvider>())
                 : new NoOpBackgroundJobService());
 
         services.AddScoped<IEncryptionService, EncryptionService>();

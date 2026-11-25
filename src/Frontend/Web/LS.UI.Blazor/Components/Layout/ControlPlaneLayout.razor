@@ -1,5 +1,5 @@
 @inherits LayoutComponentBase
-@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@attribute [Authorize(Policy = "ControlPlane.Access")]
 @inject IAuthSession AuthSession
 @inject IAuditService AuditService
 @using LS.UI.Blazor.Features.ControlPlane.Auditing.Contracts
@@ -58,7 +58,7 @@
         if (firstRender)
         {
             await AuthSession.InitializeAsync();
-            if (AuthSession.IsAuthenticated && AuthSession.HasPermission("controlplane.manage"))
+            if (AuthSession.IsAuthenticated && AuthSession.HasPermission(LS.SharedKernel.Features.ControlPlane.PlatformPermissions.ViewAudit))
             {
                 var response = await AuditService.GetImpersonationRecordsAsync(activeOnly: true);
                 if (response.IsSuccess && response.Data != null)

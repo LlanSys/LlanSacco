@@ -13,8 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="libphonenumber-csharp" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" />
   </ItemGroup>
 
   <ItemGroup>

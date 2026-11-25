@@ -50,7 +50,6 @@ public class ControlPlaneDBContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(ControlPlaneDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.ControlPlane", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
     }
 

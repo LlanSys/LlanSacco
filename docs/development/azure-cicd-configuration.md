@@ -56,7 +56,7 @@ Add these environment variables:
 | `AZURE_TENANT_ID` | Entra tenant ID | OIDC tenant |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID | Deployment subscription |
 | `AZURE_RESOURCE_GROUP` | `rg-llansacco-prod` | Resource group containing the PostgreSQL Flexible Server |
-| `AZURE_SQL_SERVER_NAME` | `bt-prod-sqlserver` | PostgreSQL Flexible Server name without `.postgres.database.azure.com` (the variable keeps its historical name) |
+| `AZURE_SQL_SERVER_NAME` | `bt-prod-postgres` | PostgreSQL Flexible Server name without `.postgres.database.azure.com` (the variable keeps its historical name) |
 | `AZURE_SQL_NETWORK_MODE` | `PublicRunner` | `PublicRunner` or `PrivateRunner` migration networking strategy for the PostgreSQL Flexible Server (historical name) |
 | `AZURE_API_APP_NAME` | `llan-sacco-api-dev` | Exact API App Service resource name (for app-service) |
 | `AZURE_UI_APP_NAME` | `llan-sacco-web-dev` | Exact UI App Service resource name (for app-service) |

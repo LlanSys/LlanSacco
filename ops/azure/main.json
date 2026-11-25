@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "257504070047941274"
+      "templateHash": "4252673445638068705"
     }
   },
   "parameters": {
@@ -76,7 +76,7 @@
     }
   },
   "variables": {
-    "sqlServerName": "[format('{0}-sql-{1}', parameters('resourcePrefix'), uniqueString(resourceGroup().id))]",
+    "postgresServerName": "[format('{0}-sql-{1}', parameters('resourcePrefix'), uniqueString(resourceGroup().id))]",
     "logAnalyticsName": "[format('{0}-law-{1}', parameters('resourcePrefix'), uniqueString(resourceGroup().id))]",
     "acaEnvName": "[format('{0}-env-{1}', parameters('resourcePrefix'), uniqueString(resourceGroup().id))]",
     "apiAppName": "[format('{0}-api', parameters('resourcePrefix'))]",
@@ -102,7 +102,7 @@
         "mode": "Incremental",
         "parameters": {
           "serverName": {
-            "value": "[variables('sqlServerName')]"
+            "value": "[variables('postgresServerName')]"
           },
           "databaseName": {
             "value": "bt"
@@ -1582,7 +1582,7 @@
     }
   ],
   "outputs": {
-    "sqlServerFqdn": {
+    "postgresServerFqdn": {
       "type": "string",
       "value": "[coalesce(tryGet(tryGet(reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs, 'serverFullyQualifiedDomainName'), 'value'), '')]"
     },

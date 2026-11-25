@@ -13,7 +13,7 @@ public sealed class PermissionAuthorizationHandlerTests
         var requirement = new PermissionRequirement("users.edit");
         var context = new AuthorizationHandlerContext([requirement], user, resource: null);
 
-        await new PermissionAuthorizationHandler().HandleAsync(context);
+        await new PermissionAuthorizationHandler(Microsoft.Extensions.Options.Options.Create(new LS.Infrastructure.Configuration.OrgSettings())).HandleAsync(context);
 
         Assert.True(context.HasSucceeded);
     }
@@ -25,7 +25,7 @@ public sealed class PermissionAuthorizationHandlerTests
         var requirement = new PermissionRequirement("roles.delete");
         var context = new AuthorizationHandlerContext([requirement], user, resource: null);
 
-        await new PermissionAuthorizationHandler().HandleAsync(context);
+        await new PermissionAuthorizationHandler(Microsoft.Extensions.Options.Options.Create(new LS.Infrastructure.Configuration.OrgSettings())).HandleAsync(context);
 
         Assert.True(context.HasSucceeded);
     }
@@ -37,7 +37,7 @@ public sealed class PermissionAuthorizationHandlerTests
         var requirement = new PermissionRequirement("users.edit");
         var context = new AuthorizationHandlerContext([requirement], user, resource: null);
 
-        await new PermissionAuthorizationHandler().HandleAsync(context);
+        await new PermissionAuthorizationHandler(Microsoft.Extensions.Options.Options.Create(new LS.Infrastructure.Configuration.OrgSettings())).HandleAsync(context);
 
         Assert.False(context.HasSucceeded);
     }

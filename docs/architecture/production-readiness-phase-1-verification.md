@@ -32,7 +32,7 @@ The withdrawal race also exposed a scoped-outbox retry defect. EF clears trackin
 | Banking/Credit reconciler | `/loans/guarantor-reconciliation` | Both `applications.view` and `banking-accounts.view`; paged member/product balances, explained active holds and differences. |
 | Product operator | Savings product security configuration | `banking-products.manage`; explicit eligibility switches and an audit evidence reference. Existing Control Plane page guards remain in place. |
 
-Existing loan application and product pages retain their existing `ControlPlane.Manage` guards/layout. The dedicated Phase 1 pages use native Blazor authorization and the existing API permission boundary. Grant the required tenant roles through normal administration; do not broaden route access as a deployment shortcut.
+Loan, savings and share product pages use tenant permissions (`products.view`, `banking-products.view`); the retired platform permission no longer guards business screens. The dedicated Phase 1 pages use native Blazor authorization and the existing API permission boundary. Grant the required tenant roles through normal administration; do not broaden route access as a deployment shortcut.
 
 The operation list intentionally shows the latest 100 recoveries and 100 security reviews for a focused loan. The retained records remain in the database. These operational views do not establish Finance acceptance of portfolio reports or statutory return layouts.
 

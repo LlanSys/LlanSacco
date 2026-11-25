@@ -2,6 +2,8 @@
 @layout ControlPlaneLayout
 @rendermode InteractiveServer
 @inject IAuthSession AuthSession
+@using LS.SharedKernel.Features.ControlPlane
+@attribute [Authorize(Policy = PlatformPermissions.ViewTenants)]
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
@@ -20,7 +22,7 @@
         <div class="panel-heading">
             <h2 style="color: var(--bt-moss); font-weight: 700;">Tenant List</h2>
             <div class="d-flex align-center gap-3">
-                @if (AuthSession.HasPermission("controlplane.manage"))
+                @if (AuthSession.HasPermission(PlatformPermissions.CreateTenants))
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Business" OnClick="@(() => OpenFormDialogAsync(null))">Create tenant</MudButton>
                 }
@@ -57,7 +59,7 @@
                     </MudTd>
                     <MudTd DataLabel="Actions">
                         <TableRowActions OnEdit="@(() => OpenFormDialogAsync(context))"
-                                         CanEdit="@AuthSession.HasPermission("controlplane.manage")" 
+                                         CanEdit="@AuthSession.HasPermission(PlatformPermissions.EditTenants)" 
                                          CanView="true"
                                          OnView="@(() => Snackbar.Add($"Tenant: {context.DisplayName} ({context.Status})", Severity.Info))"
                                          CanDelete="false"
@@ -166,23 +168,30 @@
     private IReadOnlyList<string> GetExtraActions(TenantResponse tenant)
     {
         var actions = new List<string>();
-        if (AuthSession.HasPermission("controlplane.manage"))
+        if (AuthSession.HasPermission(PlatformPermissions.ManageTenantModules))
         {
             actions.Add("Manage modules");
-            
-            if (tenant.Status == "PendingKYC")
-            {
-                actions.Add("Verify KYC");
-            }
-            else if (tenant.Status == "Active")
+        }
+
+        if (tenant.Status == "PendingKYC" && AuthSession.HasPermission(PlatformPermissions.ApproveKyc))
+        {
+            actions.Add("Verify KYC");
+        }
+        else if (tenant.Status == "Active")
+        {
+            if (AuthSession.HasPermission(PlatformPermissions.ManageTenantLifecycle))
             {
                 actions.Add("Suspend tenant");
+            }
+
+            if (AuthSession.HasPermission(PlatformPermissions.ManageSupport))
+            {
                 actions.Add("Impersonate tenant");
             }
-            else if (tenant.Status == "Suspended")
-            {
-                actions.Add("Activate tenant");
-            }
+        }
+        else if (tenant.Status == "Suspended" && AuthSession.HasPermission(PlatformPermissions.ManageTenantLifecycle))
+        {
+            actions.Add("Activate tenant");
         }
         return actions;
     }

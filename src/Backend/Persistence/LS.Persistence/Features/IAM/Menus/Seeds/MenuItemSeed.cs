@@ -33,8 +33,8 @@ internal static class MenuItemSeed
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c70103", HrId, null, "hr-checkoff", "Checkoff", "Manage employer checkoff batches.", "/checkoff/batches", "FactCheck", "Hr", "checkoff.view", "Core", 30),
 
         Create(LoansId, null, null, "loans", "Loans", "Loan operations and management.", "/loans", "Money", "Sidebar", null, "Core", 30),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60101", LoansId, null, "loans-products", "Loan Products", "Manage loan products.", "/loans/products", "Category", "Loans", "controlplane.manage", "Core", 10),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60102", LoansId, null, "loans-applications", "Loan Applications", "Manage loan applications.", "/loans/applications", "Assignment", "Loans", "controlplane.manage", "Core", 20),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60101", LoansId, null, "loans-products", "Loan Products", "Manage loan products.", "/loans/products", "Category", "Loans", "products.view", "Core", 10),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60102", LoansId, null, "loans-applications", "Loan Applications", "Manage loan applications.", "/loans/applications", "Assignment", "Loans", "applications.view", "Core", 20),
 
         Create(MembershipId, null, null, "membership", "Membership", "Member onboarding and CRM.", "/membership", "People", "Sidebar", null, "Core", 40),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c50101", MembershipId, null, "membership-onboarding", "Member Onboarding", "Onboard new members.", "/membership/onboarding", "PersonAdd", "Membership", null, "Core", 10),
@@ -49,9 +49,9 @@ internal static class MenuItemSeed
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c20110", AdminId, null, "admin-access-catalog", "Access Catalog", "Source-of-truth permission and menu reference data.", "/admin/access-catalog", "LockPerson", "AdminCenter", null, "IAM", 70),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c10402", AdminId, null, "admin-payments", "Payments", "Test card and mobile-money payment flows.", "/features/payments", "CreditCard", "AdminCenter", "payments.view", "Showcase", 80),
 
-        Create(ControlPanelId, null, null, "control-panel", "Control Panel", "Platform management.", "/control-panel", "Dns", "Sidebar", "controlplane.manage", null, 110),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c30101", ControlPanelId, null, "control-panel-tenants", "Tenants", "Manage SaaS tenants.", "/control-panel/tenants", "Business", "ControlPanel", "controlplane.manage", null, 10),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c30102", ControlPanelId, null, "control-panel-stamps", "Stamps", "Deployment stamps.", "/control-panel/stamps", "Dns", "ControlPanel", "controlplane.manage", null, 20)
+        Create(ControlPanelId, null, null, "control-panel", "Control Panel", "Platform management.", "/control-panel", "Dns", "Sidebar", "control_plane.view_tenants", null, 110),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c30101", ControlPanelId, null, "control-panel-tenants", "Tenants", "Manage SaaS tenants.", "/control-panel/tenants", "Business", "ControlPanel", "control_plane.view_tenants", null, 10),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c30102", ControlPanelId, null, "control-panel-stamps", "Stamps", "Deployment stamps.", "/control-panel/stamps", "Dns", "ControlPanel", "control_plane.view_stamps", null, 20)
     ];
 
     private static MenuItem Create(string id, Guid? parentId, Guid? departmentId, string key, string title, string description, string url, string icon, string placement, string? requiredPermissionKey, string? requiredModule, int displayOrder)

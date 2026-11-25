@@ -84,6 +84,11 @@ public class CheckOffDBContext : DbContext, ITenantFilteredDBContext, IDomainEve
         {
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
+            if (_tenantProvider is not null)
+            {
+                DBContextHelper.EnforceTenantOwnership(ChangeTracker, CurrentTenantId);
+            }
+
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
             if (Database.IsNpgsql())
                 foreach (var entry in ChangeTracker.Entries<BaseEntity>().Where(e => e.State is EntityState.Added or EntityState.Modified))

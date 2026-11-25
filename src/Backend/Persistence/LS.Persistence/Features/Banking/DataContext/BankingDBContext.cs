@@ -104,6 +104,11 @@ public class BankingDBContext : DbContext, ITenantFilteredDBContext, IDomainEven
         {
             var domainEvents = DBContextHelper.CollectDomainEvents(ChangeTracker);
             DBContextHelper.ClearDomainEventsFromAggregates(ChangeTracker);
+            if (_tenantProvider is not null)
+            {
+                DBContextHelper.EnforceTenantOwnership(ChangeTracker, CurrentTenantId);
+            }
+
             DBContextHelper.UpdateAuditAndSoftDelete(ChangeTracker, _actorProvider?.ActorId ?? ICurrentActorProvider.SystemActor, CurrentTenantId);
 
             if (Database.IsNpgsql())

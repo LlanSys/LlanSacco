@@ -210,6 +210,37 @@ internal static class DBContextHelper
 
     private static bool HasTenantId(IMutableEntityType entityType) => entityType.FindProperty(nameof(BaseEntity.TenantId))?.ClrType == typeof(Guid);
 
+    /// <summary>
+    /// Every added, modified or deleted tenant-scoped row must belong to the current tenant, before and after the
+    /// change. Query filters stop cross-tenant reads; this stops a cross-tenant write (for example an entity
+    /// attached by id) from reaching the database. Ported from StarterTemplate.
+    /// </summary>
+    public static void EnforceTenantOwnership(ChangeTracker changeTracker, Guid tenantId)
+    {
+        ArgumentNullException.ThrowIfNull(changeTracker);
+
+        foreach (var entry in changeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                || entry.Metadata.FindProperty(nameof(BaseEntity.TenantId))?.ClrType != typeof(Guid))
+            {
+                continue;
+            }
+
+            var property = entry.Property(nameof(BaseEntity.TenantId));
+            if (entry.State == EntityState.Added && Equals(property.CurrentValue, Guid.Empty))
+            {
+                property.CurrentValue = tenantId;
+            }
+
+            if (tenantId == Guid.Empty || !Equals(property.CurrentValue, tenantId)
+                || (entry.State != EntityState.Added && !Equals(property.OriginalValue, tenantId)))
+            {
+                throw new InvalidOperationException("A tenant-scoped write must target the current workspace.");
+            }
+        }
+    }
+
     private static void StampTenantIds(ChangeTracker changeTracker, Guid tenantId)
     {
         foreach (var entry in changeTracker.Entries().Where(static entry => entry.State == EntityState.Added))

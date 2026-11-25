@@ -1,24 +1,84 @@
-<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
-    <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
-            <NotAuthorized Context="authentication">
-                @if (authentication.User.Identity?.IsAuthenticated == true)
-                {
-                    <MudAlert Severity="Severity.Warning" Class="ma-4">
-                        Your account does not have access to this page.
-                    </MudAlert>
-                }
-                else
-                {
-                    Navigation.NavigateTo("/iam/sign-in", forceLoad: true);
-                }
-            </NotAuthorized>
-        </AuthorizeRouteView>
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-</Router>
+@inject IAuthSession AuthSession
+@inject NavigationManager Navigation
+@inject ILogger<Routes> Logger
+
+<div data-app-interactive>
+    @if (_hostError is not null)
+    {
+        <main class="app-loading-page">
+            <section class="auth-page">
+                <div class="auth-card auth-loading-card">
+                    <h1>Organization Address Unavailable</h1>
+                    <p role="alert">@_hostError</p>
+                    <MudButton OnClick="InitializeFrontendAsync"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary">Try Again</MudButton>
+                </div>
+            </section>
+        </main>
+    }
+    else if (!_sessionReady)
+    {
+        <AuthLoadingScreen />
+    }
+    else
+    {
+        <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                    <NotAuthorized Context="authentication">
+                        @if (authentication.User.Identity?.IsAuthenticated == true)
+                        {
+                            <MudAlert Severity="Severity.Warning" Class="ma-4">
+                                Your account does not have access to this page.
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            Navigation.NavigateTo("/iam/sign-in", forceLoad: true);
+                        }
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="routeData" Selector="h1" />
+            </Found>
+        </Router>
+    }
+</div>
 
 @code {
-    [Inject]
-    private NavigationManager Navigation { get; set; } = default!;
+    private static readonly TimeSpan SessionInitializationTimeout = TimeSpan.FromSeconds(12);
+
+    private bool _sessionReady;
+    private string? _hostError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeFrontendAsync();
+        }
+    }
+
+    // The router (and every page gate) waits until the auth session has been resolved once, so pages never render
+    // against an uninitialised session. Workspace/host resolution is deferred; until then a session that cannot be
+    // initialised (API unreachable, timeout) is reported as an unavailable address with a retry.
+    private async Task InitializeFrontendAsync()
+    {
+        _hostError = null;
+        _sessionReady = false;
+        StateHasChanged();
+
+        try
+        {
+            await AuthSession.InitializeAsync().WaitAsync(SessionInitializationTimeout);
+            _sessionReady = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to initialize the UI auth session.");
+            _hostError = "This application is unavailable right now. Check your connection or contact your administrator, then try again.";
+        }
+
+        StateHasChanged();
+    }
 }

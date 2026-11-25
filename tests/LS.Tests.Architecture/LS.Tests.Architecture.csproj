@@ -39,6 +39,7 @@
     <ProjectReference Include="..\..\src\Backend\Persistence\LS.Persistence\LS.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Shared\LS.SharedKernel.Validation\LS.SharedKernel.Validation.csproj" />
     <ProjectReference Include="..\..\src\Shared\LS.SharedKernel\LS.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Frontend\Web\LS.UI.Blazor\LS.UI.Blazor.csproj" />
   </ItemGroup>
 
   <ItemGroup>

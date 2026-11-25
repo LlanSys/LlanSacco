@@ -6,19 +6,15 @@ Date: 2026-11-25 (updated after PRs #21–#25). Base: StarterTemplate (`E:\Repos
 
 Status key: **same**, **diverged** (LS changed ST's version), **missing** (in ST, not in LS), **LS-only**.
 
-## Why the system administrator only sees "Control Panel"
+## Why the system administrator only saw "Control Panel" (resolved)
 
-This blocked the Phase 1 grant/revoke smoke test.
+This blocked the Phase 1 grant/revoke smoke test. The first diagnosis (missing workspace selection) was wrong: every local user, the platform admin included, lives in the same host tenant. The real causes:
 
-1. LS's `BackendApiClient` never sends the tenant header. LS also has no `WorkspaceSelection`, `FrontendTenantContext` or `WorkspaceSwitcher`, so every call from a platform admin runs in platform scope, and the server returns only platform menus.
-2. ST works differently:
-   - platform staff enter a tenant workspace through the switcher, a support grant or the demo workspace;
-   - the API client then attaches the tenant header;
-   - the server returns that tenant's menus;
-   - "Return To Platform" leaves the tenant again.
-
-   Each tenant also gets its own administrator through ST's invitation and setup flow.
+1. **Local database behind the code.** The #23 migration `RetireControlPlaneManagePermission` had not been applied. The API does not migrate on startup, so local databases must be updated (`dotnet ef database update` per context in `ops/migrations/contexts.txt`, as `scripts/test-app-startup.ps1` does).
+2. **Case-sensitive module filter (fixed in PR #31).** Tenant modules are stored as `Core` and seeded menus require `core`. The navigation query's `Contains` runs in PostgreSQL, which compares case-sensitively, so every module-gated menu was dropped.
 3. Fixed by PR #23: the menu seed no longer gates **Loan Products** and **Loan Applications** behind a platform permission (they now use `products.view` and `applications.view`).
+
+ST's workspace model is still worth porting for real multi-tenant operation: platform staff enter a tenant through a support grant or the demo workspace, the API client attaches the tenant header, and "Return To Platform" leaves it again. Each tenant gets its own administrator through ST's invitation flow.
 
 ## Comparison
 
@@ -84,7 +80,7 @@ This blocked the Phase 1 grant/revoke smoke test.
 Each wave is one PR (or a small set), ending with build, tests and a browser check.
 
 0. **Hygiene (independent):** fix the husky hook and hooks path, and align package versions and the dependency policy.
-1. **Workspace foundation:** backend workspace resolve plus tenant claim boundary; frontend `FrontendTenantContext`, `WorkspaceSelection`, the tenant header and `WorkspaceSwitcher`. *Unblocks grant/revoke.* Coordinate with the tenancy session.
+1. **Workspace foundation:** backend workspace resolve; frontend `FrontendTenantContext`, `WorkspaceSelection`, the tenant header and `WorkspaceSwitcher`; support-grant and demo entry with "Return To Platform". Needed for multi-tenant operation (no longer a grant/revoke blocker). The tenant claim boundary landed in #24.
 2. **Permissions and navigation:** ST's platform permission catalog, page access, `EffectiveNavigation`, the menu seed fix and ST's NavMenu. Coordinate with the permissions session.
 3. **Shell look:** ST's theme, CSS variables, layouts, common components and `OrganizationBranding`; LlanSacco branding through org settings.
 4. **IAM completeness:** invitations, administrator setup, SSO/passkey stores and external identity linking.
@@ -100,5 +96,7 @@ Each wave is one PR (or a small set), ending with build, tests and a browser che
 | Admin MFA enforcement redirect to `/iam/security`; MFA disable/re-enable | Pass |
 | Logout | Pass |
 | Signed-out `/iam/sign-in`, `/iam/forgot-password`, `/iam/reset-password` stay put | Pass |
-| Grant access email / revoke access | **Blocked**: unreachable from platform scope (wave 1) |
+| Grant access (Admin → Employees) sends the set-password email to Mailpit | Pass |
+| Revoke access: the account becomes inactive; submitting the emailed set-password link afterwards is rejected (HTTP 422) and no password is set | Pass |
+| Finding: after revoke, the set-password page still opens, and the rejection says "Password reset failed. Please ensure your password meets all requirements" instead of saying the link is no longer valid | Open (UX) |
 | Session timeout | Skipped by choice |

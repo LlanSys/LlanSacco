@@ -23,5 +23,5 @@
 
   
 
-  <ItemGroup><InternalsVisibleTo Include="LS.Tests.Unit" /></ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="LS.Tests.Unit" /><InternalsVisibleTo Include="LS.Tests.Integration" /></ItemGroup>
 </Project>

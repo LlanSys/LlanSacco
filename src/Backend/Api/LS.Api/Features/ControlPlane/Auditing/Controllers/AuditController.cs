@@ -1,3 +1,4 @@
+using LS.SharedKernel.Features.ControlPlane;
 using Asp.Versioning;
 using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
@@ -22,7 +23,7 @@ namespace LS.Api.Features.ControlPlane.Auditing.Controllers;
 public class AuditController(ISender sender) : BaseController
 {
     [HttpPost("impersonate/start")]
-    [RequirePermission("control_plane.manage")]
+    [RequirePermission(PlatformPermissions.ManageSupport)]
     [ProducesResponseType(typeof(AppResponse<ImpersonationRecordResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> StartImpersonation(
         [FromBody] StartImpersonationRequest request, 
@@ -34,7 +35,7 @@ public class AuditController(ISender sender) : BaseController
     }
 
     [HttpPost("impersonate/end")]
-    [RequirePermission("control_plane.manage")]
+    [RequirePermission(PlatformPermissions.ManageSupport)]
     [ProducesResponseType(typeof(AppResponse<bool>), StatusCodes.Status200OK)]
     public async Task<IActionResult> EndImpersonation(
         [FromBody] EndImpersonationRequest request, 
@@ -46,7 +47,7 @@ public class AuditController(ISender sender) : BaseController
     }
 
     [HttpGet("impersonate/records")]
-    [RequirePermission("control_plane.manage")]
+    [RequirePermission(PlatformPermissions.ViewAudit)]
     [ProducesResponseType(typeof(AppResponse<IReadOnlyList<ImpersonationRecordResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetImpersonationRecords(
         [FromQuery] bool activeOnly,

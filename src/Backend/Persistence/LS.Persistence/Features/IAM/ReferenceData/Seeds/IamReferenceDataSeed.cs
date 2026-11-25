@@ -16,7 +16,9 @@ internal static class IamReferenceDataSeed
         CreateContext("018fd81d-2c94-7ad0-a4a3-f1edb9d10105", "Shared", "Shared", "Cross-cutting platform services and reusable capability showcases."),
         CreateContext("01a20921-9d64-734c-a76d-af07344ad421", "Accounting", "Accounting", "Accounting operations."),
         CreateContext("01a20921-9d64-74cb-924a-c2b7fc80dcfc", "CheckOff", "CheckOff", "CheckOff operations."),
-        CreateContext("01a20921-9d64-70bd-8750-72c87b5a85b1", "Loans", "Loans", "Loans operations.")
+        CreateContext("01a20921-9d64-70bd-8750-72c87b5a85b1", "Loans", "Loans", "Loans operations."),
+        CreateContext("01a20ff5-7ec4-7ab9-83de-48bbc150f20c", "ControlPlane", "Control plane", "Platform tenant, stamp and support operations."),
+        CreateContext("01a20ff5-7ec4-7b14-bdc8-8fbee734a628", "Dividends", "Dividends", "Dividend declaration and distribution.")
     ];
 
     internal static IReadOnlyList<PermissionResource> PermissionResources =>
@@ -39,7 +41,9 @@ internal static class IamReferenceDataSeed
         CreateResource("01a20921-9d64-7316-9f44-d15fd2a67243", "checkoff", "Check-off", "CheckOff", "Check-off operations."),
         CreateResource("01a20921-9d64-7ad6-9330-b48828498b6c", "collections", "Collections", "Loans", "Collections operations."),
         CreateResource("01a20921-9d64-7afa-abd0-86f52a7c5564", "applications", "Loan applications", "Loans", "Loan applications operations."),
-        CreateResource("01a20929-f9ad-7254-9d94-0fb71645df4a", "hr.payroll", "Payroll", "HR", "Payroll operations.")
+        CreateResource("01a20929-f9ad-7254-9d94-0fb71645df4a", "hr.payroll", "Payroll", "HR", "Payroll operations."),
+        CreateResource("01a20ff5-7ec4-737e-aa41-28f32524ab62", "control_plane", "Control plane", "ControlPlane", "Platform tenants, stamps and support."),
+        CreateResource("01a20ff5-7ec4-75a4-ab0e-90dcfbe6ecb7", "dividends", "Dividends", "Dividends", "Dividend declarations and distributions.")
     ];
 
     internal static IReadOnlyList<PermissionAction> PermissionActions =>
@@ -60,7 +64,19 @@ internal static class IamReferenceDataSeed
         CreateAction("01a20921-9d68-75dc-b278-e86c93cf4bb6", "disburse", "Disburse", "Disburse the applicable operation."),
         CreateAction("01a20929-f9ac-73e4-a2a9-9b58a43faa56", "run", "Run", "Run for the selected operation."),
         CreateAction("01a20929-f9ad-76eb-b38b-2c628ec05f75", "close", "Close", "Close for the selected operation."),
-        CreateAction("01a20929-f9ad-7e24-b7e5-875dbc5e193c", "settings", "Settings", "Settings for the selected operation.")
+        CreateAction("01a20929-f9ad-7e24-b7e5-875dbc5e193c", "settings", "Settings", "Settings for the selected operation."),
+        CreateAction("01a20ff5-7ec4-70fe-a798-acf2360f2db6", "view_tenants", "View Tenants", "View tenants and their status."),
+        CreateAction("01a20ff5-7ec4-7847-893c-a4a0fca0de49", "create_tenants", "Create Tenants", "Create tenants."),
+        CreateAction("01a20ff5-7ec4-7a77-9b10-5402fd51d4ba", "edit_tenants", "Edit Tenants", "Update tenant details."),
+        CreateAction("01a20ff5-7ec4-7894-b42a-86a02c70229e", "manage_tenant_lifecycle", "Manage Tenant Lifecycle", "Activate, suspend and complete provisioning of tenants."),
+        CreateAction("01a20ff5-7ec4-79dd-858f-e4f1b4bb973b", "manage_tenant_modules", "Manage Tenant Modules", "Enable or disable tenant modules."),
+        CreateAction("01a20ff5-7ec4-7709-8eed-3bcafe603de4", "migrate_tenants", "Migrate Tenants", "Move tenants between deployment stamps."),
+        CreateAction("01a20ff5-7ec4-77af-910b-1b80bc330cfe", "approve_kyc", "Approve Kyc", "Approve tenant KYC."),
+        CreateAction("01a20ff5-7ec4-7a6b-941d-dbcdc2b3bada", "view_stamps", "View Stamps", "View deployment stamps."),
+        CreateAction("01a20ff5-7ec4-7e4e-93bd-93909b3eefa1", "manage_stamps", "Manage Stamps", "Create and update deployment stamps."),
+        CreateAction("01a20ff5-7ec4-7ac6-9c6f-dcc4f20e1ffb", "view_audit", "View Audit", "View platform support audit records."),
+        CreateAction("01a20ff5-7ec4-72f9-bf56-fbf18492a9b3", "manage_support", "Manage Support", "Start and end support impersonation sessions."),
+        CreateAction("01a20ff5-7ec4-7d7f-a190-54bb9c870d49", "approve", "Approve", "Approve the applicable operation.")
     ];
 
     internal static IReadOnlyList<MenuPlacement> MenuPlacements =>

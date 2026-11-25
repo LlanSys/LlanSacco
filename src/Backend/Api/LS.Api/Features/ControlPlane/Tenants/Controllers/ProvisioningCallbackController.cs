@@ -1,3 +1,4 @@
+using LS.SharedKernel.Features.ControlPlane;
 using LS.Api.Common.Controllers;
 using System;
 using System.Threading.Tasks;
@@ -19,7 +20,7 @@ public class ProvisioningCallbackController(IMediator mediator) : BaseController
     private readonly IMediator _mediator = mediator;
 
     [HttpPost("{tenantId:guid}")]
-    [RequirePermission("control_plane.manage")]
+    [RequirePermission(PlatformPermissions.ManageTenantLifecycle)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

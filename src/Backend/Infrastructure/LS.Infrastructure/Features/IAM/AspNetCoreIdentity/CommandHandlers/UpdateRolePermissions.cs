@@ -3,6 +3,8 @@ using LS.Application.Features.IAM.Permissions.Commands;
 using LS.Domain.Features.IAM.Users.Entities;
 using LS.Persistence.Features.IAM.DataContext;
 using LS.SharedKernel.Dtos.Common;
+using LS.SharedKernel.Features.ControlPlane;
+
 using LS.SharedKernel.Features.IAM.Permissions.Dtos;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -34,6 +36,13 @@ internal sealed class UpdateRolePermissions(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            // Roles are shared by every tenant, so a platform permission on a role would reach other tenants' staff.
+            var platformKeys = requestedKeys.Where(PlatformPermissions.IsDefined).ToList();
+            if (platformKeys.Count > 0)
+            {
+                return AppResponses.Failure<RolePermissionsResponse>($"Platform permission(s) cannot be assigned to roles: {string.Join(", ", platformKeys)}.");
+            }
 
             var validKeys = await context.Permissions
                 .AsNoTracking()

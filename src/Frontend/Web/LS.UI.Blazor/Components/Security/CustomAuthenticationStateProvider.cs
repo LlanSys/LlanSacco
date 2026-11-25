@@ -35,6 +35,7 @@ internal sealed class CustomAuthenticationStateProvider(IAuthSession authSession
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.GivenName, user.FirstName),
             new(ClaimTypes.Surname, user.LastName),
+            new("mfa_enrolled", user.TwoFactorEnabled ? "true" : "false"),
         };
 
         if (!string.IsNullOrWhiteSpace(user.SessionId))

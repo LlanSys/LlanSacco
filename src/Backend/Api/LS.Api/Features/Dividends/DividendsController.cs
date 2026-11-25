@@ -20,7 +20,7 @@ namespace LS.Api.Features.Dividends;
 public class DividendsController(IMediator mediator) : BaseController
 {
     [HttpGet("declarations")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.view")]
     [ProducesResponseType(typeof(AppResponse<IEnumerable<DividendDeclarationResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDeclarations()
     {
@@ -29,7 +29,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpGet("declarations/{declarationId:guid}")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.view")]
     [ProducesResponseType(typeof(AppResponse<DividendDeclarationResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDeclarationById([FromRoute] Guid declarationId)
@@ -48,7 +48,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declare")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeclareDividends([FromBody] DeclareDividendsRequest request)
@@ -67,7 +67,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/calculate")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.manage")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RunCalculation([FromRoute] Guid declarationId)
@@ -78,7 +78,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/approve")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.approve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ApproveDeclaration([FromRoute] Guid declarationId)
@@ -89,7 +89,7 @@ public class DividendsController(IMediator mediator) : BaseController
     }
 
     [HttpPost("declarations/{declarationId:guid}/distribute")]
-    [RequirePermission("controlplane.manage")]
+    [RequirePermission("dividends.approve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PostDistributions([FromRoute] Guid declarationId)

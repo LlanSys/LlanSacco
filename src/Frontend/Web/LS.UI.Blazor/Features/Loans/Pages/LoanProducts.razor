@@ -5,7 +5,7 @@
 @inject ILoanService LoanService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
-@attribute [Authorize(Policy = "ControlPlane.Manage")]
+@attribute [Authorize(Policy = "products.view")]
 @layout LS.UI.Blazor.Components.Layout.ControlPlaneLayout
 
 <PageTitle>Loan Products - Control Plane</PageTitle>

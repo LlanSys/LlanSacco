@@ -108,7 +108,8 @@ This file is the canonical source of truth and working contract for AI coding to
 - Tables should support compact layout, horizontal overflow, pagination/search/filter patterns, and consistent actions.
 - Listing pages follow the Customer hierarchy: create actions occupy a separate top-right page action row, shown-count badges occupy the list heading's right edge, and search/filter controls occupy a full-width row below the heading.
 - New route guards must use native Blazor authorization: `@attribute [Authorize]`, `@layout` with a policy-protected layout, or `<AuthorizeView>`. Do not add new ad-hoc `HasPermission()` checks for route-level gating; leave existing `HasPermission()` calls for inline UI visibility unchanged.
-- Control Plane pages must use `ControlPlaneLayout` (`@layout ControlPlaneLayout`), which enforces the `ControlPlane.Manage` policy at the layout level before `OnInitializedAsync` fires.
+- Control Plane pages must use `ControlPlaneLayout` (`@layout ControlPlaneLayout`), which enforces the `ControlPlane.Access` policy at the layout level before `OnInitializedAsync` fires. Guard each page and action with the specific `PlatformPermissions` constant (`LS.SharedKernel.Features.ControlPlane`), never a coarse permission.
+- Platform permissions are honoured only when granted directly to a host-tenant user on an MFA-enrolled session. The System Administrator role bypass applies to tenant permissions only, and platform permissions cannot be assigned to roles (roles are shared by every tenant). SACCO business screens (products, dividends, loans) use tenant permissions, never platform ones.
 
 ## Azure And Configuration
 

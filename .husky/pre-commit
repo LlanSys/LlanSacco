@@ -1,21 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env sh
+# Husky.Net pre-commit hook. Enable hooks once per clone with:
+#   dotnet tool restore && dotnet husky install
+# (sets core.hooksPath to .husky; .husky/_ is generated and ignored).
+[ -f "$(dirname "$0")/_/husky.sh" ] && . "$(dirname "$0")/_/husky.sh"
+set -e
 
-## husky task runner examples -------------------
-## Note : for local installation use 'dotnet' prefix. e.g. 'dotnet husky'
-
-## run all tasks
-#husky run
-
-### run all tasks with group: 'group-name'
-#husky run --group group-name
-
-## run task with name: 'task-name'
-#husky run --name task-name
-
-## pass hook arguments to task
-#husky run --args "$1" "$2"
-
-## or put your custom commands -------------------
-#echo 'Husky.Net is awesome!'
-
-dotnet test tests/LS.Tests.Architecture/LS.Tests.Architecture.csproj --filter FullyQualifiedName~MigrationCoverageGuardrailTests
+dotnet test tests/LS.Tests.Architecture/LS.Tests.Architecture.csproj --filter FullyQualifiedName~MigrationGuardrailTests

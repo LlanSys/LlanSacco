@@ -70,7 +70,6 @@ public class HrDBContext : DbContext, ITenantFilteredDBContext, IDomainEventBuff
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(HrDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.HR", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);

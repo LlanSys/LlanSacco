@@ -74,7 +74,6 @@ public class IamDBContext : IdentityDbContext<AppUser, AppRole, string>, ITenant
         builder.ApplyConfigurationsFromAssembly(
             typeof(IamDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.IAM", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(builder, this);

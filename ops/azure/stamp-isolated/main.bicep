@@ -26,7 +26,7 @@ param manageContainerApps bool = true
 param azureCacheConnectionString string = ''
 
 // Resource Names
-var sqlServerName = '${resourcePrefix}-sql-${uniqueString(resourceGroup().id)}'
+var postgresServerName = '${resourcePrefix}-sql-${uniqueString(resourceGroup().id)}'
 var logAnalyticsName = '${resourcePrefix}-law-${uniqueString(resourceGroup().id)}'
 var acaEnvName = '${resourcePrefix}-env-${uniqueString(resourceGroup().id)}'
 var apiAppName = '${resourcePrefix}-api'
@@ -43,7 +43,7 @@ var apiPrincipalId = deploymentTarget == 'container-apps' ? (containerApps.outpu
 module postgres '../modules/postgres.bicep' = {
   name: 'postgresDeploy'
   params: {
-    serverName: sqlServerName // Using same naming convention for simplicity
+    serverName: postgresServerName // Using same naming convention for simplicity
     databaseName: 'bt'
     administratorLogin: sqlAdministratorLogin
     administratorLoginPassword: sqlAdministratorLoginPassword
@@ -154,7 +154,7 @@ module storageAccount '../modules/storage.bicep' = {
 }
 
 #disable-next-line BCP318
-output sqlServerFqdn string = postgres.outputs.?serverFullyQualifiedDomainName ?? ''
+output postgresServerFqdn string = postgres.outputs.?serverFullyQualifiedDomainName ?? ''
 #disable-next-line BCP318
 output sqlDatabaseName string = postgres.outputs.?databaseName ?? ''
 

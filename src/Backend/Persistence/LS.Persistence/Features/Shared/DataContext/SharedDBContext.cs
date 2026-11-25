@@ -66,7 +66,6 @@ public class SharedDBContext : DbContext, ITenantFilteredDBContext, IDomainEvent
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(SharedDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.Shared", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);

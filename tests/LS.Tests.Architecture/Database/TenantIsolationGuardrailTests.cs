@@ -19,7 +19,6 @@ public class TenantIsolationGuardrailTests
             .Where(t => t.IsClass
                 && !t.IsAbstract
                 && tenantFilteredInterface!.IsAssignableFrom(t)
-                && !t.Name.Contains("SqlServer", StringComparison.OrdinalIgnoreCase)
                 && !t.Name.Contains("PostgreSql", StringComparison.OrdinalIgnoreCase))
             .ToList();
 

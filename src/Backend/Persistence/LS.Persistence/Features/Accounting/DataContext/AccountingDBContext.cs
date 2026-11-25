@@ -60,7 +60,6 @@ public class AccountingDBContext : DbContext, ITenantFilteredDBContext, IDomainE
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(AccountingDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.Accounting", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);

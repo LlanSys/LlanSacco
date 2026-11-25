@@ -75,7 +75,6 @@ public class LoansDBContext : DbContext, ITenantFilteredDBContext, IDomainEventB
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(LoansDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.Loans", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);

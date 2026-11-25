@@ -66,7 +66,6 @@ public class MembershipDBContext : DbContext, ITenantFilteredDBContext, IDomainE
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MembershipDBContext).Assembly,
             type => type.Namespace?.StartsWith("LS.Persistence.Features.Membership", StringComparison.Ordinal) == true &&
-                    !(type.Namespace?.Contains("SqlServer") == true) &&
                     !(type.Namespace?.Contains("PostgreSql") == true));
 
         DBContextHelper.ApplyStandardModelConventions(modelBuilder, this);

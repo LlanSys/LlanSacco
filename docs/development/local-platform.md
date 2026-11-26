@@ -146,6 +146,17 @@ Version 8 supports one default scoped bus outbox, so each bounded context stages
 
 ## Startup Check
 
+### Keeping the local database current
+
+The API does not apply migrations on startup. After pulling changes that add migrations, update the local database:
+
+```powershell
+./scripts/update-local-database.ps1 -LocalCompose          # report pending migrations for the ops/local stack
+./scripts/update-local-database.ps1 -LocalCompose -Apply   # apply them, context by context
+```
+
+Without `-LocalCompose` the tool reads the API's user secrets and environment (or `LS_DATABASE_CONNECTION`). It walks every context in `ops/migrations/contexts.txt` in order. It refuses remote servers and system databases, a missing database, histories containing migrations this checkout does not know or skipping one, and models that differ from their snapshots. A stale database is how the menus once showed only Control Panel: the #23 menu-permission migration had not been applied.
+
 `scripts/test-app-startup.ps1` builds the API, applies every migration in `ops/migrations/contexts.txt`, starts the API with RabbitMQ messaging and background jobs enabled, and requires `/health` and `/health/ready` to return 200. CI runs it as the required `Baseline / Startup` job against real PostgreSQL 17, RabbitMQ and Redis containers. Locally, pass a PostgreSQL connection string with `-ConnectionString`.
 
 ## RabbitMQ Outbox Certification

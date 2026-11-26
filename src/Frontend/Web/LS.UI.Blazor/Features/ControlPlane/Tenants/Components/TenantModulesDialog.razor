@@ -24,13 +24,13 @@
                         <MudSelectItem T="string" Value="@("Banking")">Banking</MudSelectItem>
                         <MudSelectItem T="string" Value="@("Shared")">Shared</MudSelectItem>
                     </MudSelect>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-1" OnClick="AddModuleAsync" Disabled="@(string.IsNullOrWhiteSpace(_newModuleKey) || _isBusy)">Add</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-1" OnClick="AddModuleAsync" Disabled="@(string.IsNullOrWhiteSpace(_newModuleKey) || _isBusy)" StartIcon="@Icons.Material.Filled.Add">Add</MudButton>
                 </div>
             </MudItem>
         </MudGrid>
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Close</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Close</MudButton>
     </DialogActions>
 </MudDialog>
 

@@ -43,7 +43,7 @@ else
             </MudTd>
             <MudTd DataLabel="Opened At">@context.OpenedAt.ToString("g")</MudTd>
             <MudTd DataLabel="Actions">
-                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenTransferDialog(context))">Transfer</MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenTransferDialog(context))" StartIcon="@Icons.Material.Filled.SwapHoriz">Transfer</MudButton>
             </MudTd>
         </RowTemplate>
     </MudTable>

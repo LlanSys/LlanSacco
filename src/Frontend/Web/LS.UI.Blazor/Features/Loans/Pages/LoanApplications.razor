@@ -9,6 +9,8 @@
 
 <PageTitle>Loan Applications</PageTitle>
 
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/loans" Class="px-0 mb-3">Back To Loans</MudButton>
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Loan Applications</MudText>
     <MudButton Variant="Variant.Outlined"
@@ -73,16 +75,16 @@ else
                 }
             </MudTd>
             <MudTd DataLabel="Actions">
-                <MudButton Href="@($"/loans/applications/{context.Id}/guarantees")">Guarantees</MudButton>
+                <MudButton Href="@($"/loans/applications/{context.Id}/guarantees")" StartIcon="@Icons.Material.Filled.Handshake">Guarantees</MudButton>
                 @if (context.Status == "Submitted")
                 {
                     <AuthorizeView Policy="applications.approve" Context="approvalPermission">
                         <MudButton Variant="Variant.Outlined"
                                    Color="Color.Success"
-                                   OnClick="@(() => ApproveApplication(context))">Approve</MudButton>
+                                   OnClick="@(() => ApproveApplication(context))" StartIcon="@Icons.Material.Filled.CheckCircle">Approve</MudButton>
                         <MudButton Variant="Variant.Outlined"
                                    Color="Color.Error"
-                                   OnClick="@(() => RejectApplication(context))">Reject</MudButton>
+                                   OnClick="@(() => RejectApplication(context))" StartIcon="@Icons.Material.Filled.Block">Reject</MudButton>
                     </AuthorizeView>
                 }
             </MudTd>

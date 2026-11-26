@@ -38,8 +38,8 @@
         }
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isLoading || _isSaving)" OnClick="SaveAsync">@(_isSaving ? "Saving..." : "Update")</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_isLoading || _isSaving)" OnClick="SaveAsync" StartIcon="@Icons.Material.Filled.Save">@(_isSaving ? "Saving..." : "Update")</MudButton>
     </DialogActions>
 </MudDialog>
 

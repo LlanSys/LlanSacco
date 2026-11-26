@@ -15,7 +15,7 @@
 
 <section class="dashboard-page">
     <div class="mb-4">
-        <MudButton Href="/control-panel" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Color="Color.Primary" Class="px-0">Back to Control Panel</MudButton>
+        <MudButton Href="/control-panel" Variant="Variant.Text" Color="Color.Primary" Class="px-0" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Control Panel</MudButton>
     </div>
 
     <MudPaper Class="poc-panel" Elevation="0">
@@ -62,7 +62,7 @@
                     <MudTd DataLabel="Actions">
                         @if (context.Status == "Active" && context.ActorId == AuthSession.CurrentUser?.AppUserId)
                         {
-                            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmEndAsync(context))">End</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => ConfirmEndAsync(context))" StartIcon="@Icons.Material.Filled.StopCircle">End</MudButton>
                         }
                     </MudTd>
                 </RowTemplate>

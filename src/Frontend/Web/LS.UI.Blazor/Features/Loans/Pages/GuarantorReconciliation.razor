@@ -9,10 +9,12 @@
 @implements IAsyncDisposable
 
 <PageTitle>Guarantor hold reconciliation</PageTitle>
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/loans" Class="px-0 mb-3">Back To Loans</MudButton>
 <div class="d-flex justify-end gap-2 mb-3">
-    <MudButton Href="/loans/applications">Applications</MudButton>
+    <MudButton Href="/loans/applications" StartIcon="@Icons.Material.Filled.Assignment">Applications</MudButton>
     <MudButton OnClick="LoadAsync"
-               Disabled="_busy">Refresh</MudButton>
+               Disabled="_busy" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
 </div>
 <MudPaper Class="pa-4"
           Elevation="1">
@@ -51,10 +53,10 @@
     </MudTable>
     <div class="d-flex justify-end gap-2 mt-3">
         <MudButton OnClick="PreviousAsync"
-                   Disabled="@(_page == 1 || _busy)">Previous</MudButton>
+                   Disabled="@(_page == 1 || _busy)" StartIcon="@Icons.Material.Filled.NavigateBefore">Previous</MudButton>
         <MudText Class="align-self-center">Page @_page</MudText>
         <MudButton OnClick="NextAsync"
-                   Disabled="@(_rows.Count < 50 || _busy)">Next</MudButton>
+                   Disabled="@(_rows.Count < 50 || _busy)" EndIcon="@Icons.Material.Filled.NavigateNext">Next</MudButton>
     </div>
 </MudPaper>
 

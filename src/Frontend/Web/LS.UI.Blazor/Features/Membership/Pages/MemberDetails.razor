@@ -9,9 +9,8 @@
 <PageTitle>Member Details</PageTitle>
 
 <div class="d-flex justify-space-between mb-4">
-    <MudButton Variant="Variant.Outlined"
-               StartIcon="@Icons.Material.Filled.ArrowBack"
-               Href="/membership">Back to Membership</MudButton>
+    <MudButton Variant="Variant.Text"
+               Href="/membership" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Class="px-0 mb-3">Back To Membership</MudButton>
     <div>
         @if (_member != null && _member.KycStatus == "Pending")
         {

@@ -11,6 +11,7 @@
 
 <RequireAuthenticated>
     <section class="dashboard-page">
+        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/hr" Class="px-0 mb-3">Back To HR & Payroll</MudButton>
         <div class="dashboard-hero compact-hero">
             <div>
                 <span class="eyebrow">HR & Payroll</span>
@@ -67,7 +68,7 @@
                                          Style="width: 100px;" />
                         <MudButton Variant="Variant.Text"
                                    Color="Color.Primary"
-                                   OnClick="LoadPeriodsAsync">Filter</MudButton>
+                                   OnClick="LoadPeriodsAsync" StartIcon="@Icons.Material.Filled.FilterList">Filter</MudButton>
                     </div>
                 </div>
 
@@ -94,15 +95,15 @@
                         <MudTd DataLabel="Processed By">@(context.ProcessedBy ?? "-")</MudTd>
                         <MudTd DataLabel="Actions">
                             <MudButton Variant="Variant.Text"
-                                       Color="Color.Primary"
-                                       Href="@($"/hr/payroll/{context.Id}")">View Payslips</MudButton>
+                                       Color="Color.Info"
+                                       Href="@($"/hr/payroll/{context.Id}")" StartIcon="@Icons.Material.Filled.Visibility">View Payslips</MudButton>
                             @if (context.Status == "Open")
                             {
                                 <AuthorizeView Policy="hr.payroll.close"
                                                Context="authorization">
                                     <MudButton Variant="Variant.Text"
                                                Color="Color.Error"
-                                               OnClick="@(() => ClosePeriodAsync(context))">Close Period</MudButton>
+                                               OnClick="@(() => ClosePeriodAsync(context))" StartIcon="@Icons.Material.Filled.Block">Close Period</MudButton>
                                 </AuthorizeView>
                             }
                         </MudTd>

@@ -11,7 +11,7 @@
 
 <section class="dashboard-page">
     <div class="mb-4">
-        <MudButton Href="/admin" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Color="Color.Primary" Class="px-0">Back to Admin</MudButton>
+        <MudButton Href="/admin" Variant="Variant.Text" Color="Color.Primary" Class="px-0" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Admin</MudButton>
     </div>
 
     <MudPaper Class="poc-panel" Elevation="0">
@@ -103,7 +103,8 @@
                                       IsLoading="_isLoading"
                                       OnFirstPage="GoToFirstPageAsync"
                                       OnPreviousPage="GoToPreviousPageAsync"
-                                      OnNextPage="GoToNextPageAsync" />
+                                      OnNextPage="GoToNextPageAsync"
+                                      OnLastPage="GoToLastPageAsync" />
                 </PagerContent>
             </MudTable>
         </div>
@@ -179,6 +180,17 @@
         _currentCursor = _cursorHistory.Pop();
         _currentPage = Math.Max(1, _currentPage - 1);
         await LoadDepartmentsAsync();
+    }
+
+    private async Task GoToLastPageAsync()
+    {
+        // Cursor paging cannot jump to the end; step forward until the server reports the last page.
+        // The step count is bounded by the known total so a failed load cannot loop indefinitely.
+        var remaining = Math.Max(0, (int)Math.Ceiling((double)_totalRecords / PageSize) - _currentPage);
+        while (remaining-- > 0 && !_isLastPage && _nextCursor is not null)
+        {
+            await GoToNextPageAsync();
+        }
     }
 
     private async Task GoToNextPageAsync()

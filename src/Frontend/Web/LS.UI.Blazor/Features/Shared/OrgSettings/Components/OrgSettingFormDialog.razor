@@ -48,8 +48,8 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@(!_isValid || _isLoading)">
+        <MudButton OnClick="Cancel" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@(!_isValid || _isLoading)" StartIcon="@Icons.Material.Filled.Save">
             @(IsEditMode ? "Save Changes" : "Create")
         </MudButton>
     </DialogActions>

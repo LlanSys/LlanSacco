@@ -8,8 +8,10 @@
 @attribute [Authorize]
 
 <PageTitle>Guarantor Requests</PageTitle>
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/dashboard" Class="px-0 mb-3">Back To Dashboard</MudButton>
 <div class="d-flex justify-end mb-3">
-    <MudButton Href="/loans/my-guarantees">My loan guarantees</MudButton>
+    <MudButton Href="/loans/my-guarantees" StartIcon="@Icons.Material.Filled.Handshake">My loan guarantees</MudButton>
 </div>
 
 <MudText Typo="Typo.h6"
@@ -38,7 +40,7 @@
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Success"
                    OnClick="() => Submit(true)"
-                   Disabled="@IsSubmitting">
+                   Disabled="@IsSubmitting" StartIcon="@Icons.Material.Filled.CheckCircle">
             @if (IsSubmitting)
             {
                 <MudProgressCircular Class="ms-n1"
@@ -55,7 +57,7 @@
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Error"
                    OnClick="() => Submit(false)"
-                   Disabled="@IsSubmitting">
+                   Disabled="@IsSubmitting" StartIcon="@Icons.Material.Filled.Block">
             @if (IsSubmitting)
             {
                 <MudProgressCircular Class="ms-n1"

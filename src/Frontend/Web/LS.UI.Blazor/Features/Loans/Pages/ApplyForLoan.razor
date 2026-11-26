@@ -9,10 +9,9 @@
 
 <PageTitle>Apply for Loan</PageTitle>
 
-<MudButton Variant="Variant.Outlined"
-           StartIcon="@Icons.Material.Filled.ArrowBack"
+<MudButton Variant="Variant.Text"
            Href="/loans/applications"
-           Class="mb-4">Back to Applications</MudButton>
+           Class="px-0 mb-3" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Applications</MudButton>
 
 <MudText Typo="Typo.h6"
          Class="mb-4">Apply for Loan</MudText>
@@ -80,14 +79,14 @@
                      Class="d-flex align-end">
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Error"
-                           OnClick="@(() => Guarantors.Remove(guarantor))">Remove</MudButton>
+                           OnClick="@(() => Guarantors.Remove(guarantor))" StartIcon="@Icons.Material.Filled.Delete">Remove</MudButton>
             </MudItem>
         </MudGrid>
     }
 
     <MudButton Variant="Variant.Outlined"
                Class="mt-2"
-               Color="Color.Secondary"
+               Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Add"
                OnClick="AddGuarantor">Add Guarantor</MudButton>
 
@@ -95,7 +94,7 @@
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Primary"
                    OnClick="Submit"
-                   Disabled="@IsSubmitting">
+                   Disabled="@IsSubmitting" StartIcon="@Icons.Material.Filled.Send">
             @if (IsSubmitting)
             {
                 <MudProgressCircular Class="ms-n1"

@@ -31,8 +31,8 @@
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel" Disabled="@_isSubmitting">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@(!_isValid || _isSubmitting)">
+        <MudButton OnClick="Cancel" Disabled="@_isSubmitting" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@(!_isValid || _isSubmitting)" StartIcon="@Icons.Material.Filled.PlayArrow">
             @if (_isSubmitting)
             {
                 <MudProgressCircular Class="ms-n1" Indeterminate="true" />

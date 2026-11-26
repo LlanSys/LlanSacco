@@ -12,8 +12,8 @@
         </EditForm>
     </DialogContent>
     <DialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="@(ExistingLookup is null ? Color.Primary : Color.Success)" Disabled="_isSaving" OnClick="SaveAsync">@(_isSaving ? "Saving..." : ExistingLookup is null ? "Create" : "Save")</MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isSaving" OnClick="SaveAsync" StartIcon="@Icons.Material.Filled.Save">@(_isSaving ? "Saving..." : ExistingLookup is null ? "Create" : "Save")</MudButton>
     </DialogActions>
 </MudDialog>
 

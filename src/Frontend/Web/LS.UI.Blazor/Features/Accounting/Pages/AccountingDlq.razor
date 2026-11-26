@@ -10,10 +10,9 @@
 <MudText Typo="Typo.h5"
          Class="mb-4">Integration Errors (DLQ)</MudText>
 
-<MudButton Variant="Variant.Outlined"
-           StartIcon="@Icons.Material.Filled.ArrowBack"
+<MudButton Variant="Variant.Text"
            Href="/accounting"
-           Class="mb-4">Back to Accounting</MudButton>
+           Class="px-0 mb-3" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Accounting</MudButton>
 
 <MudTable Items="Errors"
           Hover="true"
@@ -68,7 +67,7 @@
                     <MudButton Variant="Variant.Text"
                                Color="Color.Primary"
                                OnClick="@(() => RetryEvent(context.Id))"
-                               Disabled="isRetrying">Retry</MudButton>
+                               Disabled="isRetrying" StartIcon="@Icons.Material.Filled.Replay">Retry</MudButton>
                 </AuthorizeView>
             }
         </MudTd>

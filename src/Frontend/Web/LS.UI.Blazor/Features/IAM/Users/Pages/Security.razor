@@ -15,8 +15,7 @@
         <div class="mb-2">
             <MudButton Href="/profile"
                        Variant="Variant.Text"
-                       StartIcon="@Icons.Material.Filled.ArrowBack"
-                       Class="ps-0 text-muted">Back to Profile</MudButton>
+                       Class="px-0 ps-0 text-muted" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Profile</MudButton>
         </div>
         <div class="security-hero">
             <div>
@@ -121,7 +120,7 @@
                            Color="Color.Primary"
                            OnClick="RegisterPasskeyAsync"
                            Disabled="@_isRegisteringPasskey"
-                           Class="mt-3">
+                           Class="mt-3" StartIcon="@Icons.Material.Filled.Add">
                     @(_isRegisteringPasskey ? "Registering..." : "Register New Passkey")
                 </MudButton>
 
@@ -187,7 +186,7 @@
                         <MudButton Variant="Variant.Outlined"
                                    Color="Color.Error"
                                    OnClick="DisableTotpAsync"
-                                   Disabled="@_isBusy">
+                                   Disabled="@_isBusy" StartIcon="@Icons.Material.Filled.Block">
                             Disable authenticator app
                         </MudButton>
                     }

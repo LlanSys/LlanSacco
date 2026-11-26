@@ -18,12 +18,9 @@
                 <p style="font-size: 0.85rem;">View individual employee payslips for this period.</p>
             </div>
             <div class="d-flex gap-2">
-                <MudButton Variant="Variant.Outlined"
+                <MudButton Variant="Variant.Text"
                            Color="Color.Primary"
-                           Href="/hr/payroll"
-                           StartIcon="@Icons.Material.Filled.ArrowBack">
-                    Back to Periods
-                </MudButton>
+                           Href="/hr/payroll" StartIcon="@Icons.Material.Filled.ArrowBack" Class="px-0 mb-3">Back To Periods</MudButton>
             </div>
         </div>
 
@@ -65,7 +62,7 @@
                                Style="text-align: right; font-weight: 600;">@context.NetPay.ToString("N2")</MudTd>
                         <MudTd DataLabel="Actions">
                             <MudButton Variant="Variant.Text"
-                                       Color="Color.Primary">Download PDF</MudButton>
+                                       Color="Color.Info" StartIcon="@Icons.Material.Filled.Download">Download PDF</MudButton>
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>

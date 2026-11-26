@@ -9,7 +9,7 @@
 
 <MudText Typo="Typo.h5" Class="mb-4">Income Statement</MudText>
 
-<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/accounting" Class="mb-4">Back to Accounting</MudButton>
+<MudButton Variant="Variant.Text" Href="/accounting" Class="px-0 mb-3" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Accounting</MudButton>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
     <MudGrid>
@@ -20,7 +20,7 @@
             <MudDatePicker Margin="Margin.Dense" Variant="Variant.Outlined" Label="End Date" @bind-Date="EndDate" />
         </MudItem>
         <MudItem xs="12" md="4" Class="d-flex align-end">
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="LoadReport" Disabled="IsLoading">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="LoadReport" Disabled="IsLoading" StartIcon="@Icons.Material.Filled.Assessment">
                 @if (IsLoading)
                 {
                     <MudProgressCircular Class="ms-n1" Indeterminate="true"/>

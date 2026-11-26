@@ -9,14 +9,16 @@
 @implements IAsyncDisposable
 
 <PageTitle>Loan guarantee operations</PageTitle>
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/loans/applications" Class="px-0 mb-3">Back To Applications</MudButton>
 <div class="d-flex justify-end gap-2 mb-3">
-    <MudButton Href="/loans/applications">Applications</MudButton>
+    <MudButton Href="/loans/applications" StartIcon="@Icons.Material.Filled.Assignment">Applications</MudButton>
     <AuthorizeView Policy="banking-accounts.view"
                    Context="reconciliationPermission">
-        <MudButton Href="/loans/guarantor-reconciliation">Hold reconciliation</MudButton>
+        <MudButton Href="/loans/guarantor-reconciliation" Color="Color.Warning" StartIcon="@Icons.Material.Filled.PauseCircle">Hold reconciliation</MudButton>
     </AuthorizeView>
     <MudButton OnClick="LoadAsync"
-               Disabled="_busy">Refresh status</MudButton>
+               Disabled="_busy" StartIcon="@Icons.Material.Filled.Refresh">Refresh status</MudButton>
 </div>
 @if (_loan is null)
 {
@@ -75,7 +77,7 @@ else
                 <MudButton Class="mt-3"
                            Color="Color.Primary"
                            OnClick="DisburseAsync"
-                           Disabled="_busy">Request disbursement</MudButton>
+                           Disabled="_busy" StartIcon="@Icons.Material.Filled.Send">Request disbursement</MudButton>
             }
         </AuthorizeView>
     </MudPaper>
@@ -153,7 +155,7 @@ else
             <MudButton Color="Color.Primary"
                        Variant="Variant.Filled"
                        OnClick="PrepareAsync"
-                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_evidence))">Prepare request</MudButton>
+                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_evidence))" StartIcon="@Icons.Material.Filled.Send">Prepare request</MudButton>
             @if (_loan.Status is "Draft" or "Submitted" or "Approved" or "UnderReview")
             {
                 <MudDivider Class="my-4" />
@@ -162,9 +164,9 @@ else
                               MaxLength="300"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense" />
-                <MudButton Color="Color.Warning"
+                <MudButton Color="Color.Error"
                            OnClick="CancelLoanAsync"
-                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_cancelReason))">Cancel loan and request release</MudButton>
+                           Disabled="@(_busy || string.IsNullOrWhiteSpace(_cancelReason))" StartIcon="@Icons.Material.Filled.Block">Cancel loan and request release</MudButton>
             }
         </MudPaper>
     </AuthorizeView>
@@ -210,7 +212,7 @@ else
                         @if (context.Status == "AwaitingApproval")
                         {
                             <MudButton OnClick="@(() => ApproveAsync(context))"
-                                       Disabled="_busy">Approve</MudButton>
+                                       Disabled="_busy" Color="Color.Success" StartIcon="@Icons.Material.Filled.CheckCircle">Approve</MudButton>
                             <MudButton OnClick="@(() => CancelReviewAsync(context))"
                                        Disabled="_busy">Cancel request</MudButton>
                         }

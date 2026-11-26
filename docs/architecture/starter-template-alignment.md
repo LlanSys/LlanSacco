@@ -26,7 +26,7 @@ ST's workspace model is still worth porting for real multi-tenant operation: pla
 | Workspace: `FrontendTenantContext`, `WorkspaceSelection`, `WorkspaceSwitcher`, tenant header in `BackendApiClient` | missing | Root cause above | **Port as-is** |
 | NavMenu + `TemplateNavigation` | diverged | ST groups sections, hides `/control-panel/*` children, filters to the current workspace and refreshes policy every 15 s. LS only splits menus by admin key. | Port, keep SACCO menu items |
 | MainLayout, UserProfileMenu, MudProviderHost | diverged | ST has the workspace-aware user menu and uses code-behind files | Port |
-| Theme / app.css | diverged | ST: `--st-*` variables, primary `#334E68`, dynamic `OrganizationBranding`. LS: `--bt-*`, primary `#112250`, hard-coded "LlanSacco", Google Fonts CDN, Bootstrap leftovers. | Port ST's theme, then rebrand through org settings |
+| Theme / app.css | diverged | ST: `--st-*` variables, primary `#334E68`, dynamic `OrganizationBranding`. LS: `--bt-*`, primary `#112250`, hard-coded "LlanSacco", Google Fonts CDN, Bootstrap leftovers. | **Keep LS's theme** (owner decision, 2026-11-26): LS's palette, typography, dashboards and inner pages stay. ST's app shell and navigation are ported; app-wide polish (semantic buttons, tinted table/dialog headers, lighter chips, Title Case tabs, last-page pager, menu icons) is applied on LS's palette. |
 | Common: AuthBrand, ControlPanelBackLink, MenuIconPicker, UiLabels | missing | | Port |
 | IAM pages: AcceptInvitation, AdministratorInvitation, CompleteAdministratorSetup, ExternalProviderConnection | missing | | Port (follows backend invitations) |
 | SignIn, Profile, Dashboard, Admin, AdminIam | diverged | ST has code-behind, log definitions and workspace awareness | Port |
@@ -82,7 +82,7 @@ Each wave is one PR (or a small set), ending with build, tests and a browser che
 0. **Hygiene (independent):** fix the husky hook and hooks path, and align package versions and the dependency policy.
 1. **Workspace foundation:** backend workspace resolve; frontend `FrontendTenantContext`, `WorkspaceSelection`, the tenant header and `WorkspaceSwitcher`; support-grant and demo entry with "Return To Platform". Needed for multi-tenant operation (no longer a grant/revoke blocker). The tenant claim boundary landed in #24.
 2. **Permissions and navigation:** ST's platform permission catalog, page access, `EffectiveNavigation`, the menu seed fix and ST's NavMenu. Coordinate with the permissions session.
-3. **Shell look:** ST's theme, CSS variables, layouts, common components and `OrganizationBranding`; LlanSacco branding through org settings.
+3. **Shell look:** ST's app shell, sidebar and navigation rules (done). LS keeps its own theme by owner decision; `OrganizationBranding` brand rendering follows workspace selection.
 4. **IAM completeness:** invitations, administrator setup, SSO/passkey stores and external identity linking.
 5. **Control plane:** platform staff, support sessions, modules catalogue, KYC and provisioning, demo, work tasks.
 6. **Re-run the Phase 1 smoke test**, including grant/revoke and session timeout.

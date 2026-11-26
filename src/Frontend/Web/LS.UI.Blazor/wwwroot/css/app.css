@@ -387,7 +387,8 @@ a, .btn-link {
 .admin-module-grid {
     display: grid;
     gap: 0.95rem;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    /* auto-fill keeps empty tracks, so a short row keeps tile-sized cards instead of stretching them. */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
 }
 
 .poc-tile,
@@ -689,8 +690,29 @@ a, .btn-link {
     overflow: auto;
 }
 
+/* Height and scroll rules ported from StarterTemplate: the wrapper scrolls vertically, wide tables scroll
+   horizontally inside it, and the pager wraps instead of overflowing. */
 .bt-table-scroll .mud-table {
-    min-width: 980px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.bt-table-scroll .mud-table-container {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.bt-table-scroll .mud-table-root {
+    min-width: var(--bt-table-min-width, 46rem);
+}
+
+.bt-table-scroll .mud-table-pagination {
+    overflow-x: auto;
+}
+
+.mud-table-pagination .mud-toolbar {
+    flex-wrap: wrap;
+    gap: .25rem;
 }
 
 .dialog-detail-grid strong {
@@ -708,8 +730,10 @@ a, .btn-link {
 
 .table-footer {
     align-items: center;
-    color: #ff0b77;
+    color: var(--bt-muted);
     display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
     font-size: 0.78rem;
     justify-content: space-between;
     padding: 0.55rem 0.25rem 0.15rem;
@@ -975,3 +999,72 @@ body:has([data-app-interactive]) #app-startup { display: none; }
 .workspace-heading strong { font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
 .workspace-heading:focus-visible { outline: 2px solid var(--mud-palette-primary); outline-offset: 2px; }
 @media (max-width: 520px) { .workspace-heading strong { font-size: .875rem; } }
+
+/* --- APP-WIDE COMPONENT POLISH --- */
+
+/* Tabs read in Title Case as authored, not ALL CAPS. */
+.mud-tab {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+}
+
+/* Dialog headers: tinted band with a divider. */
+.mud-dialog .mud-dialog-title {
+    background-color: color-mix(in srgb, var(--mud-palette-primary) 8%, #FFFFFF);
+    border-bottom: 1px solid color-mix(in srgb, var(--mud-palette-primary) 16%, #FFFFFF);
+    color: var(--mud-palette-primary);
+}
+
+.mud-dialog .mud-dialog-title .mud-typography {
+    font-weight: 700;
+}
+
+/* Lighter chips: filled chips become soft tints with readable text in the same hue. */
+.mud-chip.mud-chip-filled.mud-chip-color-primary { background-color: color-mix(in srgb, var(--mud-palette-primary) 12%, #FFFFFF); color: var(--mud-palette-primary); }
+.mud-chip.mud-chip-filled.mud-chip-color-secondary { background-color: color-mix(in srgb, var(--mud-palette-secondary) 14%, #FFFFFF); color: var(--mud-palette-secondary); }
+.mud-chip.mud-chip-filled.mud-chip-color-tertiary { background-color: color-mix(in srgb, var(--mud-palette-tertiary) 28%, #FFFFFF); color: #6B5320; }
+.mud-chip.mud-chip-filled.mud-chip-color-info { background-color: color-mix(in srgb, var(--mud-palette-info) 14%, #FFFFFF); color: var(--mud-palette-info); }
+.mud-chip.mud-chip-filled.mud-chip-color-success { background-color: color-mix(in srgb, var(--mud-palette-success) 14%, #FFFFFF); color: var(--mud-palette-success); }
+.mud-chip.mud-chip-filled.mud-chip-color-warning { background-color: color-mix(in srgb, var(--mud-palette-warning) 16%, #FFFFFF); color: #7A5A06; }
+.mud-chip.mud-chip-filled.mud-chip-color-error { background-color: color-mix(in srgb, var(--mud-palette-error) 12%, #FFFFFF); color: var(--mud-palette-error); }
+.mud-chip.mud-chip-filled.mud-chip-color-default { background-color: #EEF1F5; color: #3C5070; }
+.mud-chip.mud-chip-filled { font-weight: 600; }
+.mud-chip.mud-chip-filled .mud-icon-root { color: inherit; }
+
+/* Compact module tiles (Admin Center, Control Panel): LS card style at StarterTemplate's density. */
+.compact-modules.compact-hero h1 {
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+}
+
+.compact-modules .admin-module-grid,
+.admin-module-grid.compact-modules {
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+}
+
+.admin-module-grid.compact-modules .admin-tile {
+    gap: 0.35rem;
+    min-height: 0;
+    padding: 0.8rem 0.9rem;
+    border-radius: 0.65rem;
+}
+
+.admin-module-grid.compact-modules .admin-tile strong {
+    font-size: 0.92rem;
+    margin-bottom: 0.1rem;
+}
+
+.admin-module-grid.compact-modules .admin-tile span {
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.admin-module-grid.compact-modules .tile-icon {
+    font-size: 1.15rem;
+}
+
+.admin-module-grid.compact-modules .admin-tile:hover {
+    transform: translateY(-2px);
+}

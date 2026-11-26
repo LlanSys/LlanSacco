@@ -106,11 +106,11 @@
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Outlined"
-                   OnClick="Cancel">Cancel</MudButton>
+                   OnClick="Cancel" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Cancel</MudButton>
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Primary"
                    OnClick="Submit"
-                   Disabled="@(!_success)">@(_isEditMode ? "Save" : "Create")</MudButton>
+                   Disabled="@(!_success)" StartIcon="@Icons.Material.Filled.Save">@(_isEditMode ? "Save" : "Create")</MudButton>
     </DialogActions>
 </MudDialog>
 

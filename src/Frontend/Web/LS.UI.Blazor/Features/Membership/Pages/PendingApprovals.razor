@@ -11,7 +11,7 @@
 
 <PageTitle>Pending Member Approvals</PageTitle>
 
-<MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/membership" Class="mb-4">Back to Membership</MudButton>
+<MudButton Variant="Variant.Text" Href="/membership" Class="px-0 mb-3" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack">Back To Membership</MudButton>
 
 <MudText Typo="Typo.h6" Class="mb-4">
     Pending Member Approvals
@@ -55,11 +55,11 @@ else
                 {
                     <MudButtonGroup Variant="Variant.Outlined" OverrideStyles="false">
                         <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                                   OnClick="@(() => ApproveAsync(context))" Disabled="@IsProcessing">
+                                   OnClick="@(() => ApproveAsync(context))" Disabled="@IsProcessing" StartIcon="@Icons.Material.Filled.CheckCircle">
                             Approve
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                                   OnClick="@(() => OpenRejectDialog(context))" Disabled="@IsProcessing">
+                                   OnClick="@(() => OpenRejectDialog(context))" Disabled="@IsProcessing" StartIcon="@Icons.Material.Filled.Block">
                             Reject
                         </MudButton>
                     </MudButtonGroup>

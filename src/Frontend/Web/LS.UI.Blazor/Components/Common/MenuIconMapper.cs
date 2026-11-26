@@ -34,16 +34,20 @@ internal static class MenuIconMapper
 
     private static Dictionary<string, string> BuildMaterialFilledIconMap()
     {
-        return typeof(Icons.Material.Filled)
-            .GetProperties(BindingFlags.Public | BindingFlags.Static)
-            .Where(static property => property.PropertyType == typeof(string))
-            .Select(static property => new
+        // MudBlazor declares its icons as public const string fields, not properties. Reading properties found
+        // none, so every icon outside Options fell back to the generic Menu icon.
+        // Some names differ only by case (AddChart / Addchart), so keep the first and skip case-only duplicates
+        // instead of letting ToDictionary throw and break every component that renders an icon.
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in typeof(Icons.Material.Filled).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.FieldType == typeof(string) && field.GetValue(null) is string { Length: > 0 } icon)
             {
-                property.Name,
-                Icon = property.GetValue(null) as string
-            })
-            .Where(static item => !string.IsNullOrWhiteSpace(item.Icon))
-            .ToDictionary(static item => item.Name, static item => item.Icon!, StringComparer.OrdinalIgnoreCase);
+                map.TryAdd(field.Name, icon);
+            }
+        }
+
+        return map;
     }
 }
 

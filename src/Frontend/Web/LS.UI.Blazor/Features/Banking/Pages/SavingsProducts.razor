@@ -11,6 +11,8 @@
 
 <PageTitle>Savings Products - Control Plane</PageTitle>
 
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/dashboard" Class="px-0 mb-3">Back To Dashboard</MudButton>
 <div class="d-flex justify-space-between align-center mb-4">
     <MudText Typo="Typo.h5">Savings Products</MudText>
     <MudButton Variant="Variant.Outlined"
@@ -65,7 +67,7 @@ else
             <MudTd>
                 <AuthorizeView Policy="banking-products.manage"
                                Context="policyPermission">
-                    <MudButton OnClick="@(() => SelectSecurityPolicy(context))">Configure</MudButton>
+                    <MudButton OnClick="@(() => SelectSecurityPolicy(context))" StartIcon="@Icons.Material.Filled.Tune">Configure</MudButton>
                 </AuthorizeView>
             </MudTd>
         </RowTemplate>
@@ -97,9 +99,9 @@ else
                           Variant="Variant.Outlined" />
             <MudButton Color="Color.Primary"
                        OnClick="SaveSecurityAsync"
-                       Disabled="@(_savingSecurity || string.IsNullOrWhiteSpace(_securityEvidence))">Save policy</MudButton>
+                       Disabled="@(_savingSecurity || string.IsNullOrWhiteSpace(_securityEvidence))" StartIcon="@Icons.Material.Filled.Save">Save policy</MudButton>
             <MudButton OnClick="@(() => _securityProduct = null)"
-                       Disabled="_savingSecurity">Close</MudButton>
+                       Disabled="_savingSecurity" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Close</MudButton>
         </MudPaper>
     </AuthorizeView>
 }

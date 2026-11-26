@@ -8,9 +8,11 @@
 @implements IAsyncDisposable
 
 <PageTitle>My loan guarantees</PageTitle>
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/dashboard" Class="px-0 mb-3">Back To Dashboard</MudButton>
 <div class="d-flex justify-end mb-3">
     <MudButton OnClick="LoadAsync"
-               Disabled="_busy">Refresh status</MudButton>
+               Disabled="_busy" StartIcon="@Icons.Material.Filled.Refresh">Refresh status</MudButton>
 </div>
 <MudPaper Class="pa-4"
           Elevation="1">
@@ -47,7 +49,7 @@
             </MudTd>
             <MudTd>
                 <MudButton OnClick="@(() => Select(context))"
-                           Disabled="@(context.Status != "Nominated" || _busy)">Review guarantee</MudButton>
+                           Disabled="@(context.Status != "Nominated" || _busy)" Color="Color.Info" StartIcon="@Icons.Material.Filled.Visibility">Review guarantee</MudButton>
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
@@ -56,10 +58,10 @@
     </MudTable>
     <div class="d-flex justify-end gap-2 mt-3">
         <MudButton Disabled="@(_page == 1 || _busy)"
-                   OnClick="PreviousAsync">Previous</MudButton>
+                   OnClick="PreviousAsync" StartIcon="@Icons.Material.Filled.NavigateBefore">Previous</MudButton>
         <MudText Class="align-self-center">Page @_page</MudText>
         <MudButton Disabled="@(!_hasMore || _busy)"
-                   OnClick="NextAsync">Next</MudButton>
+                   OnClick="NextAsync" EndIcon="@Icons.Material.Filled.NavigateNext">Next</MudButton>
     </div>
 </MudPaper>
 
@@ -92,12 +94,12 @@
                      @bind-Value="_termsAccepted"
                      Label="I have reviewed and accept these guarantee terms." />
         <div class="d-flex gap-2 mt-3">
-            <MudButton Color="Color.Primary"
+            <MudButton Color="Color.Success"
                        Variant="Variant.Filled"
                        OnClick="AcceptAsync"
-                       Disabled="@(_busy || !_termsAccepted || _accountId == Guid.Empty || _amount <= 0)">Record my consent</MudButton>
+                       Disabled="@(_busy || !_termsAccepted || _accountId == Guid.Empty || _amount <= 0)" StartIcon="@Icons.Material.Filled.CheckCircle">Record my consent</MudButton>
             <MudButton OnClick="@(() => _selected = null)"
-                       Disabled="_busy">Close</MudButton>
+                       Disabled="_busy" Color="Color.Default" StartIcon="@Icons.Material.Filled.Close">Close</MudButton>
         </div>
     </MudPaper>
 }

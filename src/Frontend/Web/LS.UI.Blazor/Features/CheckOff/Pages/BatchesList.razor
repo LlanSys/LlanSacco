@@ -9,6 +9,8 @@
 
 <PageTitle>Checkoff Batches | LlanSacco</PageTitle>
 
+
+<MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowBack" Href="/hr" Class="px-0 mb-3">Back To HR & Payroll</MudButton>
 <MudText Typo="Typo.h5"
          Class="mb-4">Checkoff Batches</MudText>
 
@@ -51,8 +53,8 @@
         <MudTd DataLabel="Uploaded">@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
         <MudTd DataLabel="Actions">
             <MudButton Variant="Variant.Text"
-                       Color="Color.Primary"
-                       OnClick="@(() => ViewDetails(context.Id))">View</MudButton>
+                       Color="Color.Info"
+                       OnClick="@(() => ViewDetails(context.Id))" StartIcon="@Icons.Material.Filled.Visibility">View</MudButton>
         </MudTd>
     </RowTemplate>
 </MudTable>

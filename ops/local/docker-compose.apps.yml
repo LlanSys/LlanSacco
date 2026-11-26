@@ -29,6 +29,7 @@ services:
       # Inside the Docker network Mailpit listens on its container port; 1026 is only the host mapping.
       EmailSettings__LocalMailpit__Port: "1025"
       DevelopmentSeed__ResetExistingAdminPassword: "true"
+      DevelopmentSeed__AdminPassword: ${APP_DEV_ADMIN_PASSWORD:?Set APP_DEV_ADMIN_PASSWORD in ops/local/.env}
       DataProtection__ApplicationName: LlanSacco
       DataProtection__UseExternalKeyStore: "true"
       DataProtection__RedisKeyRingConnectionString: redis:6379,password=${REDIS_PASSWORD:?Set REDIS_PASSWORD in ops/local/.env},abortConnect=false

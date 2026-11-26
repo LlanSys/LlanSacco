@@ -90,8 +90,8 @@ $Policy = @{
 }
 
 $RoleDefinitions = [ordered]@{
-    'Jamii Credit Maker'       = @('applications.view', 'applications.create', 'applications.approve')
-    'Jamii Credit Checker'     = @('applications.view', 'applications.approve', 'applications.disburse')
+    'Jamii Credit Maker'       = @('products.view', 'applications.view', 'applications.create', 'applications.approve')
+    'Jamii Credit Checker'     = @('products.view', 'applications.view', 'applications.approve', 'applications.disburse')
     'Jamii Banking Reconciler' = @('applications.view', 'banking-accounts.view', 'banking-products.manage',
                                    'banking-products.view', 'banking-transactions.post')
     'Jamii Member Officer'     = @('members.create', 'members.approve', 'members.view')

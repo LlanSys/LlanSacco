@@ -81,6 +81,10 @@ if (-not $environment.Contains('APP_BLAZOR_HOST_PORT')) {
 if (-not $environment.Contains('APP_JWT_SECRET') -or [string]::IsNullOrWhiteSpace($environment.APP_JWT_SECRET)) {
     Set-EnvironmentValue $envFile 'APP_JWT_SECRET' (New-LocalSecret)
 }
+if (-not $environment.Contains('APP_DEV_ADMIN_PASSWORD') -or [string]::IsNullOrWhiteSpace($environment.APP_DEV_ADMIN_PASSWORD)) {
+    # The Docker API resets the dev admin to this password on start; the suffix satisfies the Identity password rules.
+    Set-EnvironmentValue $envFile 'APP_DEV_ADMIN_PASSWORD' ((New-LocalSecret).Substring(0, 20) + 'Aa1!')
+}
 
 $environment = Read-EnvironmentFile $envFile
 

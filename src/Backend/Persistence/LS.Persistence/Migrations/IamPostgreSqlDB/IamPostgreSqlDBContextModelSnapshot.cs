@@ -17,7 +17,7 @@ namespace LS.Persistence.Migrations.IamPostgreSqlDB
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -414,6 +414,46 @@ namespace LS.Persistence.Migrations.IamPostgreSqlDB
                             TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
                             Title = "Loan Applications",
                             Url = "/loans/applications"
+                        },
+                        new
+                        {
+                            Id = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c60103"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Manage savings products.",
+                            DisplayOrder = 30,
+                            Icon = "Savings",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-savings-products",
+                            ParentId = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c10801"),
+                            Placement = "Loans",
+                            RequiredModule = "core",
+                            RequiredPermissionKey = "banking-products.view",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
+                            Title = "Savings Products",
+                            Url = "/banking/savings-products"
+                        },
+                        new
+                        {
+                            Id = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c60104"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = "System",
+                            Description = "Manage share products.",
+                            DisplayOrder = 40,
+                            Icon = "PieChart",
+                            IsActive = true,
+                            IsDeleted = false,
+                            Key = "banking-share-products",
+                            ParentId = new Guid("018fd81d-2c94-7ad0-a4a3-f1edb9c10801"),
+                            Placement = "Loans",
+                            RequiredModule = "core",
+                            RequiredPermissionKey = "banking-products.view",
+                            RowVersion = new byte[0],
+                            TenantId = new Guid("0194f700-0000-7000-8000-000000000001"),
+                            Title = "Share Products",
+                            Url = "/banking/share-products"
                         },
                         new
                         {

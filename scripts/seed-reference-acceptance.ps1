@@ -1,3 +1,4 @@
+#Requires -Version 7
 <#
 .SYNOPSIS
     Seeds the FICTIONAL "Jamii Reference SACCO" data set used for the signed-in
@@ -387,6 +388,28 @@ if ($existingLoan) {
 $loan = @(Invoke-Api GET "api/v1/loans/applications?memberId=$($members['B'].id)" -Token $adminToken) | Where-Object id -EQ $loanId | Select-Object -First 1
 Add-Summary 'Loan application' "$($loan.applicationNumber)" $loanId "status=$($loan.status) principal=$($loan.principalAmount) term=$($loan.termInMonths)"
 
+# ---------------------------------------------------------------- GL mapping: guarantor recovery
+# Recovery posts Dr member deposits (liability) / Cr loan principal (asset); both must be explicit GL accounts.
+# An existing mapping is left alone so a finance team's own choice is never overwritten.
+$recoveryCode = 'GUARANTOR_RECOVERY'
+$recoveryMapping = @(Invoke-Api GET 'api/v1/finance/gl-mappings' -Token $adminToken) | Where-Object transactionTypeCode -EQ $recoveryCode | Select-Object -First 1
+if (-not $recoveryMapping) {
+    $glAccounts = @(Invoke-Api GET 'api/v1/finance/accounts' -Token $adminToken)
+    $depositGl = $glAccounts | Where-Object { $_.accountCode -eq '2000' -and $_.accountType -eq 'Liability' -and $_.isActive } | Select-Object -First 1
+    $principalGl = $glAccounts | Where-Object { $_.accountCode -eq '1100' -and $_.accountType -eq 'Asset' -and $_.isActive } | Select-Object -First 1
+    if (-not $depositGl -or -not $principalGl) {
+        throw "Chart of accounts is missing active 2000 (Member Deposits, Liability) or 1100 (Normal Loans, Asset); cannot map $recoveryCode."
+    }
+    $null = Invoke-Api PUT "api/v1/finance/gl-mappings/$recoveryCode" -Token $adminToken -Body @{
+        debitSideSource = 'EXPLICIT_GL'; debitExplicitGlAccountId = $depositGl.id
+        creditSideSource = 'EXPLICIT_GL'; creditExplicitGlAccountId = $principalGl.id
+        feeSideSource = 'CHANNEL_ACCOUNT'; feeExplicitGlAccountId = $null
+        description = 'Guarantor recovery: Dr member deposits / Cr loan principal (Jamii reference seed)'
+    }
+    $recoveryMapping = @(Invoke-Api GET 'api/v1/finance/gl-mappings' -Token $adminToken) | Where-Object transactionTypeCode -EQ $recoveryCode | Select-Object -First 1
+}
+Add-Summary 'GL mapping' $recoveryCode $recoveryMapping.id "Dr $($recoveryMapping.debitAccountCode) / Cr $($recoveryMapping.creditAccountCode)"
+
 # ---------------------------------------------------------------- summary
 Write-Host ''
 Write-Host 'Jamii Reference SACCO seed (FICTIONAL data) - summary'
@@ -395,4 +418,3 @@ Write-Host "Credentials (generated passwords, not printed): $CredentialsPath"
 Write-Host 'Next, in the browser: G1 and G2 sign in and accept on /loans/my-guarantees (pledge, account, exact terms version);'
 Write-Host 'X confirms it cannot act on G1''s pledge; credit maker/checker review /loans/applications/{loanId}/guarantees;'
 Write-Host 'reconciler checks /loans/guarantor-reconciliation. Consent must happen within the product consent window (14 days).'
-Write-Host 'Not seeded: GUARANTOR_RECOVERY GL mapping (no API exists; recovery journeys will raise a missing-mapping exception).'

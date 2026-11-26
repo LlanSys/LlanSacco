@@ -5,6 +5,9 @@ namespace LS.UI.Rcl.Features.IAM.Users.Contracts.Interfaces;
 
 public interface IAuthSession
 {
+    /// <summary>Raised whenever the signed-in user changes (sign-in, refresh, sign-out).</summary>
+    event Action? AuthenticationChanged;
+
     bool IsInitialized { get; }
     bool IsAuthenticated { get; }
     CurrentUserResponse? CurrentUser { get; }

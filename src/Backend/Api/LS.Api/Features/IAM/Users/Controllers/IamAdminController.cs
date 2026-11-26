@@ -1,3 +1,4 @@
+using LS.SharedKernel.Features.ControlPlane;
 using Asp.Versioning;
 using LS.Api.Common.Authorization;
 using LS.Api.Common.Controllers;
@@ -257,6 +258,12 @@ public sealed class IamAdminController(ISender sender) : BaseController
             .Select(static claim => claim.Value)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        // Platform permissions only count for staff who can actually open the control panel (MFA-enrolled).
+        if (!PlatformAccess.CanOpenControlPanel(User))
+        {
+            permissionKeys.RemoveAll(static key => key.StartsWith("control_plane.", StringComparison.OrdinalIgnoreCase));
+        }
+
         var hasFullAccess = User.IsInRole("System Administrator");
 
         return HandleResponse(await sender.Send(new GetNavigationMenusQuery(placement, permissionKeys, userId, hasFullAccess)).ConfigureAwait(false));

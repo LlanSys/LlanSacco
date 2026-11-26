@@ -13,6 +13,7 @@ internal static class MenuItemSeed
     private static readonly Guid AccountingId = Guid.Parse("018fd81d-2c94-7ad0-a4a3-f1edb9c10601");
     private static readonly Guid MembershipId = Guid.Parse("018fd81d-2c94-7ad0-a4a3-f1edb9c10701");
     private static readonly Guid LoansId = Guid.Parse("018fd81d-2c94-7ad0-a4a3-f1edb9c10801");
+    private static readonly Guid BankingId = Guid.Parse("018fd81d-2c94-7ad0-a4a3-f1edb9c11001");
     private static readonly Guid HrId = Guid.Parse("018fd81d-2c94-7ad0-a4a3-f1edb9c10901");
 
     internal static IReadOnlyList<MenuItem> Items =>
@@ -35,8 +36,10 @@ internal static class MenuItemSeed
         Create(LoansId, null, null, "loans", "Loans", "Loan operations and management.", "/loans", "Money", "Sidebar", null, "Core", 30),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60101", LoansId, null, "loans-products", "Loan Products", "Manage loan products.", "/loans/products", "Category", "Loans", "products.view", "Core", 10),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60102", LoansId, null, "loans-applications", "Loan Applications", "Manage loan applications.", "/loans/applications", "Assignment", "Loans", "applications.view", "Core", 20),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60103", LoansId, null, "banking-savings-products", "Savings Products", "Manage savings products.", "/banking/savings-products", "Savings", "Loans", "banking-products.view", "Core", 30),
-        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c60104", LoansId, null, "banking-share-products", "Share Products", "Manage share products.", "/banking/share-products", "PieChart", "Loans", "banking-products.view", "Core", 40),
+
+        Create(BankingId, null, null, "banking", "Banking", "Savings and share products.", "/banking", "Savings", "Sidebar", "banking-products.view", "Core", 35),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c11002", BankingId, null, "banking-savings-products", "Savings Products", "Manage savings products.", "/banking/savings-products", "Savings", "Banking", "banking-products.view", "Core", 10),
+        Create("018fd81d-2c94-7ad0-a4a3-f1edb9c11003", BankingId, null, "banking-share-products", "Share Products", "Manage share products.", "/banking/share-products", "PieChart", "Banking", "banking-products.view", "Core", 20),
 
         Create(MembershipId, null, null, "membership", "Membership", "Member onboarding and CRM.", "/membership", "People", "Sidebar", null, "Core", 40),
         Create("018fd81d-2c94-7ad0-a4a3-f1edb9c50101", MembershipId, null, "membership-onboarding", "Member Onboarding", "Onboard new members.", "/membership/onboarding", "PersonAdd", "Membership", null, "Core", 10),

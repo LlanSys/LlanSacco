@@ -1,0 +1,36 @@
+@page "/banking"
+@attribute [Authorize(Policy = "banking-products.view")]
+
+<PageTitle>Banking | LlanSacco</PageTitle>
+
+<div class="mb-6">
+    <MudText Typo="Typo.h4" Class="fw-bold" Color="Color.Primary">Banking</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Surface">Savings and share products offered to members.</MudText>
+</div>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="4">
+        <MudCard Elevation="2" Style="border-radius: 12px;">
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.Savings" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                <MudText Typo="Typo.h6">Savings Products</MudText>
+                <MudText Typo="Typo.body2">Manage savings products.</MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/banking/savings-products">Open</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="4">
+        <MudCard Elevation="2" Style="border-radius: 12px;">
+            <MudCardContent>
+                <MudIcon Icon="@Icons.Material.Filled.PieChart" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                <MudText Typo="Typo.h6">Share Products</MudText>
+                <MudText Typo="Typo.body2">Manage share products.</MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/banking/share-products">Open</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>

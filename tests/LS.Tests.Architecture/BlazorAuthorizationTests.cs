@@ -39,6 +39,7 @@ public sealed class BlazorAuthorizationTests
     }
 
     [Theory]
+    [InlineData(typeof(LS.UI.Blazor.Features.Banking.Pages.Banking), "banking-products.view")]
     [InlineData(typeof(LS.UI.Blazor.Features.Banking.Pages.SavingsProducts), "banking-products.view")]
     [InlineData(typeof(LS.UI.Blazor.Features.Banking.Pages.ShareProducts), "banking-products.view")]
     [InlineData(typeof(LS.UI.Blazor.Features.Loans.Pages.LoanProducts), "products.view")]

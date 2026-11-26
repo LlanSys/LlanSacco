@@ -87,7 +87,7 @@ Each wave is one PR (or a small set), ending with build, tests and a browser che
 5. **Control plane:** platform staff, support sessions, modules catalogue, KYC and provisioning, demo, work tasks.
 6. **Re-run the Phase 1 smoke test**, including grant/revoke and session timeout.
 
-## Phase 1 smoke status (2026-11-25, local Docker stack)
+## Phase 1 (IAM/Auth baseline) smoke status: closed 2026-11-26, local Docker stack
 
 | Step | Result |
 | --- | --- |
@@ -98,5 +98,6 @@ Each wave is one PR (or a small set), ending with build, tests and a browser che
 | Signed-out `/iam/sign-in`, `/iam/forgot-password`, `/iam/reset-password` stay put | Pass |
 | Grant access (Admin → Employees) sends the set-password email to Mailpit | Pass |
 | Revoke access: the account becomes inactive; submitting the emailed set-password link afterwards is rejected (HTTP 422) and no password is set | Pass |
-| Finding: after revoke, the set-password page still opens, and the rejection says "Password reset failed. Please ensure your password meets all requirements" instead of saying the link is no longer valid | Open (UX) |
-| Session timeout | Skipped by choice |
+| Finding: after revoke, the set-password page still opened and the rejection blamed the password | Fixed in PR #32: the page checks the link on open and says it is no longer valid |
+| Forgot password: request a code, enter it, set a new password | Pass |
+| Session timeout | Not exercised (owner decision) |

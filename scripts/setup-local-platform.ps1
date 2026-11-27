@@ -57,6 +57,7 @@ if (-not (Test-Path -LiteralPath $envFile)) {
         "POSTGRES_PASSWORD=$(New-LocalSecret)"
         'AZURITE_ACCOUNT_NAME=lsdevstorage'
         "AZURITE_ACCOUNT_KEY=$(New-LocalBase64Secret)"
+        "SEQ_PASSWORD=$(New-LocalSecret)"
     ) | Set-Content -LiteralPath $envFile -Encoding ascii
 }
 
@@ -78,6 +79,10 @@ if (-not $environment.ContainsKey('POSTGRES_PASSWORD')) {
 if (-not $environment.ContainsKey('AZURITE_ACCOUNT_KEY')) {
     Add-Content -LiteralPath $envFile -Value "AZURITE_ACCOUNT_KEY=$(New-LocalBase64Secret)"
 }
+if (-not $environment.ContainsKey('SEQ_PASSWORD')) {
+    # Compose interpolates every service, so Seq's first-run admin password must exist even without the observability profile.
+    Add-Content -LiteralPath $envFile -Value "SEQ_PASSWORD=$(New-LocalSecret)"
+}
 $environment = Read-EnvironmentFile $envFile
 
 $requiredKeys = @(
@@ -88,7 +93,8 @@ $requiredKeys = @(
     'AZURITE_ACCOUNT_NAME',
     'AZURITE_ACCOUNT_KEY',
     'POSTGRES_USER',
-    'POSTGRES_PASSWORD'
+    'POSTGRES_PASSWORD',
+    'SEQ_PASSWORD'
 )
 foreach ($key in $requiredKeys) {
     if ([string]::IsNullOrWhiteSpace($environment[$key])) {
